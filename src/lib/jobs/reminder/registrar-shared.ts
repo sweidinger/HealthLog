@@ -18,12 +18,112 @@
  */
 import { PgBoss } from "pg-boss";
 
+import { prisma } from "@/lib/db";
+
+import { workerLog } from "./shared";
+
 /**
  * Cron schedule tuple: `[queueName, cronExpression, sendOptions?]`. The
  * optional third element carries per-queue send options (e.g. the LLM-bound
  * insight retry policy) merged into the `boss.schedule` call.
  */
 export type ScheduleEntry = [string, string, Record<string, unknown>?];
+
+/**
+ * The pg-boss queue policies this codebase names explicitly. `standard` —
+ * pg-boss's default — is deliberately absent: under `standard` NO partial
+ * unique index covers `singleton_key` at all, so a bare `singletonKey` on a
+ * `send()` is inert and de-duplicates nothing. A queue that wants
+ * de-duplication has to name one of the two policies below.
+ *
+ * From the partial unique indexes pg-boss 12.26 creates on the shared
+ * `job_common` table:
+ *
+ *   - `short`     → UNIQUE (name, COALESCE(singleton_key,'')) WHERE state = 'created'
+ *                   Collapses duplicate sends only while a job is still QUEUED.
+ *                   Once it goes active, a fresh send is admitted again.
+ *   - `exclusive` → UNIQUE (name, COALESCE(singleton_key,'')) WHERE state <= 'active'
+ *                   Collapses duplicate sends while a job is queued OR active
+ *                   OR waiting out a retry backoff.
+ *
+ * Picking between them is a correctness question, not a taste question:
+ *
+ *   - `short` when the handler re-reads current state at run time. Suppressing
+ *     a send while an identical job is still QUEUED is then provably safe —
+ *     that job has read nothing yet and will observe the newer write when it
+ *     starts. Suppressing a send after the reader already STARTED would strand
+ *     the newer write, which is why these queues must not be `exclusive`.
+ *   - `exclusive` when a second concurrent run is pure duplicated work AND the
+ *     enqueue side is self-converging — a discovery pass that re-enqueues on
+ *     the next boot or cron tick while the work is still outstanding.
+ *
+ * On a conflict pg-boss inserts with `ON CONFLICT DO NOTHING ... RETURNING`, so
+ * `boss.send()` resolves to `null` instead of throwing. Every enqueue helper in
+ * this tree already counts a null id as `skipped`.
+ */
+export type QueuePolicy = "short" | "exclusive";
+
+/**
+ * A per-queue policy decision plus the reason behind it. The reason is not
+ * decoration: the policy encodes a claim about whether the handler re-reads
+ * state at run time and whether the enqueue side re-converges. Anyone changing
+ * a handler needs that claim written down rather than re-derived from the call
+ * sites.
+ */
+export type QueuePolicyDecision = {
+  policy: QueuePolicy;
+  reason: string;
+};
+
+/** Queue name → decision. Queues absent from a table keep pg-boss's `standard`. */
+export type QueuePolicyTable = Readonly<Record<string, QueuePolicyDecision>>;
+
+/**
+ * Bring the policy of ALREADY-EXISTING queues in line with the tables below.
+ *
+ * Why this is needed at all: pg-boss's `create_queue()` SQL function ends in
+ * `ON CONFLICT DO NOTHING`, so passing `{ policy }` to `boss.createQueue()`
+ * only takes effect the first time a queue is provisioned. Every queue on an
+ * already-running instance was created under the default `standard` policy, and
+ * `boss.updateQueue()` rejects a policy change outright ("queue policy cannot be
+ * changed after creation"). Without this reconcile the policy tables would be
+ * correct on a fresh database and completely inert on every existing
+ * deployment — a change that tests green and fixes nothing.
+ *
+ * Why writing the column directly is sound here: the partial unique indexes for
+ * every policy are created once on the shared `job_common` table at schema
+ * setup (this deployment does not use per-queue table partitioning), so the
+ * index a newly-claimed policy needs already exists. A job row's own `policy`
+ * value is resolved by joining `pgboss.queue` at insert time, so a changed
+ * column takes effect on the next `send()` without a worker restart and without
+ * depending on pg-boss's in-process queue cache. Jobs already in flight keep
+ * the policy they were inserted under and simply do not participate in the new
+ * index, which is the correct transitional behaviour.
+ *
+ * Scope is deliberately narrow: only queue names this codebase decided on, only
+ * where the stored policy actually differs, parameter-bound, and never a change
+ * to a queue absent from the tables.
+ */
+async function reconcileQueuePolicies(
+  policies: QueuePolicyTable,
+): Promise<void> {
+  for (const [name, { policy }] of Object.entries(policies)) {
+    try {
+      const changed = await prisma.$executeRaw`
+        UPDATE pgboss.queue
+        SET policy = ${policy}, updated_on = now()
+        WHERE name = ${name} AND policy IS DISTINCT FROM ${policy}
+      `;
+      if (changed > 0) {
+        workerLog("info", `[queue-policy] reconciled ${name} to ${policy}`);
+      }
+    } catch (err) {
+      // Never fail worker boot on a reconcile miss: the queue still works, it
+      // just keeps whatever de-duplication semantics it already had.
+      workerLog("error", `[queue-policy] failed to reconcile ${name}`, err);
+    }
+  }
+}
 
 /**
  * Shared retry policy for the LLM-bound insight queues. A transient failure
@@ -42,15 +142,25 @@ export const insightRetryOptions = {
  * Centralised so each registrar provisions before it schedules in the exact
  * order the monolith did, and the `Europe/Berlin` tz default stays in one
  * place.
+ *
+ * `policies` carries the registrar's per-queue de-duplication decisions. It is
+ * applied on both legs — as the creation policy for a queue that does not exist
+ * yet, and through `reconcileQueuePolicies` for one that does. A queue absent
+ * from the table keeps pg-boss's `standard` policy, which means no
+ * de-duplication at all; that is a valid choice, but it must be a deliberate
+ * one, so the tables document the omissions too.
  */
 export async function createAndSchedule(
   boss: PgBoss,
   queues: readonly string[],
   schedules: readonly ScheduleEntry[],
+  policies: QueuePolicyTable = {},
 ): Promise<void> {
   for (const q of queues) {
-    await boss.createQueue(q);
+    const decision = policies[q];
+    await boss.createQueue(q, decision ? { policy: decision.policy } : {});
   }
+  await reconcileQueuePolicies(policies);
   for (const [name, cron, sendOptions] of schedules) {
     await boss.schedule(
       name,

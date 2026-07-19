@@ -92,6 +92,7 @@ import { getWorkerPrisma, workerLog } from "./shared";
 import {
   createAndSchedule,
   insightRetryOptions,
+  type QueuePolicyTable,
   type ScheduleEntry,
 } from "./registrar-shared";
 import {
@@ -262,13 +263,47 @@ const schedules: ScheduleEntry[] = [
 ];
 
 /**
+ * De-duplication policy per status queue.
+ *
+ * Most queues here are keyless nightly cron ticks — no `singletonKey` on any
+ * send — so a policy would only constrain the empty key and is deliberately
+ * omitted. The LLM-bound warm queues (insight pre-generate, per-metric status
+ * generate, period narrative, Coach memory refresh) already pass an explicit
+ * `singletonSeconds` on every send, which populates `singleton_on` and is
+ * therefore constrained by pg-boss's `job_i4` index REGARDLESS of queue policy.
+ * Those already de-duplicate today; changing their policy would layer a second,
+ * differently-shaped constraint over a working one for no gain, so they are
+ * left alone.
+ *
+ * That leaves exactly one queue here whose key is inert today.
+ */
+const queuePolicies: QueuePolicyTable = {
+  // The sleep-arrival trigger has seven write seams that can each enqueue for
+  // the same user and the same local date. The key is
+  // `morning-refresh:<user>:<localDate>`, and `exclusive` turns that into a
+  // real at-most-once-per-user-per-local-morning contract across queued,
+  // active, and retry-backoff states.
+  //
+  // `singletonSeconds` is NOT the tool here and the existing comment at the
+  // enqueue site says so: its window is a floor() over wall-clock, which does
+  // not line up with a user's local date, so it would both split one morning
+  // across two buckets and merge two mornings into one. The local date already
+  // lives in the key; the policy just has to honour it.
+  [MORNING_DIGEST_REFRESH_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Seven sleep-write seams enqueue the same user+localDate key; exclusive makes the at-most-once-per-morning contract real. A wall-clock singletonSeconds window cannot express a local date.",
+  },
+};
+
+/**
  * Register every status / insight / computed-score queue. Returns the queue
  * names created (for the boot-level aggregate assertion).
  */
 export async function registerStatusQueues(
   boss: PgBoss,
 ): Promise<readonly string[]> {
-  await createAndSchedule(boss, allQueues, schedules);
+  await createAndSchedule(boss, allQueues, schedules, queuePolicies);
 
   await boss.work<GeneralStatusPayload>(
     GENERAL_STATUS_QUEUE,

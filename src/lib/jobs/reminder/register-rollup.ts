@@ -102,7 +102,11 @@ import {
   workerLog,
   BOOT_BACKFILL_STAGGER_SECONDS,
 } from "./shared";
-import { createAndSchedule, type ScheduleEntry } from "./registrar-shared";
+import {
+  createAndSchedule,
+  type QueuePolicyTable,
+  type ScheduleEntry,
+} from "./registrar-shared";
 // v1.4.37 W7c — nightly drain of per-sample APPLE_HEALTH cumulative rows.
 // Collapses each user × cumulative-type × calendar-day bucket into one
 // `stats:…` row so the list view stops painting hundreds of step chunks per
@@ -170,13 +174,100 @@ const schedules: ScheduleEntry[] = [
 ];
 
 /**
+ * De-duplication policy per rollup queue. Until this table existed every queue
+ * here ran under pg-boss's `standard` policy, under which no unique index
+ * constrains `singleton_key` — so the `singletonKey` each enqueue site passes
+ * was inert and de-duplicated nothing.
+ *
+ * The split below is deliberate and the two halves are NOT interchangeable.
+ */
+const queuePolicies: QueuePolicyTable = {
+  // `short`, not `exclusive`. A recompute reads the bucket's live rows when it
+  // STARTS, so collapsing sends that pile up while an identical job is still
+  // queued is safe — the queued job will observe every write that landed in the
+  // meantime. This is what kills the storm: a sync posting a few hundred batch
+  // requests fanned out three jobs per type-day per request, thousands of jobs
+  // re-deriving byte-identical rows. Under `short` they collapse to one queued
+  // job per bucket. `exclusive` would be wrong here: it would also suppress a
+  // send issued after the recompute had already started reading, stranding the
+  // newer measurement in a stale bucket until the nightly pass.
+  [ROLLUP_RECOMPUTE_QUEUE]: {
+    policy: "short",
+    reason:
+      "Burst coalescing for the write-path fan-out. The handler re-reads the bucket at run time, so collapsing queued duplicates cannot strand a write; exclusive could.",
+  },
+  [MOOD_ROLLUP_RECOMPUTE_QUEUE]: {
+    policy: "short",
+    reason:
+      "Same shape as the measurement recompute: re-reads the bucket at run time, so only queued duplicates may be collapsed.",
+  },
+
+  // The rest are per-user, self-converging boot/discovery backfills. A second
+  // concurrent run is pure duplicated work, and the discovery predicate
+  // re-enqueues on the next boot or cron tick while work remains outstanding —
+  // so `exclusive` (queued OR active OR awaiting retry) can never lose work it
+  // does not re-offer. `short` would be too weak: these passes run for minutes
+  // to hours, and the observed failure was precisely a worker restarting
+  // mid-pass and appending another identical full-history job per restart.
+  [ROLLUP_FULL_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user full-history backfill; long-running. Boot discovery re-enqueues while coverage is still missing, so suppressing a duplicate of an ACTIVE pass is safe.",
+  },
+  [MOOD_ROLLUP_FULL_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user mood backfill; boot-discovery driven and self-converging on rollup coverage.",
+  },
+  [MEDICATION_COMPLIANCE_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user compliance backfill; boot-discovery driven and self-converging on rollup coverage.",
+  },
+  [STEP_CONSOLIDATION_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user legacy step consolidation; discovery drops the user once no live granular rows remain.",
+  },
+  [STEP_CONSOLIDATION_REPAIR_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user one-shot repair; discovery drops the user once the affected provider rows are repaired.",
+  },
+  [CUMULATIVE_PR_REDERIVE_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user one-shot re-derivation; discovery drops the user once the inflated records are rewritten.",
+  },
+  [MEAN_CONSOLIDATION_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user daily-mean consolidation; discovery drops the user once the spot rows are folded.",
+  },
+  [DENSE_INTRADAY_RETENTION_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user dense-tier drain; the multi-hour pass on a heavy account is exactly the case where a restart used to append a duplicate full-history job.",
+  },
+  [DENSE_INTRADAY_HOURLY_REBUILD_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user one-shot hourly rebuild; discovery drops the day once its retired daily row is gone.",
+  },
+
+  // DRAIN_CUMULATIVE_QUEUE is deliberately absent: it is a keyless nightly cron
+  // tick with no singletonKey on any send, so a policy would only constrain the
+  // empty key and buy nothing.
+};
+
+/**
  * Register every rollup / consolidation queue. Returns the queue names created
  * (for the boot-level aggregate assertion).
  */
 export async function registerRollupQueues(
   boss: PgBoss,
 ): Promise<readonly string[]> {
-  await createAndSchedule(boss, allQueues, schedules);
+  await createAndSchedule(boss, allQueues, schedules, queuePolicies);
 
   // v1.5.0 — persistent measurement rollup worker. Folds the
   // WEEK / MONTH / YEAR buckets that the write-path hooks enqueue;

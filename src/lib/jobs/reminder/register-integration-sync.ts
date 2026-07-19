@@ -64,7 +64,11 @@ import {
   type LabBiomarkerBackfillPayload,
 } from "@/lib/jobs/lab-biomarker-backfill";
 import { workerLog } from "./shared";
-import { createAndSchedule, type ScheduleEntry } from "./registrar-shared";
+import {
+  createAndSchedule,
+  type QueuePolicyTable,
+  type ScheduleEntry,
+} from "./registrar-shared";
 import {
   WithingsSyncPayload,
   WithingsActivitySyncPayload,
@@ -327,13 +331,69 @@ const schedules: ScheduleEntry[] = [
 ];
 
 /**
+ * De-duplication policy per integration-sync queue.
+ *
+ * The recurring poll queues (Withings / WHOOP / Fitbit / Google Health /
+ * Nightscout / Polar / Oura / Strava sync, and every OAuth-state cleanup) are
+ * keyless cron ticks — no `singletonKey` on any send — so a policy would only
+ * constrain the empty key. They are deliberately absent.
+ *
+ * The one-shot backfills and repairs below all share the same shape: one job
+ * per connection, keyed per user (per provider where a provider can differ),
+ * enqueued by a boot-discovery predicate that only stops offering the job once
+ * it has COMPLETED. That last property is what made the bug bite — a worker
+ * restarting during a heavy account's multi-hour full-history pass appended
+ * another identical job per restart, sustaining the boot storm the stagger
+ * deferrals exist to damp. `exclusive` covers queued, active, and retry-backoff,
+ * so the restart case is closed; and because discovery re-offers the job while
+ * the work is still outstanding, a suppressed send can never lose work.
+ */
+const queuePolicies: QueuePolicyTable = {
+  [WHOOP_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-connection full-history backfill; long-running, and boot discovery re-enqueues until the connection is marked backfilled.",
+  },
+  [FITBIT_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-connection full-history backfill; boot-discovery driven and self-converging.",
+  },
+  [GOOGLE_HEALTH_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-connection full-history backfill; boot-discovery driven and self-converging.",
+  },
+  [STRAVA_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-connection full-history backfill; boot-discovery driven and self-converging.",
+  },
+  [GOOGLE_HEALTH_SLEEP_REPAIR_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-connection one-shot sleep re-read; discovery drops the connection once it is marked repaired.",
+  },
+  [SLEEP_TIMELINE_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-connection one-shot timeline backfill, keyed per provider+user; discovery drops the connection once its rows carry the new shape.",
+  },
+  [LAB_BIOMARKER_BACKFILL_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Per-user one-shot catalog link-up; discovery drops the user once no unlinked lab readings remain.",
+  },
+};
+
+/**
  * Register every integration-sync queue: create, schedule, and bind handlers.
  * Returns the queue names created (for the boot-level aggregate assertion).
  */
 export async function registerIntegrationSyncQueues(
   boss: PgBoss,
 ): Promise<readonly string[]> {
-  await createAndSchedule(boss, allQueues, schedules);
+  await createAndSchedule(boss, allQueues, schedules, queuePolicies);
 
   await boss.work<WithingsSyncPayload>(
     WITHINGS_SYNC_QUEUE,
