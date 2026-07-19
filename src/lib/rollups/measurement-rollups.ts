@@ -302,6 +302,15 @@ export async function enqueueRollupRecompute(input: {
     // measurements landing on the same day shouldn't each spawn a
     // separate worker run. The singleton key uses bucket-start so
     // two writes inside the same week share one queued job.
+    //
+    // The key only does that because the queue carries the `short` policy
+    // (see `reminder/register-rollup.ts`); under pg-boss's default `standard`
+    // policy nothing indexes `singleton_key` and this key coalesced nothing,
+    // which is how a large sync came to fan out thousands of jobs re-deriving
+    // byte-identical rows. `short` collapses sends only while an identical job
+    // is still QUEUED — safe here precisely because the handler re-reads the
+    // bucket's live rows when it starts, so the queued job still sees writes
+    // that land after it was enqueued.
     singletonKey: `${input.userId}|${input.type}|${input.granularity}|${input.from.toISOString()}`,
   });
 }
