@@ -517,3 +517,122 @@ describe("dashboard widgets — 27-id catalogue round-trip (v1.7.0 W1)", () => {
     );
   });
 });
+
+describe("dashboard widgets — preserve-when-absent on PUT", () => {
+  it("keeps the stored comparisonBaseline when the client omits it", async () => {
+    // The regression: a layout save from a client that doesn't know
+    // `comparisonBaseline` (the native client documents the field as
+    // web-only and never sends it) used to fall through to the serializer,
+    // which clamps a missing baseline to "none". The user's web-chosen
+    // comparison silently reset on every tile reorder from the phone.
+    const stored: DashboardLayout = serializeDashboardLayout({
+      version: 1,
+      widgets: [{ id: "weight", visible: true, tileVisible: true, order: 0 }],
+      comparisonBaseline: "lastYear",
+    });
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dashboardWidgetsJson: stored,
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({
+        version: 1,
+        widgets: [
+          { id: "weight", visible: false, tileVisible: true, order: 0 },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    const updateArg = vi.mocked(prisma.user.update).mock
+      .calls[0]?.[0] as unknown as {
+      data: { dashboardWidgetsJson: { comparisonBaseline: string } };
+    };
+    expect(updateArg.data.dashboardWidgetsJson.comparisonBaseline).toBe(
+      "lastYear",
+    );
+
+    const body = (await res.json()) as {
+      data: { comparisonBaseline: string };
+    };
+    expect(body.data.comparisonBaseline).toBe("lastYear");
+  });
+
+  it("honours an explicitly sent comparisonBaseline over the stored one", async () => {
+    // Preserve-when-absent must not become preserve-always: the web
+    // CompareToggle sends the field, including an explicit "none" to clear.
+    const stored: DashboardLayout = serializeDashboardLayout({
+      version: 1,
+      widgets: [{ id: "weight", visible: true, tileVisible: true, order: 0 }],
+      comparisonBaseline: "lastYear",
+    });
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dashboardWidgetsJson: stored,
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({
+        version: 1,
+        widgets: [{ id: "weight", visible: true, tileVisible: true, order: 0 }],
+        comparisonBaseline: "none",
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    const updateArg = vi.mocked(prisma.user.update).mock
+      .calls[0]?.[0] as unknown as {
+      data: { dashboardWidgetsJson: { comparisonBaseline: string } };
+    };
+    expect(updateArg.data.dashboardWidgetsJson.comparisonBaseline).toBe("none");
+  });
+
+  it("persists the four clinical tiles the native client pins", async () => {
+    // They used to hit the unknown-id filter ahead of Zod and vanish from
+    // the persisted layout, so the placement was lost on every save.
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dashboardWidgetsJson: null,
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const clinicalIds = [
+      "gripStrength",
+      "painNRS",
+      "waistCircumference",
+      "waistToHeight",
+    ];
+    const res = await callPut(
+      makeReq({
+        version: 1,
+        widgets: clinicalIds.map((id, i) => ({
+          id,
+          visible: true,
+          tileVisible: true,
+          order: i,
+        })),
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    const dropAnnotate = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (c) =>
+          (c[0] as { action?: { name?: string } }).action?.name ===
+          "dashboard.widgets.unknown-id-dropped",
+      );
+    expect(dropAnnotate).toBeUndefined();
+
+    const updateArg = vi.mocked(prisma.user.update).mock
+      .calls[0]?.[0] as unknown as {
+      data: { dashboardWidgetsJson: { widgets: Array<{ id: string }> } };
+    };
+    const persistedIds = updateArg.data.dashboardWidgetsJson.widgets.map(
+      (w) => w.id,
+    );
+    for (const id of clinicalIds) {
+      expect(persistedIds).toContain(id);
+    }
+  });
+});

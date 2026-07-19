@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.30.33
+  version: 1.30.34
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -2959,11 +2959,11 @@ paths:
         - Measurements
       summary: Sleep rhythm — sleep-debt + chronotype (v1.17.0)
       description: "Returns the two server-authoritative sleep-timing signals the Sleep page + iOS render off the same
-        canonical night reconstruction the Sleep Score uses: cumulative `sleepDebt` over the rolling window (calm
-        `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag, `learning`
-        state until enough free-day nights exist). Free vs work nights default to weekend = free in the user's timezone
-        (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no new measurement
-        type."
+        canonical night reconstruction the Sleep Score uses: the outstanding `sleepDebt` balance over the rolling window
+        (calm `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag,
+        `learning` state until enough free-day nights exist). Free vs work nights default to weekend = free in the
+        user's timezone (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no
+        new measurement type."
       responses:
         "200":
           description: Sleep-debt + chronotype DTO.
@@ -12425,6 +12425,19 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
+        manufacturer:
+          description: Marketing-authorisation holder / maker as printed on the carton. Free text, max 120 chars.
+          anyOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        doseStrength:
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, max 60 chars — deliberately not split
+            into a number + unit because pens state strength per dose, per ml, or per cartridge.
+          anyOf:
+            - type: string
+              maxLength: 60
+            - type: "null"
         notes:
           anyOf:
             - type: string
@@ -12458,6 +12471,19 @@ components:
           type: number
           minimum: 0
           maximum: 1000
+        manufacturer:
+          description: Marketing-authorisation holder / maker as printed on the carton. Free text, max 120 chars.
+          anyOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        doseStrength:
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, max 60 chars — deliberately not split
+            into a number + unit because pens state strength per dose, per ml, or per cartridge.
+          anyOf:
+            - type: string
+              maxLength: 60
+            - type: "null"
         notes:
           anyOf:
             - type: string
@@ -17930,12 +17956,13 @@ components:
                 - partial
                 - ready
               description: "`partial` until enough tracked nights exist (calm 'still learning'); `ready` once the rolling window can
-                assert a cumulative debt."
+                assert a balance."
             debtMinutes:
               type: integer
               minimum: 0
               maximum: 9007199254740991
-              description: Cumulative sleep debt over the window, in minutes, after caps.
+              description: Outstanding sleep-debt balance over the window, in minutes, after caps. A night below need adds its
+                shortfall; a night above need pays the balance down (floored at 0).
             needMinutes:
               type: integer
               minimum: 0
@@ -18076,9 +18103,9 @@ components:
         - chronotype
         - averagePerNight
       additionalProperties: false
-      description: "Server-authoritative sleep-rhythm read: cumulative sleep debt over the rolling window + MCTQ chronotype
-        (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work
-        calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type."
+      description: "Server-authoritative sleep-rhythm read: the outstanding sleep-debt balance over the rolling window + MCTQ
+        chronotype (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone
+        (no work calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type."
     ListWorkoutsResponse:
       type: object
       properties:
@@ -19420,6 +19447,18 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
+        manufacturer:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Marketing-authorisation holder / maker as printed on the carton. NULL for a container registered before the
+            field existed, and for plain supply rows that never carried one.
+        doseStrength:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, not split into a number + unit — pens
+            state strength per dose, per ml, or per cartridge. NULL when unknown.
         notes:
           anyOf:
             - type: string
@@ -19444,6 +19483,8 @@ components:
         - expiresAt
         - printedExpiry
         - purchasedAt
+        - manufacturer
+        - doseStrength
         - notes
         - createdAt
         - updatedAt

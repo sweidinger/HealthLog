@@ -1,5 +1,6 @@
 "use client";
 
+import { GlucoseReferenceCard } from "@/components/settings/glucose-reference-card";
 import { ThresholdsEditorSection } from "@/components/settings/thresholds-editor-section";
 
 /**
@@ -31,6 +32,14 @@ import { ThresholdsEditorSection } from "@/components/settings/thresholds-editor
  * the names stop clashing.
  */
 export function ThresholdsSection() {
-  // Per-metric threshold ranges; the heading is supplied by the route frame.
-  return <ThresholdsEditorSection id="thresholds" />;
+  // The glucose reference band sits ABOVE the per-metric editor: it picks the
+  // DEFAULT band a glucose reading is judged against, and a per-metric
+  // override in the editor below then beats it. Same question, one page —
+  // splitting the two across surfaces would hide the precedence.
+  return (
+    <div className="space-y-4">
+      <GlucoseReferenceCard />
+      <ThresholdsEditorSection id="thresholds" />
+    </div>
+  );
 }

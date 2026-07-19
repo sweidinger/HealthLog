@@ -361,8 +361,9 @@ ISO-week means.
   timing signals — the SAME values the Sleep page and dashboard show, so
   cite them as the user sees them and never recompute. It holds:
   - "sleepDebt": { state, debtMinutes, needMinutes }. "debtMinutes" is
-    the cumulative deficit against the age-based nightly need over the
-    trailing window, "needMinutes" the target per night — both in
+    the OUTSTANDING BALANCE against the age-based nightly need over the
+    trailing window — a short night adds to it, a long night pays it
+    down, and it floors at 0 — "needMinutes" the target per night — both in
     MINUTES (convert to hours/minutes when you speak, e.g. 320 → "5h
     20m of sleep debt"). When "state" is "partial" the window is still
     short: treat the figure as still calibrating, not a firm number.
@@ -980,7 +981,7 @@ Regeln:
 - "value" ist ein vorformatierter Anzeigestring ("138/85", "84,2",
   "4,1"). Stimmung als N/5 formatieren, wenn numerisch.
 - "unit" ist eines aus mmHg, kg, bpm, /5, %, mg/dL, mmol/L, min
-  (Schlafdefizit / sozialer Jetlag).
+  (Schlafschuld / sozialer Jetlag).
 - "window" ist eines aus last7days, last30days, last90days, allTime;
   bei Tages-Pins weglassen.
 - Lass den ganzen Block weg (KEINE ---KEYVALUES---Zeile, KEINE

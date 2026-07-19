@@ -54,6 +54,24 @@ export const createInventoryItemSchema = z
       .transform((s) => new Date(s))
       .nullable()
       .optional(),
+    /** Carton labelling — free text, see the schema comment on the model
+     *  for why neither is parsed into a structured value. */
+    manufacturer: z
+      .string()
+      .max(120)
+      .nullable()
+      .optional()
+      .describe(
+        "Marketing-authorisation holder / maker as printed on the carton. Free text, max 120 chars.",
+      ),
+    doseStrength: z
+      .string()
+      .max(60)
+      .nullable()
+      .optional()
+      .describe(
+        'Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, max 60 chars — deliberately not split into a number + unit because pens state strength per dose, per ml, or per cartridge.',
+      ),
     notes: z.string().max(200).nullable().optional(),
   })
   .meta({
@@ -98,6 +116,24 @@ export const updateInventoryItemSchema = z
       .optional()
       .describe(
         "Absolute remaining-unit correction (0–1000, fractional allowed). Clamped server-side to the item's `unitsTotal`; the canonical state machine re-derives the state (0 ⇒ USED_UP).",
+      ),
+    /** Carton labelling — free text, see the schema comment on the model
+     *  for why neither is parsed into a structured value. */
+    manufacturer: z
+      .string()
+      .max(120)
+      .nullable()
+      .optional()
+      .describe(
+        "Marketing-authorisation holder / maker as printed on the carton. Free text, max 120 chars.",
+      ),
+    doseStrength: z
+      .string()
+      .max(60)
+      .nullable()
+      .optional()
+      .describe(
+        'Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, max 60 chars — deliberately not split into a number + unit because pens state strength per dose, per ml, or per cartridge.',
       ),
     notes: z.string().max(200).nullable().optional(),
   })

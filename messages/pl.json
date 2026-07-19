@@ -425,7 +425,9 @@
         "steps": "Kroki",
         "totalBodyWater": "Całkowita woda w organizmie",
         "boneMass": "Masa kostna",
-        "oxygenSaturation": "Saturacja tlenem"
+        "oxygenSaturation": "Saturacja tlenem",
+        "mood": "Nastrój",
+        "bmi": "BMI"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +439,9 @@
         "steps": "kroki",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "/5",
+        "bmi": "kg/m²"
       }
     }
   },
@@ -578,7 +582,7 @@
     "bulkDeleteSuccess": "Usunięto pomiary: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych pomiarów",
     "bulkDeleteConfirmTitle": "Usunąć pomiary ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte.",
+    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną usunięte. Zaraz po usunięciu możesz to przez chwilę cofnąć.",
     "typePhq9Score": "Wynik PHQ-9",
     "typeGad7Score": "Wynik GAD-7",
     "typeGripStrength": "Siła chwytu",
@@ -726,7 +730,7 @@
     "bulkDeleteSuccess": "Usunięto wpisy: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych wpisów",
     "bulkDeleteConfirmTitle": "Usunąć wpisy ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane wpisy nastroju ({count}) zostaną trwale usunięte.",
+    "bulkDeleteConfirmBody": "Wybrane wpisy nastroju ({count}) zostaną usunięte. Zaraz po usunięciu możesz to przez chwilę cofnąć.",
     "customize": "Dostosuj tagi nastroju",
     "addTagInline": "Dodaj tag",
     "manage": {
@@ -1683,7 +1687,10 @@
         "packagingDefaultPackLabel": "Domyślny rozmiar opakowania (jednostki)",
         "packagingDefaultPackHelper": "Wstępnie wypełnia ilość przy dodawaniu nowych opakowań (1–1000). Zostaw puste, jeśli nie dotyczy.",
         "packagingSuccess": "Zapisano dane opakowania",
-        "packagingFailed": "Zapis nie powiódł się"
+        "packagingFailed": "Zapis nie powiódł się",
+        "addManufacturerLabel": "Producent",
+        "addDoseStrengthLabel": "Moc",
+        "addDoseStrengthHint": "Zgodnie z nadrukiem na opakowaniu, np. 5 mg/0,5 ml."
       },
       "erweitert": {
         "group": {
@@ -2862,9 +2869,9 @@
       "debt": {
         "title": "Dług snu",
         "value": "{hours} godz. {minutes} min niedoboru",
-        "caption": "Skumulowany niedobór z ostatnich {nights} nocy",
+        "caption": "Pozostały bilans z ostatnich {nights} nocy",
         "clearValue": "Na bieżąco",
-        "clearCaption": "Brak skumulowanego niedoboru w ostatnich {nights} nocach",
+        "clearCaption": "Nic do nadrobienia w ostatnich {nights} nocach",
         "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans.",
         "computedInfo": "To własne oszacowanie HealthLog: ruchomy bilans potrzeby snu minus sen z ostatnich nocy, który sen nadrabiający zmniejsza. Może różnić się od natywnego wskaźnika długu snu z urządzenia, które korzysta z własnego modelu zapotrzebowania."
       },
@@ -4672,7 +4679,9 @@
           "description": "Dodaj miejsce i zakres dat: podróż lub fragment wcześniejszej historii. Okres zastępuje Twój dom w dniach, które obejmuje, aby pogoda odpowiadała miejscu, w którym naprawdę byłeś. W ten sposób korygujesz przeszłość.",
           "none": "Brak okresów lokalizacji.",
           "add": "Dodaj {label}",
-          "remove": "Usuń okres lokalizacji"
+          "remove": "Usuń okres lokalizacji",
+          "removeConfirmTitle": "Usunąć tę podróż?",
+          "removeConfirmBody": "Pomiary z tego okresu pozostają w historii; znika tylko wpis podróży."
         },
         "backfill": {
           "title": "Uzupełnij minione dni",
@@ -4953,7 +4962,10 @@
           "surfaced": "Wyświetlone",
           "done": "Gotowe",
           "dismissed": "Odrzucone"
-        }
+        },
+        "deleteConfirmTitle": "Usunąć to przypomnienie?",
+        "deleteConfirmBody": "Przestanie się pojawiać. Zapisane wcześniej dane pozostają bez zmian.",
+        "deleteConfirmAction": "Usuń"
       },
       "aboutMe": {
         "title": "O mnie",
@@ -5628,8 +5640,16 @@
         "revokeAllDone": "Zapomniano {count} zaufane urządzenie/a.",
         "unnamed": "Nieznane urządzenie",
         "current": "To urządzenie",
-        "expires": "Zaufane do {date}"
-      }
+        "expires": "Zaufane do {date}",
+        "revokeConfirmTitle": "Przestać ufać temu urządzeniu?",
+        "revokeConfirmBody": "Przy następnym logowaniu z tego urządzenia ponownie poprosi o drugi składnik.",
+        "revokeAllConfirmTitle": "Przestać ufać wszystkim urządzeniom?",
+        "revokeAllConfirmBody": "Każde urządzenie przy następnym logowaniu ponownie poprosi o drugi składnik, łącznie z tym."
+      },
+      "revokeSessionConfirmTitle": "Wylogować to urządzenie?",
+      "revokeSessionConfirmBody": "{device} będzie musiało zalogować się ponownie. Zapisane na nim dane pozostają bez zmian.",
+      "signOutEverywhereConfirmTitle": "Wylogować wszystkie pozostałe urządzenia?",
+      "signOutEverywhereConfirmBody": "Każde urządzenie poza tym będzie musiało zalogować się ponownie. To urządzenie pozostaje zalogowane. Zapisane dane pozostają bez zmian."
     },
     "privacy": {
       "intro": {
@@ -5733,6 +5753,14 @@
       "title": "Garmin",
       "body": "Garmin nie ma tutaj bezpośredniego połączenia. Połącz przez Apple Health (iOS) lub Google Health Connect (Android). Zastrzeżone wskaźniki Garmina — Body Battery, Training Load, status HRV, VO₂ max — nie są udostępniane przez Garmina żadnej z tych platform.",
       "docsLink": "Przeczytaj przewodnik"
+    },
+    "glucoseReference": {
+      "title": "Zakres referencyjny glukozy",
+      "description": "Do jakiego zakresu porównywane są twoje wyniki glukozy we krwi.",
+      "enable": "Użyj zakresu docelowego dla cukrzycy",
+      "explainer": "Wyłączone — wyniki są oceniane względem ogólnego zakresu referencyjnego dla osób bez cukrzycy. Włączone — są oceniane względem węższego zakresu docelowego glikemii z ADA Standards of Care, a Coach opiera na nim swoje uwagi o glukozie. Twoje własne wartości docelowe poniżej nadal mają pierwszeństwo.",
+      "disclaimer": "To wybiera zakres referencyjny. Nie jest to diagnoza, nigdy nie jest wywnioskowane z pomiaru, a aplikacja nie podejmuje na tej podstawie działań klinicznych. O to, jakie cele dotyczą ciebie, zapytaj swojego lekarza.",
+      "error": "Nie udało się zapisać ustawienia."
     }
   },
   "admin": {
@@ -7471,7 +7499,7 @@
     "referenceLabel": "Norma",
     "readingsCount": "{count} pomiarów",
     "deleteConfirmTitle": "Usunąć wynik laboratoryjny?",
-    "deleteConfirmDescription": "Ten wynik laboratoryjny zostanie trwale usunięty.",
+    "deleteConfirmDescription": "Ten wynik laboratoryjny zostanie usunięty. Zaraz po usunięciu możesz to przez chwilę cofnąć.",
     "deletedToast": "Wynik usunięty",
     "deleteError": "Nie udało się usunąć wyniku",
     "loadError": "Nie udało się wczytać wyników",
@@ -7950,7 +7978,7 @@
     },
     "deleteConfirm": {
       "title": "Usunąć ten epizod?",
-      "body": "„{label}” oraz wszystkie powiązane wpisy dzienne zostaną usunięte. Tej operacji nie można cofnąć."
+      "body": "„{label}” oraz wszystkie powiązane wpisy dzienne zostaną usunięte. Zaraz po usunięciu możesz to przez chwilę cofnąć."
     },
     "vital": {
       "RESTING_HEART_RATE": "Spoczynkowe tętno",

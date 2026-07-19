@@ -26,10 +26,9 @@ import {
   MAX_SELECTED_SCORE_RINGS,
   HERO_RING_IDS,
   MAX_HERO_RING_ORDER,
-  type ChartOverlayPrefsMap,
+  layoutNeedsPreserveRead,
+  mergePreservedLayoutFields,
   type DashboardLayout,
-  type ScoreRingId,
-  type HeroRingId,
 } from "@/lib/dashboard-layout";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod/v4";
@@ -80,7 +79,12 @@ const layoutSchema = z.object({
     // 11 iOS-only = 35) fits with headroom after the v1.10 additive
     // HealthKit signals became pinnable; the enum still bounds each id to
     // one of the catalogue ids.
-    .max(40),
+    //
+    // Raised again to 50 when the four clinical signals joined the
+    // catalogue (42 ids). The cap only has to clear the catalogue size —
+    // the enum bounds each entry and the id set is closed — so it carries
+    // headroom rather than tracking the count exactly.
+    .max(50),
   // v1.4.16 phase B8 — comparison baseline (Vormonat / Vorjahr) rides
   // on the layout blob per research §7 Q3 (no Prisma migration). Optional
   // so v1.4.15 clients that don't know the field can still PUT.
@@ -274,24 +278,27 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  // v1.4.18 — preserve any per-chart overlay prefs that the client
-  // didn't send. The dashboard-layout PUT typically saves widget
-  // visibility / order; chart prefs are PUT through their own route
-  // (`/api/dashboard/chart-overlay-prefs`) and would otherwise be
-  // wiped here on a subsequent layout save. `selectedScoreRings` and
-  // `heroRingOrder` ride the same preserve-when-absent contract — an
-  // older client's layout save must not reset either choice. One
-  // stored-layout read covers all fallbacks.
-  let mergedChartOverlayPrefs: ChartOverlayPrefsMap | undefined = parsed.data
-    .chartOverlayPrefs as ChartOverlayPrefsMap | undefined;
-  let mergedScoreRings: ScoreRingId[] | undefined =
-    parsed.data.selectedScoreRings;
-  let mergedHeroRingOrder: HeroRingId[] | undefined = parsed.data.heroRingOrder;
-  if (
-    mergedChartOverlayPrefs === undefined ||
-    mergedScoreRings === undefined ||
-    mergedHeroRingOrder === undefined
-  ) {
+  // Preserve-when-absent: every field the client didn't send is carried
+  // forward from the stored layout rather than clamped to its default by
+  // the serializer. The dashboard-layout PUT typically saves widget
+  // visibility / order, while chart prefs are PUT through their own route
+  // (`/api/dashboard/chart-overlay-prefs`), the hero rings come from
+  // Settings, and `comparisonBaseline` is web-only — an omission from any
+  // one surface must not reset a choice made on another.
+  //
+  // The preserve set is not a list maintained here: it is derived from
+  // `LAYOUT_FIELD_MERGE_DISPOSITION`, which the type system forces to cover
+  // every field of `DashboardLayout`. Adding a layout field without a
+  // disposition fails typecheck, so the next field cannot silently miss this
+  // merge the way `comparisonBaseline` did. One stored-layout read covers
+  // every fallback, and the read is skipped entirely when the client sent
+  // the full set.
+  // The Zod shape leaves the per-chart `comparisonBaseline` optional while
+  // `ChartOverlayPrefs` requires it; `coerceChartOverlayPrefsMap` inside the
+  // serializer fills the gap, so the assertion is safe here exactly as it was
+  // on the previous per-field cast.
+  let toSerialize = parsed.data as Partial<DashboardLayout>;
+  if (layoutNeedsPreserveRead(toSerialize)) {
     const existing = await prisma.user.findUnique({
       where: { id: user.id },
       select: { dashboardWidgetsJson: true },
@@ -299,22 +306,9 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     const existingLayout = resolveDashboardLayout(
       existing?.dashboardWidgetsJson,
     );
-    if (mergedChartOverlayPrefs === undefined) {
-      mergedChartOverlayPrefs = existingLayout.chartOverlayPrefs ?? {};
-    }
-    if (mergedScoreRings === undefined) {
-      mergedScoreRings = existingLayout.selectedScoreRings;
-    }
-    if (mergedHeroRingOrder === undefined) {
-      mergedHeroRingOrder = existingLayout.heroRingOrder;
-    }
+    toSerialize = mergePreservedLayoutFields(toSerialize, existingLayout);
   }
-  const normalized = serializeDashboardLayout({
-    ...parsed.data,
-    chartOverlayPrefs: mergedChartOverlayPrefs,
-    selectedScoreRings: mergedScoreRings,
-    heroRingOrder: mergedHeroRingOrder,
-  } as DashboardLayout);
+  const normalized = serializeDashboardLayout(toSerialize as DashboardLayout);
 
   await prisma.user.update({
     where: { id: user.id },
