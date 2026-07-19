@@ -13,6 +13,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     nutrientIntakeDay: {
       upsert: vi.fn(),
+      update: vi.fn(),
     },
   },
 }));
@@ -56,6 +57,7 @@ import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { invalidateUserDashboardSnapshot } from "@/lib/cache/invalidate";
+import { NUTRIENT_CATALOG } from "@/lib/nutrients/catalog";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -214,5 +216,71 @@ describe("POST /api/nutrients/water", () => {
       amount: 500,
       unit: "ml",
     });
+  });
+});
+
+describe("POST /api/nutrients/water — day bound and increment cap", () => {
+  // The batch route bounded `day` with UTC+14 slack; this route validated
+  // calendar realism only. Every read filters `day: { gte: since }` with no
+  // upper bound, so a far-future row became the permanent `latestDay` on the
+  // settings card and the permanent `lastSeenAt` on the dashboard water tile.
+  it("rejects a far-future day with 422", async () => {
+    const res = await POST(
+      postReq({ amountMl: 500, mode: "set", day: "2999-01-01" }),
+    );
+    expect(res.status).toBe(422);
+    expect(prisma.nutrientIntakeDay.upsert).not.toHaveBeenCalled();
+  });
+
+  it("still accepts a day two days ahead — the UTC+14 slack the batch route allows", async () => {
+    const soon = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const res = await POST(postReq({ amountMl: 500, mode: "set", day: soon }));
+    expect(res.status).toBe(200);
+  });
+
+  it("accepts a past day", async () => {
+    const past = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const res = await POST(postReq({ amountMl: 500, mode: "set", day: past }));
+    expect(res.status).toBe(200);
+  });
+
+  // `mode: "add"` was unbounded across requests: the schema caps a SINGLE
+  // write, so repeated quick-adds drove the stored day total arbitrarily high
+  // while the batch route enforced the same cap strictly on the Apple row.
+  it("clamps an incremented total back to the catalog's plausible daily max", async () => {
+    vi.mocked(prisma.nutrientIntakeDay.upsert).mockResolvedValue({
+      day: "2026-07-16",
+      nutrient: "water",
+      source: "MANUAL",
+      amount: 99_000,
+      unit: "ml",
+    } as never);
+    vi.mocked(prisma.nutrientIntakeDay.update).mockResolvedValue({
+      day: "2026-07-16",
+      nutrient: "water",
+      source: "MANUAL",
+      amount: NUTRIENT_CATALOG.water.plausibleDailyMax,
+      unit: "ml",
+    } as never);
+
+    const res = await POST(postReq({ amountMl: 500, mode: "add" }));
+    expect(res.status).toBe(200);
+    expect(prisma.nutrientIntakeDay.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { amount: NUTRIENT_CATALOG.water.plausibleDailyMax },
+      }),
+    );
+    const body = (await res.json()) as WaterResponse;
+    expect(body.data.amount).toBe(NUTRIENT_CATALOG.water.plausibleDailyMax);
+  });
+
+  it("leaves a total under the cap untouched", async () => {
+    const res = await POST(postReq({ amountMl: 500, mode: "add" }));
+    expect(res.status).toBe(200);
+    expect(prisma.nutrientIntakeDay.update).not.toHaveBeenCalled();
   });
 });

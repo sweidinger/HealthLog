@@ -7,7 +7,8 @@
  * user's IANA timezone (the `stats:` day-key contract — the server
  * trusts the string after regex + calendar sanity, no re-derivation).
  *
- * Upsert key = the composite PK (userId, day, nutrient). Re-post
+ * Upsert key = the composite PK (userId, day, nutrient, source), and this
+ * route always owns the APPLE_HEALTH row. Re-post
  * replaces amount / unit / externalSourceVersion — last-writer-wins,
  * the day-total contract; per-entry status is `updated` then, never
  * `duplicate`. Validation failures (`unit_mismatch` | `value_out_of_range`
@@ -42,6 +43,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { invalidateUserDashboardSnapshot } from "@/lib/cache/invalidate";
 import { NUTRIENT_CATALOG } from "@/lib/nutrients/catalog";
+import { maxAcceptableNutrientDay } from "@/lib/nutrients/day-bounds";
 import {
   MAX_NUTRIENT_ENTRIES_PER_BATCH,
   nutrientBatchSchema,
@@ -62,16 +64,6 @@ function isRealCalendarDay(day: string): boolean {
     dt.getUTCMonth() === m - 1 &&
     dt.getUTCDate() === d
   );
-}
-
-/**
- * Upper day bound with timezone slack: "tomorrow" in the most-ahead
- * IANA zone (UTC+14) is at most the UTC calendar date + 2 days, so a
- * key beyond that cannot be a legitimate local day and is corruption.
- */
-function maxAcceptableDay(now: Date): string {
-  const limit = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-  return limit.toISOString().slice(0, 10);
 }
 
 type EntryStatus = "inserted" | "updated" | "skipped";
@@ -133,7 +125,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
   }
 
   const { entries } = parsed.data;
-  const dayCeiling = maxAcceptableDay(new Date());
+  const dayCeiling = maxAcceptableNutrientDay(new Date());
 
   const results: EntryResult[] = new Array(entries.length);
   const skipped: Array<{ index: number; reason: string }> = [];

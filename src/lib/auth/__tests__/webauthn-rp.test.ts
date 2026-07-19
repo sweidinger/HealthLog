@@ -8,7 +8,7 @@
  * bypass — but a configured production origin has no reason to carry it, and an
  * unpinned second layer is exactly what regresses unnoticed.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getConfiguredOrigins,
@@ -16,23 +16,15 @@ import {
   getRpId,
 } from "../webauthn-rp";
 
-const ORIGINAL = {
-  NODE_ENV: process.env.NODE_ENV,
-  APP_URL: process.env.APP_URL,
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-};
-
 function setEnv(env: {
   nodeEnv?: string;
   appUrl?: string;
   publicAppUrl?: string;
 }) {
-  if (env.nodeEnv === undefined) delete process.env.NODE_ENV;
-  else process.env.NODE_ENV = env.nodeEnv;
-  if (env.appUrl === undefined) delete process.env.APP_URL;
-  else process.env.APP_URL = env.appUrl;
-  if (env.publicAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
-  else process.env.NEXT_PUBLIC_APP_URL = env.publicAppUrl;
+  vi.unstubAllEnvs();
+  if (env.nodeEnv !== undefined) vi.stubEnv("NODE_ENV", env.nodeEnv);
+  vi.stubEnv("APP_URL", env.appUrl ?? "");
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", env.publicAppUrl ?? "");
 }
 
 beforeEach(() => {
@@ -40,11 +32,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  setEnv({
-    nodeEnv: ORIGINAL.NODE_ENV,
-    appUrl: ORIGINAL.APP_URL,
-    publicAppUrl: ORIGINAL.NEXT_PUBLIC_APP_URL,
-  });
+  vi.unstubAllEnvs();
 });
 
 describe("getConfiguredOrigins", () => {

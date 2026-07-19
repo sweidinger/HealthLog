@@ -116,6 +116,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       export_family_history_count: counts.familyHistory,
       export_workout_count: counts.workouts,
       export_document_count: counts.documents,
+      export_nutrient_day_count: counts.nutrientDays,
       export_archive_bytes: archive.byteLength,
     },
   });

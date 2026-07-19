@@ -37,17 +37,16 @@ function makeRequest(
   });
 }
 
-const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 const ORIGINAL_DEMO = process.env.DEMO_MODE;
 
 beforeEach(() => {
   shouldRunWeb.mockReturnValue(true);
-  process.env.NODE_ENV = "production";
+  vi.stubEnv("NODE_ENV", "production");
   delete process.env.DEMO_MODE;
 });
 
 afterEach(() => {
-  process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+  vi.unstubAllEnvs();
   if (ORIGINAL_DEMO === undefined) delete process.env.DEMO_MODE;
   else process.env.DEMO_MODE = ORIGINAL_DEMO;
 });
@@ -110,7 +109,7 @@ describe("proxy early exits carry the baseline security headers", () => {
   });
 
   it("omits HSTS in development, like the main header block", () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     const res = proxy(makeRequest("/stimmung"));
     expect(res.status).toBe(301);
     expect(res.headers.get("Strict-Transport-Security")).toBeNull();

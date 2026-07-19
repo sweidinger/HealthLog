@@ -13349,8 +13349,9 @@ components:
             $ref: "#/components/schemas/NutrientIntakeEntry"
       required:
         - entries
-      description: Bulk day-total upsert, max 500 entries. Upsert key is (day, nutrient); a re-post replaces the stored total
-        (last-writer-wins day-total contract).
+      description: Bulk day-total upsert, max 500 entries. Upsert key is the composite primary key (userId, day, nutrient,
+        source); this route always writes the APPLE_HEALTH source row, so a manual water entry is never clobbered. A
+        re-post replaces the stored total (last-writer-wins day-total contract).
     NutrientIntakeEntry:
       type: object
       properties:

@@ -28,6 +28,7 @@ export interface FullBackupCounts extends RecordsBackupCounts {
   moodEntries: number;
   cycles: number;
   cycleDayLogs: number;
+  nutrientDays: number;
 }
 
 export interface FullBackupResult {
@@ -43,58 +44,81 @@ export async function buildFullBackupPayload(
   prisma: PrismaClient,
   userId: string,
 ): Promise<FullBackupResult> {
-  const [measurements, medications, intakeEvents, moodEntries, cycle, records] =
-    await Promise.all([
-      // v1.28.25 — keyset-paginated read with a narrow select. The backup
-      // is inherently whole-history, so on a CGM / per-sample-HR account the
-      // previous single full-width `findMany` materialised a six-figure row
-      // set in one shot. The chunked read accumulates the same rows in the
-      // same `measuredAt desc` order; the payload FORMAT below is untouched
-      // (restore compatibility). The select is exactly the fields the
-      // serializer reads: type / value / unit / measuredAt / source + the
-      // note columns `readNote` decrypts + the `id` cursor key.
-      findMeasurementsPaged(
-        prisma,
-        { userId, deletedAt: null },
-        {
-          id: true,
-          type: true,
-          value: true,
-          unit: true,
-          measuredAt: true,
-          source: true,
-          notes: true,
-          notesEncrypted: true,
-        },
-      ),
-      prisma.medication.findMany({
-        where: { userId },
-        select: {
-          name: true,
-          dose: true,
-          active: true,
-          schedules: {
-            select: {
-              windowStart: true,
-              windowEnd: true,
-              label: true,
-              dose: true,
-            },
+  const [
+    measurements,
+    medications,
+    intakeEvents,
+    moodEntries,
+    cycle,
+    records,
+    nutrientDays,
+  ] = await Promise.all([
+    // v1.28.25 — keyset-paginated read with a narrow select. The backup
+    // is inherently whole-history, so on a CGM / per-sample-HR account the
+    // previous single full-width `findMany` materialised a six-figure row
+    // set in one shot. The chunked read accumulates the same rows in the
+    // same `measuredAt desc` order; the payload FORMAT below is untouched
+    // (restore compatibility). The select is exactly the fields the
+    // serializer reads: type / value / unit / measuredAt / source + the
+    // note columns `readNote` decrypts + the `id` cursor key.
+    findMeasurementsPaged(
+      prisma,
+      { userId, deletedAt: null },
+      {
+        id: true,
+        type: true,
+        value: true,
+        unit: true,
+        measuredAt: true,
+        source: true,
+        notes: true,
+        notesEncrypted: true,
+      },
+    ),
+    prisma.medication.findMany({
+      where: { userId },
+      select: {
+        name: true,
+        dose: true,
+        active: true,
+        schedules: {
+          select: {
+            windowStart: true,
+            windowEnd: true,
+            label: true,
+            dose: true,
           },
         },
-      }),
-      prisma.medicationIntakeEvent.findMany({
-        where: { userId, deletedAt: null },
-        include: { medication: { select: { name: true } } },
-        orderBy: { scheduledFor: "desc" },
-      }),
-      prisma.moodEntry.findMany({
-        where: { userId, deletedAt: null },
-        orderBy: { moodLoggedAt: "desc" },
-      }),
-      buildCycleBackupSection(prisma, userId),
-      buildRecordsBackupSection(prisma, userId),
-    ]);
+      },
+    }),
+    prisma.medicationIntakeEvent.findMany({
+      where: { userId, deletedAt: null },
+      include: { medication: { select: { name: true } } },
+      orderBy: { scheduledFor: "desc" },
+    }),
+    prisma.moodEntry.findMany({
+      where: { userId, deletedAt: null },
+      orderBy: { moodLoggedAt: "desc" },
+    }),
+    buildCycleBackupSection(prisma, userId),
+    buildRecordsBackupSection(prisma, userId),
+    // Nutrient day totals were absent from every export path, which
+    // contradicted the schema's own justification for denormalising the unit
+    // column ("rows stay self-describing in exports even if the catalog ever
+    // drifts"). `source` is part of the composite PK, so it has to ride along
+    // or a restore cannot tell a manual water entry from a synced day total.
+    prisma.nutrientIntakeDay.findMany({
+      where: { userId },
+      select: {
+        day: true,
+        nutrient: true,
+        amount: true,
+        unit: true,
+        source: true,
+      },
+      orderBy: [{ day: "desc" }, { nutrient: "asc" }],
+    }),
+  ]);
 
   const payload = {
     schemaVersion: BACKUP_SCHEMA_VERSION,
@@ -148,6 +172,13 @@ export async function buildFullBackupPayload(
     familyHistory: records.familyHistory,
     workouts: records.workouts,
     documents: records.documents,
+    nutrientDays: nutrientDays.map((n) => ({
+      day: n.day,
+      nutrient: n.nutrient,
+      amount: n.amount,
+      unit: n.unit,
+      source: n.source,
+    })),
     manifest: records.manifest,
   };
 
@@ -160,6 +191,7 @@ export async function buildFullBackupPayload(
       moodEntries: moodEntries.length,
       cycles: cycle.cycles.length,
       cycleDayLogs: cycle.cycleDayLogs.length,
+      nutrientDays: nutrientDays.length,
       ...countRecordsBackupSection(records),
     },
   };

@@ -30,6 +30,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { requireModuleEnabled } from "@/lib/modules/gate";
 import { invalidateUserDashboardSnapshot } from "@/lib/cache/invalidate";
 import { NUTRIENT_CATALOG } from "@/lib/nutrients/catalog";
+import { maxAcceptableNutrientDay } from "@/lib/nutrients/day-bounds";
 import { nutrientWaterWriteSchema } from "@/lib/validations/nutrients";
 import { DEFAULT_TIMEZONE, userDayKey } from "@/lib/tz/format";
 
@@ -79,7 +80,12 @@ async function postWater(request: NextRequest): Promise<Response> {
 
   const userTz = user.timezone || DEFAULT_TIMEZONE;
   const day = parsed.data.day ?? userDayKey(new Date(), userTz);
-  if (!isRealCalendarDay(day)) {
+  // Calendar realism AND the upper bound the batch route already applied. A
+  // client-supplied far-future day used to be accepted here, and since every
+  // read filters `day: { gte: since }` with no upper bound it became the
+  // permanent `latestDay` on the settings card and the permanent `lastSeenAt`
+  // on the dashboard water tile.
+  if (!isRealCalendarDay(day) || day > maxAcceptableNutrientDay(new Date())) {
     return apiError("Invalid day", 422, {
       errorCode: "nutrient.water.invalid_day",
     });
@@ -95,7 +101,7 @@ async function postWater(request: NextRequest): Promise<Response> {
     },
   };
 
-  const row = await prisma.nutrientIntakeDay.upsert({
+  let row = await prisma.nutrientIntakeDay.upsert({
     where: key,
     create: {
       userId: user.id,
@@ -110,6 +116,19 @@ async function postWater(request: NextRequest): Promise<Response> {
         ? { amount: { increment: amountMl } }
         : { amount: amountMl },
   });
+
+  // The request schema bounds a SINGLE write to the catalog's plausible daily
+  // max, but `mode: "add"` is unbounded across requests — repeated quick-adds
+  // drove the stored day total arbitrarily high while the batch route enforced
+  // the same cap strictly on the Apple-sourced row. Clamp after the fact rather
+  // than reading first: the increment stays atomic, and the clamp converges on
+  // the cap no matter how the increments interleave.
+  if (row.amount > definition.plausibleDailyMax) {
+    row = await prisma.nutrientIntakeDay.update({
+      where: key,
+      data: { amount: definition.plausibleDailyMax },
+    });
+  }
 
   // Interactive single-entry write — hard-evict (not mark-stale) so the
   // dashboard water tile reflects the new total on the very next read,
