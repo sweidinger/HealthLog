@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
-import { HttpError } from "@/lib/api-handler";
 import {
   buildDateKey,
   OPERATOR_COST_CAP,
@@ -32,84 +31,49 @@ describe("buildDateKey", () => {
   });
 });
 
-describe("budget", () => {
+/**
+ * Ledger-poisoning guard. These clamps used to live on `recordSpend`, which is
+ * gone along with `enforceBudget` — the read-then-write pair that carried both
+ * a TOCTOU window and an `OPERATOR_COST_CAP` default that rationed a
+ * self-hoster's own key. The PROPERTY they protected still matters and now
+ * belongs to the reservation path, so it is asserted there: a provider that
+ * reports `tokensUsed: NaN` or a negative count must not poison the meter.
+ */
+describe("reserveBudget — ledger clamps", () => {
   let prismaMock: {
-    coachUsage: {
-      findUnique: ReturnType<typeof vi.fn>;
-      upsert: ReturnType<typeof vi.fn>;
-    };
+    $queryRaw: ReturnType<typeof vi.fn>;
+    $executeRaw: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
     const dbModule = await import("@/lib/db");
     prismaMock = dbModule.prisma as unknown as typeof prismaMock;
-    prismaMock.coachUsage.findUnique.mockReset();
-    prismaMock.coachUsage.upsert.mockReset();
+    prismaMock.$queryRaw.mockReset();
+    prismaMock.$queryRaw.mockResolvedValue([{ total_tokens: 0 }]);
+    prismaMock.$executeRaw.mockReset();
+    prismaMock.$executeRaw.mockResolvedValue(0);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("returns 0 when no usage row exists", async () => {
-    prismaMock.coachUsage.findUnique.mockResolvedValue(null);
-    const { getDailyTokenSpend } = await import("../budget");
-    const spent = await getDailyTokenSpend("user-1", "2026-05-10");
-    expect(spent).toBe(0);
+  it("clamps a non-finite reservation to 0", async () => {
+    const { reserveBudget } = await import("../budget");
+    const res = await reserveBudget("u", Number.NaN, "2026-05-10");
+    expect(res.reserved).toBe(0);
   });
 
-  it("returns the persisted token total", async () => {
-    prismaMock.coachUsage.findUnique.mockResolvedValue({ totalTokens: 4_200 });
-    const { getDailyTokenSpend } = await import("../budget");
-    const spent = await getDailyTokenSpend("user-1", "2026-05-10");
-    expect(spent).toBe(4_200);
+  it("clamps a negative reservation to 0", async () => {
+    const { reserveBudget } = await import("../budget");
+    const res = await reserveBudget("u", -42, "2026-05-10");
+    expect(res.reserved).toBe(0);
   });
 
-  it("under-budget passes enforceBudget without throwing", async () => {
-    prismaMock.coachUsage.findUnique.mockResolvedValue({ totalTokens: 5_000 });
-    const { enforceBudget } = await import("../budget");
-    await expect(
-      enforceBudget("user-1", "2026-05-10"),
-    ).resolves.toBeUndefined();
-  });
-
-  it("over-budget throws HttpError(429)", async () => {
-    prismaMock.coachUsage.findUnique.mockResolvedValue({
-      totalTokens: OPERATOR_COST_CAP,
-    });
-    const { enforceBudget } = await import("../budget");
-    await expect(enforceBudget("user-1", "2026-05-10")).rejects.toMatchObject({
-      statusCode: 429,
-      message: "coach.budget.exceeded",
-    });
-    await expect(enforceBudget("user-1", "2026-05-10")).rejects.toBeInstanceOf(
-      HttpError,
-    );
-  });
-
-  it("recordSpend clamps non-finite tokens to 0", async () => {
-    prismaMock.coachUsage.upsert.mockResolvedValue({});
-    const { recordSpend } = await import("../budget");
-    await recordSpend({ userId: "u", tokens: NaN });
-    const args = prismaMock.coachUsage.upsert.mock.calls[0][0];
-    expect(args.create.totalTokens).toBe(0);
-    expect(args.update.totalTokens.increment).toBe(0);
-  });
-
-  it("recordSpend clamps negative tokens to 0", async () => {
-    prismaMock.coachUsage.upsert.mockResolvedValue({});
-    const { recordSpend } = await import("../budget");
-    await recordSpend({ userId: "u", tokens: -42 });
-    const args = prismaMock.coachUsage.upsert.mock.calls[0][0];
-    expect(args.create.totalTokens).toBe(0);
-  });
-
-  it("recordSpend floors fractional tokens", async () => {
-    prismaMock.coachUsage.upsert.mockResolvedValue({});
-    const { recordSpend } = await import("../budget");
-    await recordSpend({ userId: "u", tokens: 12.7 });
-    const args = prismaMock.coachUsage.upsert.mock.calls[0][0];
-    expect(args.create.totalTokens).toBe(12);
+  it("floors a fractional reservation", async () => {
+    const { reserveBudget } = await import("../budget");
+    const res = await reserveBudget("u", 12.7, "2026-05-10");
+    expect(res.reserved).toBe(12);
   });
 });
 

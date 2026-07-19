@@ -63,6 +63,7 @@ import {
   type IntegrationKey,
 } from "@/lib/integrations/status";
 import { toMeasurementReminderDto } from "@/lib/measurement-reminders/dto";
+import { fenceUserText, scrubFenceMarkers } from "@/lib/ai/coach/data-fence";
 import type { McpAuthContext } from "./auth";
 
 /**
@@ -194,10 +195,14 @@ function plainLabText(rid: string, result: unknown): string {
     typeof reading.rangeStatus === "string" ? reading.rangeStatus : "";
   const taken =
     typeof reading.takenAt === "string" ? reading.takenAt.slice(0, 10) : "";
-  return (
+  // `analyte`, `unit` and a qualitative `valueText` are free text the server
+  // did not author — a lab analyte name is transcribed by a model out of an
+  // UPLOADED PDF, so a hostile document chooses it. Fence the sentence so the
+  // model reads it as data, and so nothing inside can forge a fence boundary.
+  return fenceUserText(
     `${analyte}: ${value}${unit ? ` ${unit}` : ""}` +
-    `${status && status !== "unknown" ? ` (${status})` : ""}` +
-    `${taken ? `, measured ${taken}` : ""}.`
+      `${status && status !== "unknown" ? ` (${status})` : ""}` +
+      `${taken ? `, measured ${taken}` : ""}.`,
   );
 }
 
@@ -364,7 +369,13 @@ function searchAndFetchTools(): McpToolDefinition[] {
           if (query && !med.name.toLowerCase().includes(query)) continue;
           results.push({
             id: `med:${med.id}`,
-            title: med.dose ? `${med.name} ${med.dose}` : med.name,
+            // A search title is a short label a host renders in a result list,
+            // so it is scrubbed rather than fenced — wrapping it would leak
+            // markers into the host's UI. Scrubbing still denies a hostile
+            // name the ability to forge a boundary around neighbouring text.
+            title: scrubFenceMarkers(
+              med.dose ? `${med.name} ${med.dose}` : med.name,
+            ),
             // Per-item deep-link to the medication detail page (mirrors `fetch`).
             url: `${origin}/medications/${encodeURIComponent(med.id)}`,
           });
@@ -380,7 +391,9 @@ function searchAndFetchTools(): McpToolDefinition[] {
           if (query && !lab.analyte.toLowerCase().includes(query)) continue;
           results.push({
             id: `lab:${lab.analyte}`,
-            title: lab.analyte,
+            // Document-sourced free text — scrubbed, same reasoning as the
+            // medication titles above.
+            title: scrubFenceMarkers(lab.analyte),
             // Per-item deep-link to the labs surface filtered to this analyte.
             url: `${origin}/labs?analyte=${encodeURIComponent(lab.analyte)}`,
           });
@@ -586,15 +599,18 @@ function searchAndFetchTools(): McpToolDefinition[] {
               metadata: { type: "medication" },
             };
           }
-          // Plain-text prose, not a JSON blob. `dose` / `treatmentClass` are
-          // user-controlled free-text returned as DATA, never interpreted.
-          const text =
+          // Plain-text prose, not a JSON blob. `name` / `dose` /
+          // `treatmentClass` are user-controlled free text returned as DATA,
+          // never interpreted — fenced so that contract is stated on the wire
+          // rather than only in the server instructions.
+          const text = fenceUserText(
             `${med.name}${med.dose ? ` ${med.dose}` : ""}` +
-            `${med.asNeeded ? " (as needed)" : ""}` +
-            `${med.treatmentClass ? ` — ${med.treatmentClass}` : ""}.`;
+              `${med.asNeeded ? " (as needed)" : ""}` +
+              `${med.treatmentClass ? ` — ${med.treatmentClass}` : ""}.`,
+          );
           return {
             id,
-            title: med.name,
+            title: scrubFenceMarkers(med.name),
             text,
             // Per-item deep-link to the medication detail page.
             url: `${origin}/medications/${encodeURIComponent(rid)}`,

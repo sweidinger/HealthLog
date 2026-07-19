@@ -38,6 +38,18 @@ export const DOCUMENT_TEXT_FENCE_START = "<<<DOCUMENT_TEXT_START>>>";
 export const DOCUMENT_TEXT_FENCE_END = "<<<DOCUMENT_TEXT_END>>>";
 
 /**
+ * Fence around free text inside an MCP tool result. Same class of exposure as
+ * the Coach snapshot — medication names/doses/treatment classes and lab
+ * analyte names are user- or document-controlled, and a lab analyte name can
+ * be transcribed by a model out of an uploaded PDF — but it reaches the model
+ * over the MCP wire rather than through a prompt block. The write tools ride
+ * that same wire, so the free text sits in the same context as a surface that
+ * can mutate the record.
+ */
+export const USER_TEXT_FENCE_START = "<<<USER_TEXT_START>>>";
+export const USER_TEXT_FENCE_END = "<<<USER_TEXT_END>>>";
+
+/**
  * Every marker literal the codebase uses as a data/instruction boundary.
  * Content is scrubbed against the WHOLE set — not just its own pair — so a
  * hostile lab analyte name inside the SNAPSHOT cannot emit
@@ -50,6 +62,8 @@ export const ALL_FENCE_MARKERS: readonly string[] = [
   HEALTH_DATA_FENCE_END,
   DOCUMENT_TEXT_FENCE_START,
   DOCUMENT_TEXT_FENCE_END,
+  USER_TEXT_FENCE_START,
+  USER_TEXT_FENCE_END,
 ];
 
 /** Strip every known fence marker out of `text`. */
@@ -86,4 +100,12 @@ export function fenceHealthData(snapshotJson: string): string {
 /** Fence OCR'd document text before it enters the extraction prompt. */
 export function fenceDocumentText(text: string): string {
   return fenceBlock(DOCUMENT_TEXT_FENCE_START, DOCUMENT_TEXT_FENCE_END, text);
+}
+
+/**
+ * Fence a free-text-bearing sentence in an MCP tool result. Single-line so it
+ * stays readable in a host that renders the result verbatim.
+ */
+export function fenceUserText(text: string): string {
+  return `${USER_TEXT_FENCE_START}${scrubFenceMarkers(text)}${USER_TEXT_FENCE_END}`;
 }
