@@ -167,13 +167,21 @@ export interface WorkoutSportContextDto {
 }
 
 /**
- * Reserved Activity-Insight payload (strategic-concept Wave C, bet 5).
- * The wire field is `null` today; the Phase-2 job will populate it and
- * the detail page's seam mounts a card with zero rework. Declared here
- * so the type is stable in advance — widen the union (never change the
- * seam shape) when the job ships.
+ * The per-workout Activity Insight, or `null`.
+ *
+ * The seam shape is unchanged from when it was reserved — the union widened,
+ * nothing else. `null` remains the overwhelmingly common case and is not an
+ * error state: a paragraph exists only for a workout that LANDED while the
+ * feature was live, in a session over ten minutes, under the day's cap, with a
+ * provider reachable. Every historical workout, every re-synced one, and every
+ * workout on a provider-less install reads `null` and renders no card. Nothing
+ * on this read path can ever trigger a generation.
  */
-export type WorkoutActivityInsight = null;
+export type WorkoutActivityInsight = {
+  /** Plain text. Rendered as React text children — there is no markdown here. */
+  paragraph: string;
+  generatedAt: string;
+} | null;
 
 export interface WorkoutDetailPayload extends WorkoutListEntry {
   minHr: number | null;

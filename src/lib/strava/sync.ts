@@ -24,6 +24,7 @@
  * cron tick resumes from the cursor.
  */
 import { prisma } from "@/lib/db";
+import { emitWorkoutArrivalIfCreated } from "@/lib/arrivals/workout-emit";
 import { annotate, getEvent } from "@/lib/logging/context";
 import {
   recordSyncFailure,
@@ -262,7 +263,7 @@ export async function upsertStravaWorkouts(
       metadata: r.metadata,
     };
     try {
-      await prisma.workout.upsert({
+      const saved = await prisma.workout.upsert({
         where: {
           userId_source_externalId: {
             userId,
@@ -277,7 +278,16 @@ export async function upsertStravaWorkouts(
           ...data,
         },
         update: data,
+        select: {
+          id: true,
+          startedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
+      // v1.31.0 — data-arrival spine. Only a genuinely NEW workout reacts; a
+      // re-sync of an already-stored session is not news.
+      void emitWorkoutArrivalIfCreated(userId, saved, "strava").catch(() => {});
       imported += 1;
     } catch (err) {
       getEvent()?.addWarning(`strava: failed to upsert workout: ${err}`);

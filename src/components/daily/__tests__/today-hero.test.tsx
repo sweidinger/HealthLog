@@ -63,6 +63,8 @@ function digest(over: Partial<DailyDigest> = {}): DailyDigest {
     briefingLead: "Your week is trending steady.",
     line: "Your week is trending steady.",
     worthALook: [doseItem, syncItem],
+    justIn: null,
+    reactionLine: null,
     ...over,
   };
 }

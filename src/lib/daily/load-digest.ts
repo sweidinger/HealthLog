@@ -24,9 +24,11 @@ import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { userDayKey } from "@/lib/tz/format";
 import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
+import { isArrivalKind } from "@/lib/arrivals/types";
 import {
   buildDailyDigest,
   type DailyDigest,
+  type DailyDigestArrival,
   type DailyDigestCoachPlan,
   type DailyDigestEcg,
   type DailyDigestPreventiveDue,
@@ -239,10 +241,50 @@ function resolveLocale(locale: string | null | undefined): Locale {
     : defaultLocale;
 }
 
+/**
+ * Today's arrival markers, decrypted fault-isolated.
+ *
+ * One indexed read on `[userId, localDate]` — the exact shape of the model's
+ * `@@index`, and at most one row per arrival kind, so the result is bounded by
+ * the closed `ARRIVAL_KINDS` enum rather than by anything the user can grow.
+ *
+ * A line that fails to decrypt (a key rotated out from under the row) yields a
+ * null line, never a throw: the digest is a hot, must-not-fail path, and the
+ * marker itself — which is what actually drives the "just in" chip — survives
+ * a lost sentence intact. Same discipline as `toCoachPlanCandidate` above.
+ */
+function toDigestArrival(row: {
+  kind: string;
+  occurredAt: Date;
+  lineEncrypted: Uint8Array | null;
+  generatedAt: Date | null;
+}): DailyDigestArrival | null {
+  // A kind this build does not know about (a row written by a newer version)
+  // is dropped rather than widened — the DTO's kind union is closed.
+  if (!isArrivalKind(row.kind)) return null;
+
+  let line: string | null = null;
+  // The ciphertext rides only once the generation actually COMMITTED. A row
+  // mid-generation carries no `generatedAt`, and its line must not surface.
+  if (row.generatedAt !== null && row.lineEncrypted !== null) {
+    try {
+      line = decryptFromBytes(row.lineEncrypted);
+    } catch {
+      line = null;
+    }
+  }
+
+  return { kind: row.kind, occurredAt: row.occurredAt, line };
+}
+
 export async function loadDailyDigest(
   user: User,
   now: Date = new Date(),
 ): Promise<DailyDigest> {
+  // Computed before the fan-out because the arrival read is keyed on it. Pure
+  // (a tz format of `now`), so hoisting it costs nothing.
+  const todayLocalDate = userDayKey(now, user.timezone);
+
   const [
     { body: snapshot, locale },
     modules,
@@ -250,6 +292,7 @@ export async function loadDailyDigest(
     dueReminders,
     planRows,
     ecgRow,
+    arrivalRows,
   ] = await Promise.all([
     readDashboardSnapshotCached(user),
     resolveModuleMap(user.id),
@@ -303,6 +346,18 @@ export async function loadDailyDigest(
       orderBy: { recordedAt: "desc" },
       select: { recordedAt: true, rhythmClassification: true },
     }),
+    // The arrival spine's markers for the user's CURRENT local day. At most
+    // one row per arrival kind by the model's unique constraint, so this is a
+    // bounded indexed read, not a scan.
+    prisma.arrivalReaction.findMany({
+      where: { userId: user.id, localDate: todayLocalDate },
+      select: {
+        kind: true,
+        occurredAt: true,
+        lineEncrypted: true,
+        generatedAt: true,
+      },
+    }),
   ]);
 
   const score: DailyDigestScore | null = snapshot.healthScore
@@ -321,7 +376,6 @@ export async function loadDailyDigest(
   // local date (profile tz). Read fresh off the row here, so it flips the
   // instant the refresh job runs — ahead of the snapshot cache that feeds
   // `sleepLastSeenDaysAgo`.
-  const todayLocalDate = userDayKey(now, user.timezone);
   const morningRefreshedToday =
     user.morningDigestRefreshedOn !== null &&
     user.morningDigestRefreshedOn === todayLocalDate;
@@ -423,6 +477,9 @@ export async function loadDailyDigest(
       latestEcg,
       todayLocalDate,
       dismissedItemKeys,
+      arrivals: arrivalRows
+        .map(toDigestArrival)
+        .filter((a): a is DailyDigestArrival => a !== null),
     },
     t,
   );
@@ -440,6 +497,8 @@ export async function loadDailyDigest(
       daily_digest_has_milestone: digest.worthALook.some(
         (i) => i.kind === "milestone",
       ),
+      daily_digest_just_in_kind: digest.justIn?.kind ?? null,
+      daily_digest_has_reaction_line: digest.reactionLine !== null,
     },
   });
 

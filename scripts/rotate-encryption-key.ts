@@ -392,6 +392,30 @@ async function main() {
     ),
   );
 
+  // ───── v1.31.0 ArrivalReaction."lineEncrypted" (Bytes, nullable) ─────
+  // The data-arrival spine's generated reaction line. Nullable by design — a
+  // provider-less install writes markers with no line at all — and
+  // `rotateBytesColumn` already skips a NULL / zero-length payload, so those
+  // rows are scanned and cleanly left alone.
+  results.push(
+    await rotateBytesColumn(
+      "ArrivalReaction",
+      "lineEncrypted",
+      prisma.arrivalReaction,
+    ),
+  );
+
+  // ───── v1.31.0 WorkoutInsight."paragraphEncrypted" (Bytes) ─────
+  // The per-workout Activity Insight paragraph. Not nullable — a row exists
+  // only where a paragraph was generated — so every scanned row rotates.
+  results.push(
+    await rotateBytesColumn(
+      "WorkoutInsight",
+      "paragraphEncrypted",
+      prisma.workoutInsight,
+    ),
+  );
+
   // ───── v1.18.1 clinical-spine notes (Bytes columns) ─────
   // "noteEncrypted" (LabResult / IllnessEpisode / IllnessDayLog) +
   // "contextEncrypted" (Biomarker). Mirror the CoachFact.factEncrypted block.

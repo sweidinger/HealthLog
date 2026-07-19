@@ -2975,6 +2975,8 @@
     "navRecovery": "Recovery",
     "workouts": {
       "title": "Workouts",
+      "askWhy": "Ask why",
+      "askWhyPrompt": "Why did this session read the way it did? Walk me through my own numbers from it.",
       "description": "Recent runs, rides, walks and strength sessions, deduped across Apple Watch and Withings sources.",
       "emptyState": {
         "title": "No workouts yet",
@@ -8856,6 +8858,8 @@
       "deltaVsBaseline": "{delta} vs your baseline",
       "deltaFlat": "In line with your baseline",
       "sleepPending": "Last night's sleep isn't in yet — today's read is provisional.",
+      "justIn": "Just in",
+      "justInAt": "Just in · {time}",
       "worthALook": "Worth a look",
       "allClear": "Nothing needs your attention today.",
       "ringLink": "Open {metric} details"

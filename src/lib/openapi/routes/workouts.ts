@@ -152,6 +152,14 @@ const workoutSportContext = z
   })
   .meta({ id: "WorkoutSportContext" });
 
+const workoutActivityInsight = z
+  .object({
+    /** Plain text. No markup of any kind — clients render it as text. */
+    paragraph: z.string(),
+    generatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({ id: "WorkoutActivityInsight" });
+
 const workoutDetailResponse = z
   .object({
     id: z.string(),
@@ -178,9 +186,11 @@ const workoutDetailResponse = z
     zones: workoutZones.nullable(),
     splits: z.array(workoutSplit).nullable(),
     sportContext: workoutSportContext.nullable(),
-    // Reserved Activity-Insight seam — always null until the Phase-2 job
-    // populates it. Typed here so the wire contract is stable in advance.
-    aiInsight: z.null(),
+    // The per-workout Activity Insight. Additive-nullable and overwhelmingly
+    // null: a paragraph exists only for a workout that landed while the
+    // feature was live, over the duration floor, under the day's cap and with
+    // a provider reachable. Reading this endpoint never generates one.
+    aiInsight: workoutActivityInsight.nullable(),
     canonicalId: z.string(),
   })
   .meta({ id: "WorkoutDetailResponse" });
@@ -220,7 +230,7 @@ export const workoutPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Measurements"],
       summary: "Workout detail (v1.4.32)",
       description:
-        "Single-workout envelope. Owns the optional `WorkoutRoute` GeoJSON geometry + `canonicalId` pointer that resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Additive enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`, reserved `aiInsight`) are computed server-side. `compact=1` (sent by the web client) drops the raw `samples.samples` HR blob and `route.sampleTimestamps` array from the response; without it the payload is byte-identical to the v1.4.32 contract. Cross-user rows surface as 404 (existence channel sealed).",
+        "Single-workout envelope. Owns the optional `WorkoutRoute` GeoJSON geometry + `canonicalId` pointer that resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Additive enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`) are computed server-side. `aiInsight` is a pure read of a per-workout paragraph written by a background job when the workout landed; it is null for every workout that predates the feature or was re-synced, and reading this endpoint never generates one. `compact=1` (sent by the web client) drops the raw `samples.samples` HR blob and `route.sampleTimestamps` array from the response; without it the payload is byte-identical to the v1.4.32 contract. Cross-user rows surface as 404 (existence channel sealed).",
       requestParams: {
         path: z.object({ id: z.string() }),
         query: z.object({

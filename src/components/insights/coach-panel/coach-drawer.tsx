@@ -37,14 +37,22 @@ export {
  *     so the exact thread re-opens on the page, scope and all.
  *   - else a document scope (a doc-scoped drawer maximized before its first
  *     turn) → `/coach?doc=<id>` so the fresh page chat stays scoped.
+ *   - else a workout scope (v1.31.0, same pre-first-turn case) →
+ *     `/coach?workout=<id>`.
  *   - else the plain `/coach` new-chat surface.
+ *
+ * A document scope wins over a workout scope: the two are never set together
+ * by any launch call site, and a fenced document conversation has the stricter
+ * transport, so it is the safer arm to prefer if they ever collided.
  */
 export function coachMaximizeHref(
   conversationId: string | null,
   documentId?: string | null,
+  workoutId?: string | null,
 ): string {
   if (conversationId) return `/coach?c=${conversationId}`;
   if (documentId) return `/coach?doc=${documentId}`;
+  if (workoutId) return `/coach?workout=${workoutId}`;
   return "/coach";
 }
 
@@ -87,6 +95,13 @@ export interface CoachDrawerProps {
    * exists yet (`/coach?doc=<id>`).
    */
   documentId?: string | null;
+  /**
+   * v1.31.0 — the workout this drawer chat is scoped to. Threads onto the
+   * FIRST turn only; the maximize control preserves it when no thread exists
+   * yet. Unlike `documentId` it does not switch the transport — the workout
+   * evidence is a numbers-only server projection on the normal Coach route.
+   */
+  workoutId?: string | null;
 }
 
 export function CoachDrawer({
@@ -96,6 +111,7 @@ export function CoachDrawer({
   scope,
   autoSend,
   documentId,
+  workoutId,
 }: CoachDrawerProps) {
   const { t } = useTranslations();
   const router = useRouter();
@@ -146,13 +162,14 @@ export function CoachDrawer({
     const href = coachMaximizeHref(
       conversationIdGetterRef.current?.() ?? null,
       documentId,
+      workoutId,
     );
     // Close the drawer (aborts any in-flight stream via `handleOpenChange`)
     // then route to the dedicated page.
     onOpenChange(false);
     resetRef.current?.();
     router.push(href);
-  }, [onOpenChange, router, documentId]);
+  }, [onOpenChange, router, documentId, workoutId]);
 
   // v1.21.4 (Coach-UI B) — the drawer's "Conversations" affordance now hands
   // off to the dedicated conversation-history page (`/coach/conversations`),
@@ -198,6 +215,7 @@ export function CoachDrawer({
           // document (vault "Ask the Coach"); the send path is unchanged (the
           // fenced document endpoint), only WHERE it renders (drawer vs page).
           initialDocumentId={documentId}
+          initialWorkoutId={workoutId}
           autoFocusComposer
           registerReset={registerReset}
           // Lets the maximize control read the live thread id at hand-off time.

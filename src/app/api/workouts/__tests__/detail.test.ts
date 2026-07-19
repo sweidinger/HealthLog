@@ -13,10 +13,14 @@
  *     when the row is the canonical pick, the winner id when it is a
  *     non-canonical twin;
  *   - the optional `route` field flows through GeoJSON geometry when a
- *     `WorkoutRoute` row is attached, and is null when missing.
+ *     `WorkoutRoute` row is attached, and is null when missing;
+ *   - `aiInsight` is a pure READ: it serves a stored paragraph when one
+ *     exists, null when none does, and never generates one.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+
+import { _resetCryptoCacheForTests } from "@/lib/crypto";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -98,6 +102,7 @@ const BASE_ROW = {
   createdAt: new Date("2026-05-15T07:30:00Z"),
   updatedAt: new Date("2026-05-15T07:30:00Z"),
   route: null,
+  insight: null,
 };
 
 describe("GET /api/workouts/{id}", () => {
@@ -319,5 +324,103 @@ describe("GET /api/workouts/{id}", () => {
       "2026-05-15T07:00:00Z",
       "2026-05-15T07:01:00Z",
     ]);
+  });
+});
+
+/**
+ * The Activity-Insight read.
+ *
+ * The load-bearing property is what is ABSENT: this route has no enqueue, no
+ * provider resolution and no fallback. A workout with no stored row serves null
+ * and the page renders nothing — which is every workout that predates the
+ * feature, every re-synced one, and every one on a provider-less install.
+ */
+describe("GET /api/workouts/{id} — aiInsight", () => {
+  // A throwaway test key. The route decrypts a stored paragraph, so the suite
+  // needs a configured cipher; `_resetCryptoCacheForTests` keeps the stubbed
+  // key from leaking into the neighbouring describes.
+  const TEST_KEY =
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("ENCRYPTION_KEY", TEST_KEY);
+    _resetCryptoCacheForTests();
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      sourcePriorityJson: null,
+      dateOfBirth: null,
+    } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.workout.findMany).mockResolvedValue([
+      {
+        id: "w-1",
+        source: "APPLE_HEALTH",
+        startedAt: BASE_ROW.startedAt,
+        sportType: "RUNNING",
+      },
+    ] as never);
+  });
+
+  async function get() {
+    return GET(
+      new NextRequest("http://localhost/api/workouts/w-1?compact=1", {
+        method: "GET",
+      }),
+      makeParams("w-1"),
+    );
+  }
+
+  it("serves null when the workout has no stored paragraph", async () => {
+    vi.mocked(prisma.workout.findUnique).mockResolvedValue({
+      ...BASE_ROW,
+      insight: null,
+    } as never);
+
+    const body = await (await get()).json();
+    expect(body.data.aiInsight).toBeNull();
+  });
+
+  it("serves the decrypted paragraph when one exists", async () => {
+    const { encryptToBytes } = await import("@/lib/ai/coach/bytes-codec");
+    const generatedAt = new Date("2026-05-15T07:35:00Z");
+    vi.mocked(prisma.workout.findUnique).mockResolvedValue({
+      ...BASE_ROW,
+      insight: {
+        paragraphEncrypted: encryptToBytes("A steady, aerobic-leaning run."),
+        generatedAt,
+      },
+    } as never);
+
+    const body = await (await get()).json();
+    expect(body.data.aiInsight).toEqual({
+      paragraph: "A steady, aerobic-leaning run.",
+      generatedAt: generatedAt.toISOString(),
+    });
+  });
+
+  it("degrades to no card rather than failing the page on an undecryptable row", async () => {
+    // `decrypt` is fail-closed by design. A key rotated away must not turn the
+    // whole workout-detail page into a 500 over a garnish field.
+    vi.mocked(prisma.workout.findUnique).mockResolvedValue({
+      ...BASE_ROW,
+      insight: {
+        paragraphEncrypted: new Uint8Array([0, 1, 2, 3]),
+        generatedAt: new Date("2026-05-15T07:35:00Z"),
+      },
+    } as never);
+
+    const res = await get();
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data.aiInsight).toBeNull();
+    // The rest of the payload is untouched — the failure is scoped to the field.
+    expect(body.data.id).toBe("w-1");
+    expect(body.data.durationSec).toBe(1800);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    _resetCryptoCacheForTests();
   });
 });

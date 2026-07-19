@@ -106,6 +106,20 @@ export const AI_BUDGETS = {
   statusArchetype: { temperature: 0.45, maxTokens: 700 },
 
   /**
+   * Per-workout Activity Insight — the same `{ "summary": "..." }` contract,
+   * asked for 3-4 sentences about one recorded session. 0.45 for the same
+   * reason the archetype cards take it: the facts are pinned by a fully
+   * deterministic evidence block, so the sampling entropy only varies cadence.
+   *
+   * 260 output tokens is the whole ceiling this surface gets, and it is sized
+   * to the copy contract rather than rounded up: 3-4 sentences do not reach
+   * it, and a model that ignores the length instruction is cut off rather than
+   * indulged. The daily cap on the surface is four, so the worst case a single
+   * account can drive here is bounded before the ledger is even consulted.
+   */
+  workoutInsight: { temperature: 0.45, maxTokens: 260 },
+
+  /**
    * Batched per-metric status assessment (v1.18.7 HIGH-1) — ONE call that
    * returns a `{ perMetric: { bp, weight, pulse, bmi, mood, compliance,
    * general } }` envelope, each value a single 30-60-word assessment in the
@@ -139,6 +153,18 @@ export const AI_BUDGETS = {
    * a touch higher for warmth without drift.
    */
   coachNudge: { temperature: 0.6, maxTokens: 160, timeoutMs: 9000 },
+
+  /**
+   * v1.31.0 — the arrival reaction line. ONE sentence replacing the Today
+   * hero's lead for the rest of the day, written at most once per arrival kind
+   * per local day (the `ArrivalReaction` unique row is the throttle). 220
+   * tokens is generous for a single sentence and leaves room for a model that
+   * warms up before it commits. Temperature between the reference surfaces and
+   * the conversational ones: the verdict must stay stable against the same
+   * evidence, but a line the user reads every day should not read as a
+   * template.
+   */
+  arrivalReaction: { temperature: 0.45, maxTokens: 220, timeoutMs: 12_000 },
 
   /**
    * Coach rolling-conversation summary worker — a compact summary of the

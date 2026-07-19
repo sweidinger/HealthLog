@@ -18,6 +18,7 @@
  */
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import { prisma } from "@/lib/db";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 import { decryptFactData } from "@/lib/documents/store";
 import { resolveOrMintBiomarker } from "@/lib/labs/biomarker-store";
 import type { ExtractedFact } from "@/generated/prisma/client";
@@ -104,6 +105,23 @@ async function commitObservation(
       noteEncrypted: null,
     },
   });
+
+  // v1.31.0 — the labs arm of the data-arrival spine. A "panel" has no
+  // first-class entity in the schema (it is a nullable label plus a `takenAt`),
+  // so the day-scoped singleton key IS the panel grouping: pasting twelve
+  // markers from one draw fires twelve emits that collapse into one arrival.
+  // Hooked HERE rather than in the confirm route because the route's
+  // `CommittedRecordRef` carries only the id — the draw date and panel label
+  // are lost by the time it returns.
+  void emitDataArrival({
+    userId,
+    kind: "labs_panel",
+    newestSampleAt: created.takenAt,
+    insertedCount: 1,
+    refId: created.panel ?? undefined,
+    source: "document",
+  }).catch(() => {});
+
   return { recordType: "labResult", recordId: created.id };
 }
 

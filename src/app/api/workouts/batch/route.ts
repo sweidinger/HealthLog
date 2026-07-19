@@ -68,6 +68,7 @@ import { withIdempotency } from "@/lib/idempotency";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 import {
   createBatchWorkoutSchema,
   MAX_WORKOUTS_PER_BATCH,
@@ -116,6 +117,65 @@ interface EntryResult {
   index: number;
   status: EntryStatus;
   reason?: string;
+}
+
+/**
+ * v1.31.0 — emit one data arrival per workout this batch actually inserted.
+ *
+ * `createMany` does not return ids, so they are recovered with a single indexed
+ * lookup on the `(userId, source, externalId)` dedup key. Entries without an
+ * external id cannot be looked up and are emitted without a `refId`; the spine
+ * then falls back to a day-scoped key for them, which is an honest degradation
+ * (no external id means no stable per-workout referent to react to anyway).
+ *
+ * Fully best-effort — every failure path returns quietly. A reaction is never
+ * worth failing an ingest that already succeeded.
+ */
+async function emitWorkoutArrivals(
+  userId: string,
+  prepared: ReadonlyArray<{
+    index: number;
+    row: Prisma.WorkoutCreateManyInput;
+    dedupKey: { source: string; externalId: string } | null;
+  }>,
+  results: ReadonlyArray<EntryResult | undefined>,
+): Promise<void> {
+  const inserted = prepared.filter(
+    (p) => results[p.index]?.status === "inserted",
+  );
+  if (inserted.length === 0) return;
+
+  const externalIds = inserted
+    .map((p) => p.dedupKey?.externalId)
+    .filter((id): id is string => typeof id === "string");
+
+  const idByExternalId = new Map<string, string>();
+  if (externalIds.length > 0) {
+    const rows = await prisma.workout.findMany({
+      where: { userId, externalId: { in: externalIds } },
+      select: { id: true, externalId: true },
+    });
+    for (const row of rows) {
+      if (row.externalId) idByExternalId.set(row.externalId, row.id);
+    }
+  }
+
+  for (const p of inserted) {
+    const startedAt =
+      p.row.startedAt instanceof Date
+        ? p.row.startedAt
+        : new Date(p.row.startedAt as string);
+    if (Number.isNaN(startedAt.getTime())) continue;
+    const externalId = p.dedupKey?.externalId;
+    await emitDataArrival({
+      userId,
+      kind: "workout",
+      newestSampleAt: startedAt,
+      insertedCount: 1,
+      refId: externalId ? idByExternalId.get(externalId) : undefined,
+      source: "batch",
+    });
+  }
 }
 
 export const POST = apiHandler(withIdempotency<[NextRequest]>(postBatch));
@@ -673,6 +733,20 @@ async function postBatch(request: NextRequest): Promise<Response> {
   // workout-derived metrics.
   if (insertedCount > 0) {
     invalidateUserMeasurements(user.id);
+
+    // v1.31.0 — the workout arm of the data-arrival spine.
+    //
+    // Unlike every other kind, workouts emit ONE arrival PER workout, keyed by
+    // the workout's own id. Two sessions in a day are two events and each
+    // deserves its own reaction; a day-scoped key would silently collapse the
+    // second one.
+    //
+    // That needs the ids, and `createMany` does not return them, so this costs
+    // one extra indexed lookup — but only on a batch that actually inserted
+    // something, and only for entries carrying an external id. The classifier
+    // still runs per emit, so a historical import walks straight into
+    // `backfill` and enqueues nothing regardless of how many rows it wrote.
+    void emitWorkoutArrivals(user.id, prepared, results).catch(() => {});
   }
 
   return apiSuccess({

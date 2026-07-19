@@ -34,6 +34,8 @@ function makeDigest(over: Partial<DailyDigest> = {}): DailyDigest {
     briefingLead: "Sleep looked solid last night.",
     line: "Sleep looked solid last night.",
     worthALook: [],
+    justIn: null,
+    reactionLine: null,
     ...over,
   };
 }

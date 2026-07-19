@@ -2975,6 +2975,8 @@
     "navRecovery": "Regeneracja",
     "workouts": {
       "title": "Treningi",
+      "askWhy": "Dlaczego",
+      "askWhyPrompt": "Dlaczego ta sesja wypadła w ten sposób? Wyjaśnij mi moje własne wyniki.",
       "description": "Ostatnie biegi, jazdy, marsze i treningi siłowe — zdeduplikowane między Apple Watch a Withings.",
       "emptyState": {
         "title": "Brak treningów",
@@ -8856,6 +8858,8 @@
       "deltaVsBaseline": "{delta} wzgl. Twojej wartości bazowej",
       "deltaFlat": "Zgodnie z Twoją wartością bazową",
       "sleepPending": "Sen z ostatniej nocy jeszcze nie dotarł — dzisiejszy odczyt jest wstępny.",
+      "justIn": "Właśnie dotarło",
+      "justInAt": "Właśnie dotarło · {time}",
       "worthALook": "Warto sprawdzić",
       "allClear": "Dziś nic nie wymaga Twojej uwagi.",
       "ringLink": "Otwórz szczegóły: {metric}"

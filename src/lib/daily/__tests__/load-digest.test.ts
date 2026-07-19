@@ -19,6 +19,7 @@ vi.mock("@/lib/db", () => ({
     ecgRecording: { findFirst: vi.fn().mockResolvedValue(null) },
     dismissedPriorityItem: { findMany: vi.fn().mockResolvedValue([]) },
     personalRecord: { findMany: vi.fn().mockResolvedValue([]) },
+    arrivalReaction: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 

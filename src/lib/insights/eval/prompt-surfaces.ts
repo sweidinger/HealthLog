@@ -16,6 +16,10 @@
 import type { Locale } from "@/lib/i18n/config";
 
 import {
+  getArrivalReactionSystemPrompt,
+  getArrivalReactionUserPrompt,
+} from "@/lib/ai/prompts/arrival-reaction";
+import {
   getBiomarkerSystemPrompt,
   getBiomarkerUserPrompt,
 } from "@/lib/ai/prompts/biomarker";
@@ -45,6 +49,10 @@ import {
   getWeightSystemPrompt,
   getWeightUserPrompt,
 } from "@/lib/ai/prompts/weight";
+import {
+  getWorkoutInsightSystemPrompt,
+  getWorkoutInsightUserPrompt,
+} from "@/lib/ai/prompts/workout-insight";
 import type { MetricStatusMeta } from "@/lib/insights/metric-status-registry";
 
 /** Inert snapshot placeholder — the rules never read it. */
@@ -169,5 +177,26 @@ export const ASSESSMENT_SURFACES: readonly AssessmentSurface[] = [
     name: "biomarker",
     system: (l) => getBiomarkerSystemPrompt("Marker", l),
     user: (l) => getBiomarkerUserPrompt(SNAPSHOT, TODAY, l, OPENER_HINT),
+  },
+  {
+    // Describes one recorded session rather than a metric's trajectory, but it
+    // composes the same base body and owes the same opening contract — so it
+    // is graded here rather than given its own dialect.
+    name: "workout-insight",
+    system: getWorkoutInsightSystemPrompt,
+    user: (l) => getWorkoutInsightUserPrompt(SNAPSHOT, TODAY, l, OPENER_HINT),
+  },
+  {
+    // The one-sentence Today-hero reaction to a salient arrival. Smallest
+    // surface in the registry, and the one whose own module docblock warns
+    // most explicitly against the two-locale collapse — grading it here is
+    // what makes that warning enforced rather than just written down.
+    name: "arrival-reaction",
+    system: getArrivalReactionSystemPrompt,
+    user: (l) =>
+      getArrivalReactionUserPrompt(
+        { kind: "sleep_night", evidence: SNAPSHOT, openerHint: OPENER_HINT },
+        l,
+      ),
   },
 ];

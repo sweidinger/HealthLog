@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.30.35
+  version: 1.31.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -3031,10 +3031,12 @@ paths:
       summary: Workout detail (v1.4.32)
       description: Single-workout envelope. Owns the optional `WorkoutRoute` GeoJSON geometry + `canonicalId` pointer that
         resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Additive
-        enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`, reserved `aiInsight`) are computed
-        server-side. `compact=1` (sent by the web client) drops the raw `samples.samples` HR blob and
-        `route.sampleTimestamps` array from the response; without it the payload is byte-identical to the v1.4.32
-        contract. Cross-user rows surface as 404 (existence channel sealed).
+        enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`) are computed server-side. `aiInsight` is a
+        pure read of a per-workout paragraph written by a background job when the workout landed; it is null for every
+        workout that predates the feature or was re-synced, and reading this endpoint never generates one. `compact=1`
+        (sent by the web client) drops the raw `samples.samples` HR blob and `route.sampleTimestamps` array from the
+        response; without it the payload is byte-identical to the v1.4.32 contract. Cross-user rows surface as 404
+        (existence channel sealed).
       parameters:
         - in: path
           name: id
@@ -5576,6 +5578,9 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 500
+                workoutId:
+                  type: string
+                  maxLength: 64
               required:
                 - message
       responses:
@@ -18368,7 +18373,9 @@ components:
             - $ref: "#/components/schemas/WorkoutSportContext"
             - type: "null"
         aiInsight:
-          type: "null"
+          anyOf:
+            - $ref: "#/components/schemas/WorkoutActivityInsight"
+            - type: "null"
         canonicalId:
           type: string
       required:
@@ -18566,6 +18573,19 @@ components:
         - avgDurationSec
         - avgDistanceM
         - avgAvgHr
+      additionalProperties: false
+    WorkoutActivityInsight:
+      type: object
+      properties:
+        paragraph:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - paragraph
+        - generatedAt
       additionalProperties: false
     BatchWorkoutsResponse:
       type: object
@@ -31397,6 +31417,37 @@ components:
           items:
             $ref: "#/components/schemas/DailyPriorityItem"
           description: Bounded 0–3 rail items, never padded.
+        justIn:
+          anyOf:
+            - type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - sleep_night
+                    - workout
+                    - weight
+                    - blood_pressure
+                    - labs_panel
+                  description: Closed arrival kind that landed.
+                at:
+                  type: string
+                  description: ISO-8601 instant of the newest sample. NEVER pre-formatted server-side — the client formats it in its own
+                    locale and timezone.
+              required:
+                - kind
+                - at
+              additionalProperties: false
+            - type: "null"
+          description: The day's newest data arrival while it is still news (under three hours old), else null. Additive since
+            v1.31.0.
+        reactionLine:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: One-sentence generated reaction to that arrival, standing for the rest of the local day. Null whenever no
+            line was generated (no provider, no consent, budget exhausted, or generation failed) — consumers fall back
+            to `briefingLead` / `line`. Additive since v1.31.0.
       required:
         - generatedAt
         - phase
@@ -31406,6 +31457,8 @@ components:
         - briefingLead
         - line
         - worthALook
+        - justIn
+        - reactionLine
       additionalProperties: false
       description: The one data spine of the daily-value system — composed from already-cached data, never a fresh AI call.
         Consumed by the Today surface, the daily push, and a future iOS widget.

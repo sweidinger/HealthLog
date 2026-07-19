@@ -2975,6 +2975,8 @@
     "navRecovery": "Recuperación",
     "workouts": {
       "title": "Entrenamientos",
+      "askWhy": "Por qué",
+      "askWhyPrompt": "¿Por qué salió así esta sesión? Explícame mis propios datos de ella.",
       "description": "Carreras, salidas en bici, paseos y sesiones de fuerza recientes, deduplicados entre Apple Watch y Withings.",
       "emptyState": {
         "title": "Aún no hay entrenamientos",
@@ -8856,6 +8858,8 @@
       "deltaVsBaseline": "{delta} frente a tu valor de referencia",
       "deltaFlat": "En línea con tu valor de referencia",
       "sleepPending": "El sueño de anoche aún no ha llegado; la lectura de hoy es provisional.",
+      "justIn": "Recién llegado",
+      "justInAt": "Recién llegado · {time}",
       "worthALook": "Merece un vistazo",
       "allClear": "Hoy nada necesita tu atención.",
       "ringLink": "Abrir detalles de {metric}"
