@@ -110,6 +110,13 @@ const DOSE_PATTERNS: Record<Locale, readonly RegExp[]> = {
       `\\bn[äa]chste\\s+(?:stufe|dosis)\\b[^.?!]{0,30}\\b[\\d.,]+\\s*${DOSE_UNIT}\\b`,
       "i",
     ),
+    // German puts the verb last in a subordinate clause ("auf 7,5 mg zu
+    // erhöhen"), so the verb-first patterns above miss the most natural
+    // phrasing of the instruction. Match the inverted order too.
+    new RegExp(
+      `\\b(?:auf|um)\\s+[\\d.,]+\\s*${DOSE_UNIT}\\b[^.?!]{0,30}\\b(?:erhöh\\S*|steiger\\S*|reduzier\\S*|senk\\S*|verringer\\S*|hochsetz\\S*)`,
+      "i",
+    ),
     new RegExp(
       `\\b(?:erwäg\\w*|probier\\w*|du\\s+solltest|ich\\s+empfehle|ich\\s+schlage\\s+vor)\\b[^.?!]{0,40}\\b[\\d.,]+\\s*${DOSE_UNIT}\\b`,
       "i",
@@ -179,16 +186,16 @@ const DOSE_PATTERNS: Record<Locale, readonly RegExp[]> = {
   pl: [
     // zwiększ / podnieś / przejdź do|o N unit
     new RegExp(
-      `\\b(?:zwi[ęe]ksz\\w*|podnie[śs]\\w*|przejd[źz]\\w*|podwy[żz]sz\\w*)\\s+(?:dawk[ęe]\\s+)?(?:do|o)\\s+[\\d.,]+\\s*${DOSE_UNIT}\\b`,
+      `\\b(?:zwi[ęe]ksz\\S*|podnie[śs]\\S*|przejd[źz]\\S*|podwy[żz]sz\\S*)\\s+(?:dawk\\S*\\s+)?(?:do|o)\\s+[\\d.,]+\\s*${DOSE_UNIT}\\b`,
       "i",
     ),
     // zmniejsz / obniż / zredukuj do|o N unit
     new RegExp(
-      `\\b(?:zmniejsz\\w*|obni[żz]\\w*|zreduk\\w*|reduk\\w*)\\s+(?:dawk[ęe]\\s+)?(?:do|o)\\s+[\\d.,]+\\s*${DOSE_UNIT}\\b`,
+      `\\b(?:zmniejsz\\S*|obni[żz]\\S*|zreduk\\S*|reduk\\S*)\\s+(?:dawk\\S*\\s+)?(?:do|o)\\s+[\\d.,]+\\s*${DOSE_UNIT}\\b`,
       "i",
     ),
     new RegExp(
-      `\\b(?:rozwa[żz]\\w*|spr[óo]buj\\w*|powinien|powinna|zalecam|sugeruj[ęe])\\b[^.?!]{0,40}\\b[\\d.,]+\\s*${DOSE_UNIT}\\b`,
+      `\\b(?:rozwa[żz]\\S*|spr[óo]buj\\S*|powinien|powinna|zalecam|sugeruj[ęe])[^.?!]{0,40}\\b[\\d.,]+\\s*${DOSE_UNIT}\\b`,
       "i",
     ),
     new RegExp(
@@ -217,23 +224,23 @@ const RISK_PATTERNS: Record<Locale, readonly RegExp[]> = {
     /\b(?:10[- ]jahres|zehn[- ]jahres|lebenszeit)[- ]?(?:risiko)\b/i,
   ],
   fr: [
-    /\brisque\s+(?:de|d'|est\s+de|d'environ)\s+(?:environ\s+|~)?\d{1,3}\s*%/i,
-    /\b\d{1,3}\s*%\s+(?:de\s+)?(?:risque|probabilit[ée]|chance)\b/i,
+    /\brisque\s+(?:est\s+)?(?:de\s+|d['’])?(?:environ\s+|~)?\d{1,3}\s*%/i,
+    /\b\d{1,3}\s*%\s+(?:de\s+)?(?:risque|probabilit[ée]|chance)/i,
     /\brisque\s+(?:cardiovasculaire|cardiaque|d'avc|de\s+mortalit[ée])\s+[àa]\s+(?:10|dix)\s+ans\b/i,
   ],
   es: [
     /\briesgo\s+(?:del?|es\s+del?|de\s+aproximadamente)\s+(?:aproximadamente\s+|~)?\d{1,3}\s*%/i,
-    /\b\d{1,3}\s*%\s+(?:de\s+)?(?:riesgo|probabilidad)\b/i,
+    /\b\d{1,3}\s*%\s+(?:de\s+)?(?:riesgo|probabilidad)/i,
     /\briesgo\s+(?:cardiovascular|card[íi]aco|de\s+ictus|de\s+mortalidad)\s+a\s+(?:10|diez)\s+a[ñn]os\b/i,
   ],
   it: [
     /\brischio\s+(?:del?|dell'|[èe]\s+del?|di\s+circa)\s+(?:circa\s+|~)?\d{1,3}\s*%/i,
-    /\b\d{1,3}\s*%\s+(?:di\s+)?(?:rischio|probabilit[àa])\b/i,
+    /\b\d{1,3}\s*%\s+(?:di\s+)?(?:rischio|probabilit[àa])/i,
     /\brischio\s+(?:cardiovascolare|cardiaco|di\s+ictus|di\s+mortalit[àa])\s+a\s+(?:10|dieci)\s+anni\b/i,
   ],
   pl: [
     /\bryzyko\s+(?:wynosi\s+|około\s+|~)?\d{1,3}\s*%/i,
-    /\b\d{1,3}\s*%\s+(?:ryzyka|prawdopodobie[ńn]stwa)\b/i,
+    /\b\d{1,3}\s*%\s+(?:ryzyka|prawdopodobie[ńn]stwa)/i,
     /\bryzyk\w*\s+(?:sercowo[- ]naczyniow\w*|zawału|udaru|zgonu)\s+w\s+(?:ci[ąa]gu\s+)?(?:10|dziesi[ęe]ciu)\s+lat\b/i,
   ],
 };
@@ -276,17 +283,17 @@ const CAUSAL_PATTERNS: Record<Locale, readonly RegExp[]> = {
     /\bcaus(?:e|es|ent|é|ée)\b/i,
     /\ben\s+raison\s+de\b/i,
     /\bentra[îi]n\w*/i,
-    /\ba\s+conduit\s+[àa]\b/i,
-    /\bd[ûu]\s+[àa]\b/i,
+    /\ba\s+conduit\s+[àa]/i,
+    /\bd[ûu]\s+[àa]/i,
     /\bresponsable\s+de\b/i,
-    /\bgr[âa]ce\s+[àa]\b/i,
+    /\bgr[âa]ce\s+[àa]/i,
     /\bprovoqu\w*/i,
   ],
   es: [
     /\bporque\b/i,
     /\bdebido\s+a\b/i,
     /\ba\s+causa\s+de\b/i,
-    /\bcaus(?:a|an|ó|ado)\b/i,
+    /\bcaus(?:a|an|ó|ado)/i,
     /\bprovoc\w*/i,
     /\bllev[óo]\s+a\b/i,
     /\bresponsable\s+de\b/i,
@@ -294,7 +301,7 @@ const CAUSAL_PATTERNS: Record<Locale, readonly RegExp[]> = {
     /\bimpuls\w*\s+(?:por|el|la)\b/i,
   ],
   it: [
-    /\bperch[ée]\b/i,
+    /\bperch[ée]/i,
     /\ba\s+causa\s+di\b/i,
     /\bcaus(?:a|ano|ato|ata)\b/i,
     /\bprovoc\w*/i,
@@ -305,7 +312,7 @@ const CAUSAL_PATTERNS: Record<Locale, readonly RegExp[]> = {
     /\bguid\w*\s+da\b/i,
   ],
   pl: [
-    /\bponiewa[żz]\b/i,
+    /\bponiewa[żz]/i,
     /\bz\s+powodu\b/i,
     /\bpowoduj\w*/i,
     /\bspowodowa\w*/i,

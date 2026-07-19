@@ -33,6 +33,7 @@ import {
   buildBriefingGroundingCorrection,
 } from "@/lib/ai/briefing-grounding";
 import { screenInsightPayloadProse } from "@/lib/ai/safety/insight-payload-screen";
+import { computeCitationCoverage } from "@/lib/ai/citation-coverage";
 import { applyInsightsExcludeFilter } from "@/lib/insights/exclude-filter";
 import { getCachedFeatures } from "@/lib/insights/feature-cache";
 import {
@@ -1034,6 +1035,32 @@ export async function generateComprehensiveInsight(
           ungroundedCount: ungrounded.length,
           briefing_fallback:
             fallbackBriefing != null ? "previous-cached" : "stripped",
+        },
+      });
+    }
+  }
+
+  // Citation coverage. This annotation is what the admin AI-quality dashboard
+  // slices to track how many normative recommendations carry a curated
+  // medical-reference id. It used to hang off `generateInsight()`, which has no
+  // production caller, so the dashboard was reading a metric nothing emitted.
+  // Observational only — an uncited normative rec is a logged warning, never a
+  // reason to fail the generation.
+  if (insights && typeof insights === "object") {
+    const payload = insights as Record<string, unknown>;
+    if (Array.isArray(payload.recommendations)) {
+      const coverage = computeCitationCoverage({
+        recommendations: payload.recommendations,
+      });
+      annotate({
+        action: { name: "insights.generate.citation_coverage" },
+        meta: {
+          locale,
+          totalRecommendations: coverage.totalRecommendations,
+          normativeRecommendations: coverage.normativeRecommendations,
+          citedNormativeRecommendations: coverage.citedNormativeRecommendations,
+          uncitedNormativeCount:
+            coverage.uncitedNormativeRecommendationIds.length,
         },
       });
     }

@@ -34,7 +34,12 @@ export function collectInsightProse(parsed: unknown): string[] {
   for (const rec of Array.isArray(root.recommendations)
     ? root.recommendations
     : []) {
-    if (rec && typeof rec === "object") {
+    // The live schema admits BOTH a structured object and a legacy bare
+    // string. Reading only `.text` silently skipped every string rec, which is
+    // exactly the shape older cached payloads use.
+    if (typeof rec === "string") {
+      push(rec);
+    } else if (rec && typeof rec === "object") {
       push((rec as Record<string, unknown>).text);
     }
   }
