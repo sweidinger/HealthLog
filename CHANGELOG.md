@@ -20,8 +20,16 @@
 - **The "read the full briefing" link is gone from Today.** Tapping the
   health-score ring already opens the same page.
 - **The close button on a document sits flush with the edge again.**
+- **A document no longer says its summary is being generated forever.**
+  Summaries are only started when a document is uploaded while automatic
+  reading is on — there is no catch-up for documents you already had, so
+  the view promised a summary that was never coming, and hid the button
+  that would have made one. It now says what actually happened — not
+  attempted, unavailable, or held back — and offers to generate one in
+  every case. A summary you generate that way is kept.
+- **Removed the "read by AI" note** at the bottom of a document.
 
-No breaking changes.
+One migration (0254). No breaking changes.
 
 ## [1.30.28] — 2026-07-19
 
