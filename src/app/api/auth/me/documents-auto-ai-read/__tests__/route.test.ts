@@ -107,12 +107,19 @@ describe("PATCH /api/auth/me/documents-auto-ai-read — catch-up scheduling", ()
   });
 
   it("still mints the consent receipt on the flip that schedules the pass", async () => {
-    // The catch-up rides the same act of consent, never around it.
+    // The catch-up rides the same act of consent, never around it. The mint
+    // is marked `affirmative` because switching the toggle on IS the consent
+    // act: unlike the settings-mount heal, it may lift an earlier
+    // withdrawal, which is the user deciding again rather than the page
+    // deciding for them.
     withPrevious(false);
 
     await PATCH(mkPatch(true));
 
-    expect(ensureWebAiConsentReceipt).toHaveBeenCalledWith("user-1");
+    expect(ensureWebAiConsentReceipt).toHaveBeenCalledWith(
+      "user-1",
+      "affirmative",
+    );
   });
 
   it("persists the flag field-by-field", async () => {

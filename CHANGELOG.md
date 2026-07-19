@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+## [1.30.32] — 2026-07-19
+
+- **A withdrawn AI consent stays withdrawn.** Opening the AI settings
+  granted consent again if you had taken it back, and recorded it as
+  though you had done it yourself. A withdrawal is now a standing
+  decision that only an explicit act can lift.
+- **The web can withdraw AI consent at all.** Until now only the app
+  could; on the web, consent could be given and never taken back. The AI
+  settings show what currently stands and offer the control that changes
+  it. Withdrawing takes effect immediately and deletes nothing you have
+  recorded.
+- **Documents get read after you switch automatic reading on.** Reading
+  was only ever started at upload, so documents already in your vault
+  stayed unread no matter what the setting said. Turning it on now works
+  through what is already there, in batches, asking the same permission
+  as any other read.
+- **A quoted passage in a document review is the document's own text.**
+  The quote shown for a finding was the wording that came back from the
+  read, not the line it was taken from — so it could be a paraphrase of
+  your own record presented as a verbatim quote. The passage is now
+  looked up in the document itself, and a finding whose source cannot be
+  located says so instead of showing a quote you cannot check.
+- **Pages that arrive with your data pre-loaded now say so on the wire.**
+  They were never cacheable in practice, but nothing stated it. Anything
+  behind the sign-in wall is now marked private and uncacheable at the
+  edge, so no proxy or future change can hold one person's record and
+  hand it to someone else.
+- **Deleting your last reading of a kind no longer leaves stale weekly,
+  monthly and yearly figures.** The daily figure went; the longer spans
+  kept the old aggregate indefinitely.
+- **The documented API matches what the endpoints return.** Twenty
+  corrections, including a total that the measurements list reports in a
+  different place than the specification claimed, four medication figures
+  named wrongly, a missing intake source, and eleven error codes that
+  were never written down.
+- **A retry after an unusable AI answer asks for the right shape.** The
+  correction prompt demanded fields that do not exist and named none of
+  the ones actually required, so the one corrective attempt steered away
+  from the contract instead of towards it.
+
+No migrations. No breaking changes.
+
 ## [1.30.31] — 2026-07-19
 
 - **Today shows a dose before it is late.** The card only surfaced a
