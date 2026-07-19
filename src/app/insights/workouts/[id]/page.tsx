@@ -91,9 +91,11 @@ export default function InsightsWorkoutDetailPage({
       ) : (
         <>
           <WorkoutDetailHeader workout={data} />
-          {/* Reserved Activity-Insight seam — `aiInsight` is always null
-              today, so this renders nothing. When the Phase-2 job
-              populates it, the card mounts here with zero layout rework. */}
+          {/* The Activity Insight, above the stats it describes. `null` is the
+              common case and renders nothing — the paragraph is written by a
+              background job when the workout lands, so a historical or
+              re-synced workout has none and opening this page never asks for
+              one. */}
           {data.aiInsight ? (
             <WorkoutInsightCard insight={data.aiInsight} />
           ) : null}
