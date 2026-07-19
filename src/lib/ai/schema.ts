@@ -18,7 +18,7 @@ import { MEDICAL_REFERENCE_IDS } from "./medical-references";
  *   - A `citations[]` array referencing the metrics the response drew
  *     on. May be empty when `recommendations[]` is empty (no data → no
  *     citation), but every recommendation's `metricSource` MUST also
- *     appear in `citations[]` (cross-check enforced by `validateInsightResponse`).
+ *     appear in `citations[]`.
  *   - A `warnings[]` array for guideline-flagged values (high BP,
  *     critical pulse, etc.). Free-form for now; v1.4.16 adds severity
  *     enum + medical-reference grounding.
@@ -137,9 +137,8 @@ export const aiRecommendationSchema = z
     /**
      * v1.4.16 phase B5c — per-recommendation explainability rationale.
      * Required on every rec so the UI's expand-card always has WHY +
-     * WINDOW + COMPARED-TO content to render. Legacy payloads (pre-
-     * B5c) ride through `findRecommendationsMissingRationale()` for
-     * the regenerate-CTA migration; the strict parser rejects them.
+     * WINDOW + COMPARED-TO content to render. The strict parser
+     * rejects a legacy (pre-B5c) payload that omits it.
      */
     rationale: aiRecommendationRationaleSchema,
     /**
@@ -159,11 +158,9 @@ export const aiRecommendationSchema = z
      *
      * Optional at parse-time:
      *   - The LLM may emit a value (we accept it so the payload round-
-     *     trips cleanly), but `generateInsight()` OVERRIDES with the
-     *     server-computed `computeConfidence()` post-validation. The
-     *     model's number is discarded — calibrated probabilities are
-     *     not a small-LLM strength and the deterministic path keeps
-     *     the v1.4.17 feedback ratchet reproducible.
+     *     trips cleanly). A deterministic server-side override once
+     *     replaced it post-validation, but that path never ran in
+     *     production and was removed with the rest of the wrapper.
      *   - Legacy cached payloads from before B5d landed have no
      *     confidence field; the meter falls back to a "draft" pill.
      *
@@ -507,87 +504,19 @@ export const aiInsightResponseSchema = z
 export type AIInsightResponse = z.infer<typeof aiInsightResponseSchema>;
 
 /**
- * Tagged error thrown by the schema-enforcement wrapper when even the
- * retry attempt fails to produce a valid payload. The route catches
- * this and surfaces a 422 to the client.
- */
-export class InsightSchemaError extends Error {
-  readonly httpStatus = 422;
-  readonly issues: z.ZodIssue[] | null;
-  readonly attempts: number;
-
-  constructor(
-    message: string,
-    options: { issues?: z.ZodIssue[]; attempts: number },
-  ) {
-    super(message);
-    this.name = "InsightSchemaError";
-    this.issues = options.issues ?? null;
-    this.attempts = options.attempts;
-  }
-}
-
-/**
- * v1.4.16 phase B5c — legacy-payload detector.
+ * The strict-contract ENFORCEMENT that used to live here is gone: an
+ * `InsightSchemaError` class no caller threw, a `findUncitedRecommendations`
+ * cross-check (every recommendation's `metricSource` must appear in
+ * `citations[]`) and a `findRecommendationsMissingRationale` legacy-payload
+ * detector. All three existed only for `generateInsight()`, whose sole caller
+ * `runWithFallback()` had no production caller — so none of them ever ran.
  *
- * The strict schema now requires `rationale` on every recommendation.
- * Cached payloads from v1.4.14/v1.4.15 predate the field — they would
- * fail `aiInsightResponseSchema.safeParse()` outright. Rather than
- * auto-regenerating on every read (expensive + surprising), we let
- * the route call this helper against the legacy-shape JSON so the
- * UI can show a "Insights updated — regenerate for new explainability
- * features" CTA. User-initiated regeneration stays the trigger.
- *
- * Input is intentionally typed loosely (the runtime shape is the
- * canonical AIInsightResponse, but legacy payloads omit `rationale`
- * which the static type now requires). Returns the ids of
- * recommendations missing rationale; an empty array means the
- * payload is well-shaped under B5c.
+ * The schema above stays because it is not a guard: it is the shape the
+ * corrective retry prompt (`retry-correction.ts`) describes to the model, and
+ * it is the reference definition for the strict payload. NOTE the live
+ * comprehensive path validates against the looser `insightResultSchema` in
+ * `types.ts`, which has no `citations[]` and treats `metricSource` as
+ * optional — so the retry prompt asks for a stricter shape than the live
+ * validator requires. That mismatch predates this cleanup and is left alone
+ * deliberately; changing the retry prompt changes model output.
  */
-export function findRecommendationsMissingRationale(
-  parsed: AIInsightResponse,
-): string[] {
-  const missing: string[] = [];
-  for (const rec of parsed.recommendations) {
-    // Defensive runtime check — the static type asserts rationale is
-    // present, but the helper exists precisely for legacy payloads
-    // where it isn't.
-    const r = (rec as { rationale?: unknown }).rationale;
-    if (r === undefined || r === null) {
-      missing.push(rec.id);
-    }
-  }
-  return missing;
-}
-
-/**
- * Cross-validation beyond zod: every recommendation's `metricSource`
- * must also appear in `citations[]` (same `type` + `timeRange`).
- * Returns the list of missing-citation issues; an empty list means
- * the response is internally consistent.
- */
-export function findUncitedRecommendations(parsed: AIInsightResponse): Array<{
-  recommendationId: string;
-  missing: { type: string; timeRange: string };
-}> {
-  const cited = new Set(
-    parsed.citations.map((c) => `${c.type}::${c.timeRange}`),
-  );
-  const missing: Array<{
-    recommendationId: string;
-    missing: { type: string; timeRange: string };
-  }> = [];
-  for (const rec of parsed.recommendations) {
-    const key = `${rec.metricSource.type}::${rec.metricSource.timeRange}`;
-    if (!cited.has(key)) {
-      missing.push({
-        recommendationId: rec.id,
-        missing: {
-          type: rec.metricSource.type,
-          timeRange: rec.metricSource.timeRange,
-        },
-      });
-    }
-  }
-  return missing;
-}

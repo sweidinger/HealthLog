@@ -34,8 +34,16 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(() => "2026-05-28"),
-  enforceBudget: vi.fn(async () => undefined),
-  recordSpend: vi.fn(async () => undefined),
+  reserveBudget: vi.fn(async () => ({
+    allowed: true,
+    reserved: 700,
+    totalAfter: 700,
+  })),
+  reconcileSpend: vi.fn(async () => undefined),
+  // The REAL cap resolver is used in the cap test below; the default mock
+  // returns a distinctive figure so an accidental default-cap regression is
+  // visible in the assertion rather than silently passing.
+  resolveDailyCap: vi.fn(() => 1_234_567),
 }));
 
 vi.mock("@/lib/ai/provider", () => ({
@@ -73,9 +81,16 @@ vi.mock("@/lib/logging/context", () => ({
 import { POST } from "../route";
 import { requireAuth, HttpError } from "@/lib/api-handler";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { enforceBudget } from "@/lib/ai/coach/budget";
+import {
+  reserveBudget,
+  reconcileSpend,
+  resolveDailyCap,
+} from "@/lib/ai/coach/budget";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
-import { runRawCompletionWithFallback } from "@/lib/ai/provider-runner";
+import {
+  runRawCompletionWithFallback,
+  AllProvidersFailedError,
+} from "@/lib/ai/provider-runner";
 import { assertConsentForChain } from "@/lib/ai/consent-guard";
 
 function postReq(body: unknown): NextRequest {
@@ -98,7 +113,12 @@ beforeEach(() => {
     remaining: 9,
     resetAt: Date.now() + 60_000,
   });
-  vi.mocked(enforceBudget).mockResolvedValue(undefined);
+  vi.mocked(reserveBudget).mockResolvedValue({
+    allowed: true,
+    reserved: 700,
+    totalAfter: 700,
+  });
+  vi.mocked(resolveDailyCap).mockReturnValue(1_234_567);
   vi.mocked(resolveProviderChain).mockResolvedValue([
     {
       providerType: "openai",
@@ -213,6 +233,107 @@ describe("POST /api/medications/extract — happy path", () => {
     const body = await res.json();
     expect(body.data.name).toBeUndefined();
     expect(body.data.dose).toBe("5");
+  });
+});
+
+describe("POST /api/medications/extract — daily budget", () => {
+  function okCompletion(tokensUsed: number | null) {
+    return {
+      result: {
+        content: JSON.stringify({ dose: "5", doseUnit: "mg" }),
+        tokensUsed,
+        model: "gpt-4",
+        providerType: "anthropic",
+      },
+      workingProvider: { providerType: "openai", instance: {} as never },
+      fallbackHops: [],
+    };
+  }
+
+  it("caps against the COST OWNER — the resolved chain, not the operator ceiling", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(AUTH_OK as never);
+    vi.mocked(runRawCompletionWithFallback).mockResolvedValueOnce(
+      okCompletion(120) as never,
+    );
+
+    await POST(postReq({ text: "5mg weekly" }) as never);
+
+    // The cap is derived from the chain that would actually pay for the call.
+    // A user-key chain ("openai") therefore never rides the operator ceiling —
+    // `budget.test.ts` pins that resolveDailyCap([{openai}]) === USER_PLAN_CAP.
+    expect(resolveDailyCap).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ providerType: "openai" }),
+      ]),
+    );
+    // ...and the reservation is made against exactly that cap, not a default.
+    expect(reserveBudget).toHaveBeenCalledWith(
+      "user-1",
+      expect.any(Number),
+      "2026-05-28",
+      1_234_567,
+    );
+  });
+
+  it("returns 429 without calling the provider when the day's cap is spent", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(AUTH_OK as never);
+    vi.mocked(reserveBudget).mockResolvedValueOnce({
+      allowed: false,
+      reserved: 700,
+      totalAfter: 9_999_999,
+    });
+
+    const res = await POST(postReq({ text: "Mounjaro 5mg weekly" }) as never);
+
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body.error).toMatch(/budget/i);
+    // The refusal happens BEFORE any upstream spend.
+    expect(runRawCompletionWithFallback).not.toHaveBeenCalled();
+  });
+
+  it("reconciles the reservation against the provider's reported count", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(AUTH_OK as never);
+    vi.mocked(runRawCompletionWithFallback).mockResolvedValueOnce(
+      okCompletion(120) as never,
+    );
+
+    await POST(postReq({ text: "5mg weekly" }) as never);
+
+    expect(reconcileSpend).toHaveBeenCalledWith(
+      "user-1",
+      700,
+      120,
+      "2026-05-28",
+    );
+  });
+
+  it("bills the reservation, not zero, when the provider reports no count", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(AUTH_OK as never);
+    vi.mocked(runRawCompletionWithFallback).mockResolvedValueOnce(
+      okCompletion(null) as never,
+    );
+
+    await POST(postReq({ text: "5mg weekly" }) as never);
+
+    expect(reconcileSpend).toHaveBeenCalledWith(
+      "user-1",
+      700,
+      700,
+      "2026-05-28",
+    );
+  });
+
+  it("refunds the whole reservation when the provider chain fails", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(AUTH_OK as never);
+    vi.mocked(runRawCompletionWithFallback).mockRejectedValueOnce(
+      new AllProvidersFailedError([]),
+    );
+
+    const res = await POST(postReq({ text: "5mg weekly" }) as never);
+
+    expect(res.status).toBe(503);
+    expect(reconcileSpend).toHaveBeenCalledWith("user-1", 700, 0, "2026-05-28");
   });
 });
 

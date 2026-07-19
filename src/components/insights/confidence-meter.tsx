@@ -10,7 +10,7 @@ export type ConfidenceBand = "high" | "medium" | "low" | "draft";
 export type ConfidenceMeterVariant = "bars" | "ring";
 
 export interface ConfidenceMeterProps {
-  /** Score from `computeConfidence()` — 0..100, integer expected. */
+  /** Score carried on the insight payload — 0..100, integer expected. */
   value: number;
   /** Visual variant. Defaults to `bars`. */
   variant?: ConfidenceMeterVariant;

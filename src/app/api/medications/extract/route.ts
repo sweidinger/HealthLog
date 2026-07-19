@@ -26,13 +26,19 @@
  *   1. requireAuth()                       — cookie OR Bearer.
  *   2. requireAssistantSurface("coach")    — operator can disable.
  *   3. checkRateLimit(...)                 — 10 requests / 5 min / user.
- *   4. enforceBudget()                     — daily Coach token ceiling.
- *   5. resolveProviderChain()              — fall back through providers.
+ *   4. resolveProviderChain()              — fall back through providers.
+ *   5. reserveBudget(resolveDailyCap(chain)) — atomic daily token ceiling,
+ *      capped against the COST OWNER: a self-hoster on their own key or a
+ *      local model is measured against the user-plan ceiling, not the
+ *      operator's. Runs AFTER the chain resolves because the cap depends
+ *      on which credential would actually pay for the call.
  *   6. runRawCompletionWithFallback()      — same machinery the Coach
  *      uses; structured-output is enforced via JSON.parse + Zod here
  *      rather than via the strict-schema wrapper.
  *   7. applyCitationGuard()                — drop hallucinated name/dose.
- *   8. recordSpend()                       — bump the day's ledger.
+ *   8. reconcileSpend()                    — settle the reservation against
+ *      the provider's reported count on EVERY exit path, refunding when
+ *      nothing was generated.
  *
  * Response: `{ data: MedicationExtractionResult, error: null }`. Every
  * field on the result is optional; the wizard is the merge target.
@@ -62,8 +68,9 @@ import { assertConsentForChain } from "@/lib/ai/consent-guard";
 
 import {
   buildDateKey,
-  enforceBudget,
-  recordSpend,
+  reconcileSpend,
+  reserveBudget,
+  resolveDailyCap,
 } from "@/lib/ai/coach/budget";
 import {
   applyCitationGuard,
@@ -74,6 +81,12 @@ import {
 
 /** Hard cap on the free-text payload; mirrors `coachChatRequestSchema.message`. */
 const MAX_TEXT_LENGTH = 2000;
+
+/**
+ * Output ceiling for the extraction reply — a single small JSON object. Also
+ * the output half of the budget reservation estimate.
+ */
+const MAX_OUTPUT_TOKENS = 600;
 
 const requestSchema = z.object({
   text: z.string().min(1).max(MAX_TEXT_LENGTH),
@@ -154,8 +167,6 @@ async function handleExtract(request: NextRequest): Promise<Response> {
     });
   }
 
-  await enforceBudget(userId);
-
   // Resolve the same provider chain the Coach uses. If the user has no
   // provider configured AND the operator has not seeded an admin key,
   // surface a structured 503 — the wizard hides the overlay.
@@ -181,6 +192,31 @@ async function handleExtract(request: NextRequest): Promise<Response> {
     locale,
   });
 
+  // Atomically reserve the day's budget BEFORE the provider call. The old
+  // `enforceBudget` read-then-write left a TOCTOU window (concurrent calls
+  // could each observe a sub-cap total and all proceed) AND passed no cap, so
+  // it always measured against `OPERATOR_COST_CAP` — rationing a self-hoster
+  // paying for their own key by the operator's ceiling. `resolveDailyCap`
+  // charges the operator ceiling only when the chain's primary is the
+  // operator's own credential; every other chain gets the user-plan ceiling.
+  const dateKey = buildDateKey();
+  const estimatedTokens =
+    MAX_OUTPUT_TOKENS +
+    Math.ceil((systemPrompt.length + userPrompt.length) / 4);
+  const reservation = await reserveBudget(
+    userId,
+    estimatedTokens,
+    dateKey,
+    resolveDailyCap(chain),
+  );
+  if (!reservation.allowed) {
+    annotate({
+      action: { name: "medications.extract.budget-exceeded" },
+      meta: { totalAfter: reservation.totalAfter },
+    });
+    return apiError("coach.budget.exceeded", 429);
+  }
+
   let completion;
   try {
     completion = await runRawCompletionWithFallback({
@@ -194,13 +230,18 @@ async function handleExtract(request: NextRequest): Promise<Response> {
         temperature: 0.1,
         // The reply body is a single small JSON object; 600 is well
         // over the empirical max we have seen on a 2k-char input.
-        maxTokens: 600,
+        maxTokens: MAX_OUTPUT_TOKENS,
         // Parsed with `parseModelJson` (JSON.parse) below — opt the OpenAI /
         // Codex chains into their strict JSON-object mode (gated on this flag).
         responseFormat: "json",
       }),
     });
   } catch (err) {
+    // Nothing was generated — refund the whole reservation rather than bill an
+    // invented figure. Best-effort: a failed refund must not mask the 503.
+    await reconcileSpend(userId, reservation.reserved, 0, dateKey).catch(
+      () => {},
+    );
     if (err instanceof AllProvidersFailedError) {
       annotate({
         action: { name: "medications.extract.provider-failed" },
@@ -210,6 +251,14 @@ async function handleExtract(request: NextRequest): Promise<Response> {
     }
     throw err;
   }
+
+  // Reconcile against what the provider actually reported. This runs for the
+  // unusable-reply branches too: those tokens were burned upstream even though
+  // the body could not be used, so they stay on the ledger rather than funding
+  // a free retry loop. Falls back to the reservation when the provider reports
+  // no count, so an unreported generation is never billed as zero.
+  const actualTokens = completion.result.tokensUsed ?? reservation.reserved;
+  await reconcileSpend(userId, reservation.reserved, actualTokens, dateKey);
 
   const reply = completion.result.content?.trim() ?? "";
   if (!reply) {
@@ -241,13 +290,6 @@ async function handleExtract(request: NextRequest): Promise<Response> {
     validatedJson.data,
     text,
   );
-
-  // Bump the day's spend ledger so the daily budget gate stays in sync.
-  await recordSpend({
-    userId,
-    tokens: completion.result.tokensUsed ?? 0,
-    dateKey: buildDateKey(),
-  });
 
   annotate({
     action: { name: "medications.extract.ok" },
