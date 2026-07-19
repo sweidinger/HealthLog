@@ -47,4 +47,12 @@ export const settingsKeys = {
   shareLinks: () => ["share-links"] as const,
 
   featureFlags: () => ["feature-flags"] as const,
+
+  /**
+   * The account's standing AI consent receipt (`GET /api/consent/ai/latest`).
+   * Keyed by kind because the endpoint answers per kind and a shared key
+   * across kinds would serve one kind's receipt for another.
+   */
+  aiConsentReceipt: (kind: string) =>
+    ["consent", "ai", "latest", kind] as const,
 };

@@ -4999,6 +4999,16 @@
         "honesty": "Wspólny dostęp to jedno zalogowane konto AI, które operator podłączył dla wszystkich na tym serwerze — nie Twój własny klucz. Zapytania, które przez nie wysyłasz, są domyślnie wykorzystywane do trenowania modeli dostawcy i nie obejmuje ich żadna umowa powierzenia przetwarzania danych, godzinowe i tygodniowe limity konta dzielisz z wszystkimi innymi, którzy się zgodzili, a Twoi właśni dostawcy są próbowani jako pierwsi. Włącz to tylko, jeśli akceptujesz ten kompromis.",
         "confirm": "Rozumiem — użyj wspólnego połączenia",
         "cancel": "Anuluj"
+      },
+      "consent": {
+        "title": "Zgoda na AI",
+        "activeSince": "Udzielona {date}. Twoje dane zdrowotne mogą być wysyłane do skonfigurowanego dostawcy na potrzeby funkcji AI.",
+        "withdrawn": "Wycofana. Żadne dane zdrowotne nie są wysyłane do dostawcy AI; funkcje AI pozostają wyłączone.",
+        "withdraw": "Wycofaj zgodę",
+        "confirmBody": "Funkcje AI przestają działać natychmiast. Nic z już zapisanych danych nie zostaje usunięte — użyj sekcji Dane i prywatność, aby wyeksportować lub usunąć swoją historię.",
+        "confirmWithdraw": "Wycofaj",
+        "regrantHint": "Aby ponownie korzystać z funkcji AI, włącz automatyczne czytanie dokumentów lub udziel zgody w aplikacji.",
+        "error": "Nie udało się zapisać wycofania. Spróbuj ponownie."
       }
     },
     "dashboard": {

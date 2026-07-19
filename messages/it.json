@@ -4999,6 +4999,16 @@
         "honesty": "L'accesso condiviso è un unico account IA con accesso eseguito che l'operatore ha collegato per tutti su questo server, non la tua chiave. Le richieste che vi effettui vengono usate per impostazione predefinita per addestrare i modelli del provider e nessun accordo sul trattamento dei dati le copre, i limiti orari e settimanali dell'account sono condivisi con tutti gli altri che hanno aderito, e i tuoi provider vengono comunque provati per primi. Attivalo solo se accetti questo compromesso.",
         "confirm": "Ho capito — usa la connessione condivisa",
         "cancel": "Annulla"
+      },
+      "consent": {
+        "title": "Consenso IA",
+        "activeSince": "Concesso il {date}. I tuoi dati sanitari possono essere inviati al provider configurato per le funzioni IA.",
+        "withdrawn": "Revocato. Nessun dato sanitario viene inviato a un provider IA; le funzioni IA restano disattivate.",
+        "withdraw": "Revoca il consenso",
+        "confirmBody": "Le funzioni IA si fermano subito. Nulla di quanto già registrato viene eliminato — usa Dati e privacy per esportare o cancellare il tuo archivio.",
+        "confirmWithdraw": "Revoca",
+        "regrantHint": "Per usare di nuovo le funzioni IA, attiva la lettura automatica dei documenti o concedi il consenso dall'app.",
+        "error": "Non è stato possibile salvare la revoca. Riprova."
       }
     },
     "dashboard": {

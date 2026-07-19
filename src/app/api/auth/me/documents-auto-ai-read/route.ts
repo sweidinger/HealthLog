@@ -107,7 +107,7 @@ export const PATCH = apiHandler(async (req: Request) => {
   // `ai_full` receipt (idempotent) so the durable audit trail records it, in
   // addition to the runtime short-circuit the document consent gate reads.
   if (next) {
-    await ensureWebAiConsentReceipt(user.id);
+    await ensureWebAiConsentReceipt(user.id, "affirmative");
   }
 
   await auditLog("user.documentsAutoAiRead.update", {

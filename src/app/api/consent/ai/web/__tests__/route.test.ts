@@ -90,7 +90,10 @@ describe("POST /api/consent/ai/web", () => {
 
   it("is a no-op when an active receipt already exists (minted:false)", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    vi.mocked(ensureWebAiConsentReceipt).mockResolvedValue({ minted: false });
+    vi.mocked(ensureWebAiConsentReceipt).mockResolvedValue({
+      minted: false,
+      reason: "already_active",
+    });
 
     const res = await POST();
     expect(res.status).toBe(200);
