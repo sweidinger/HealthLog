@@ -33,6 +33,12 @@ vi.mock("@/lib/feature-flags", () => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    // The briefing path now reserves against the day's token ledger before
+    // egress and reconciles after (`reserveBudget` / `reconcileSpend`), both
+    // over raw SQL. A zero prior total keeps every generation under the cap,
+    // so these suites keep testing what they were written to test.
+    $queryRaw: vi.fn(async () => [{ total_tokens: 0 }]),
+    $executeRaw: vi.fn(async () => 0),
     user: {
       findUnique: vi.fn(async () => ({
         insightsPrivacyMode: "aggregated",
@@ -167,6 +173,11 @@ beforeEach(() => {
   // need a fresh cache so the previous test's success doesn't reorder
   // the chain on the next request.
   clearLastWorkingProviderCache();
+  // `clearAllMocks` does not undo a `mockImplementation`, so the ledger stub is
+  // re-seeded per test — otherwise the over-cap case below leaks into the rest.
+  vi.mocked(prisma.$queryRaw).mockImplementation((async () => [
+    { total_tokens: 0 },
+  ]) as never);
   vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
     remaining: 9,
@@ -221,6 +232,33 @@ function makeProviderThatThrows(
     // The route only calls generateCompletion; pad the type for TS.
   } as unknown as Awaited<ReturnType<typeof resolveProvider>>);
 }
+
+describe("POST /api/insights/generate — daily token ceiling", () => {
+  it("refuses over-cap with 429 before any provider egress", async () => {
+    // The reservation reports a prior total already at the ceiling. The hourly
+    // rate limit bounds how OFTEN this route runs; the ledger bounds what it
+    // costs. Before this wiring the route had only the former, so ten
+    // full-price briefings an hour was the real ceiling.
+    // Targeted at the ledger's upsert only — other raw reads on this path
+    // (the plateau / derived-signal probes) must keep their own shape.
+    vi.mocked(prisma.$queryRaw).mockImplementation((async (
+      strings: TemplateStringsArray,
+    ) =>
+      String(strings[0]).includes("coach_usage")
+        ? [{ total_tokens: 10_000_000 }]
+        : [{ total_tokens: 0 }]) as never);
+    makeWorkingProvider();
+
+    const res = await POST(jsonRequest({ force: true }) as never);
+    expect(res.status).toBe(429);
+    const body = (await res.json()) as ApiErrorEnvelope;
+    expect(body.error).toContain("Daily AI token budget");
+    // Not a provider failure: no cache row written, so the last good briefing
+    // stays intact and the card does not blank.
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(enqueueStatusRefillForUser).not.toHaveBeenCalled();
+  });
+});
 
 describe("POST /api/insights/generate — provider error mapping", () => {
   it("rejects a body over the 16 KB cap with 413 before parsing", async () => {

@@ -54,7 +54,6 @@ import {
   buildBriefingPersonalisationBlock,
 } from "@/lib/ai/prompts/insight-generator";
 import { buildRetryCorrectionMessage } from "@/lib/ai/generate-insight";
-import { singleUserTurn } from "@/lib/ai/types";
 import {
   buildAboutMeInsightBlock,
   getSelfContextTextForUser,
@@ -74,10 +73,11 @@ import {
 import type { MeasurementType } from "@/generated/prisma/client";
 import { insightResultSchema, type InsightResult } from "@/lib/ai/types";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
+import { AllProvidersFailedError } from "@/lib/ai/provider-runner";
 import {
-  AllProvidersFailedError,
-  runRawCompletionWithFallback,
-} from "@/lib/ai/provider-runner";
+  BriefingBudgetExceededError,
+  runBriefingCompletion,
+} from "@/lib/insights/briefing-provider";
 import {
   chainRequiresServerManagedConsent,
   hasActiveConsentForSurface,
@@ -126,7 +126,13 @@ export type GenerateOutcome =
    * temperature for phrasing variety. At most one re-roll per calendar day.
    */
   | { status: "rerolled"; providerType: string }
-  | { status: "skipped"; reason: "no-provider" | "no-consent" }
+  /**
+   * `budget` — the day's token ceiling refused the reservation, so no
+   * provider was contacted. Grouped with the other `skipped` reasons rather
+   * than with `failed` on purpose: there is no upstream fault to retry
+   * against, so the caller must not enqueue the provider-failure retry.
+   */
+  | { status: "skipped"; reason: "no-provider" | "no-consent" | "budget" }
   | { status: "failed"; reason: string };
 
 /** Higher, seedless temperature for the daily-briefing phrasing re-roll. */
@@ -196,26 +202,27 @@ async function rerollBriefingParagraph(args: {
   let result;
   let providerType: string;
   try {
-    const fallback = await runRawCompletionWithFallback({
+    const fallback = await runBriefingCompletion({
       userId: args.userId,
-      providers: args.chain,
-      params: singleUserTurn({
-        system: args.systemPrompt,
-        user: args.userPrompt,
-        // Seedless on purpose: the seed would pin the same phrasing, which is
-        // exactly what we are varying. Higher temperature for prose variety.
-        temperature: BRIEFING_REROLL_TEMPERATURE,
-        maxTokens: resolveInsightsMaxTokens(),
-        // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
-        // generation is not clipped at the client's 60 s default mid-stream.
-        // v1.25 — honours the per-user response-timeout setting (see caller).
-        timeoutMs: args.effectiveTimeoutMs,
-        responseFormat: "json",
-      }),
+      chain: args.chain,
+      systemPrompt: args.systemPrompt,
+      userPrompt: args.userPrompt,
+      // Seedless on purpose: the seed would pin the same phrasing, which is
+      // exactly what we are varying. Higher temperature for prose variety.
+      temperature: BRIEFING_REROLL_TEMPERATURE,
+      maxTokens: resolveInsightsMaxTokens(),
+      // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+      // generation is not clipped at the client's 60 s default mid-stream.
+      // v1.25 — honours the per-user response-timeout setting (see caller).
+      timeoutMs: args.effectiveTimeoutMs,
+      stage: "reroll",
     });
     result = fallback.result;
     providerType = fallback.workingProvider.providerType;
   } catch {
+    // Includes `BriefingBudgetExceededError`: a user at the day's ceiling
+    // simply does not get the phrasing re-roll. The caller falls through to
+    // the plain timestamp refresh and keeps the cached paragraph.
     return null;
   }
 
@@ -817,27 +824,35 @@ export async function generateComprehensiveInsight(
   let result;
   let workingProviderType: string;
   try {
-    const fallback = await runRawCompletionWithFallback({
+    const fallback = await runBriefingCompletion({
       userId,
-      providers: chain,
-      params: singleUserTurn({
-        system: systemPrompt,
-        user: userPrompt,
-        temperature: AI_BUDGETS.comprehensive.temperature,
-        maxTokens: resolveInsightsMaxTokens(),
-        // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
-        // generation is not clipped at the client's 60 s default mid-stream.
-        // v1.25 — honours the per-user response-timeout setting.
-        timeoutMs: effectiveTimeoutMs,
-        // v1.18.7 — structured surface: opt the non-OpenAI chains into their
-        // strongest JSON mode (Ollama `format`, Anthropic `{` prefill) so a
-        // first-pass JSON miss is rarer; stripJsonFences stays the net.
-        responseFormat: "json",
-      }),
+      chain,
+      systemPrompt,
+      userPrompt,
+      temperature: AI_BUDGETS.comprehensive.temperature,
+      maxTokens: resolveInsightsMaxTokens(),
+      // v1.21.5 — wider upstream budget so the reasoning-heavy briefing
+      // generation is not clipped at the client's 60 s default mid-stream.
+      // v1.25 — honours the per-user response-timeout setting.
+      timeoutMs: effectiveTimeoutMs,
+      stage: "generate",
     });
     result = fallback.result;
     workingProviderType = fallback.workingProvider.providerType;
   } catch (e) {
+    // Over the day's token ceiling — no provider was contacted. Typed as
+    // `skipped`, not `failed`: there is no upstream fault to retry against,
+    // so the caller must not enqueue the 45-minute provider-failure retry or
+    // hold the day provisional waiting for a briefing that will not come
+    // until the ledger rolls over. No failure marker either — the ceiling is
+    // an accounting outcome, not a broken generation.
+    if (e instanceof BriefingBudgetExceededError) {
+      annotate({
+        action: { name: "insights.generate.budget_exceeded" },
+        meta: { locale, stage: e.stage, totalAfter: e.totalAfter },
+      });
+      return { status: "skipped", reason: "budget" };
+    }
     // v1.21.5 — make the failed generation queryable. This path used to return
     // a `failed` outcome with NO annotation, so a provider that consistently
     // failed (e.g. a codex briefing aborted by the 60 s timeout on a large
@@ -890,26 +905,38 @@ export async function generateComprehensiveInsight(
       meta: { locale },
     });
     try {
-      const retry = await runRawCompletionWithFallback({
+      const retry = await runBriefingCompletion({
         userId,
-        providers: chain,
-        params: singleUserTurn({
-          system: systemPrompt,
-          user: `${userPrompt}\n\n${buildRetryCorrectionMessage(
-            "Response was not valid JSON",
-            "The previous reply could not be parsed as a JSON object.",
-          )}`,
-          temperature: AI_BUDGETS.comprehensive.temperature,
-          maxTokens: resolveInsightsMaxTokens(),
-          // v1.21.5 — wider upstream budget; see the first generation call.
-          // v1.25 — honours the per-user response-timeout setting.
-          timeoutMs: effectiveTimeoutMs,
-          responseFormat: "json",
-        }),
+        chain,
+        systemPrompt,
+        userPrompt: `${userPrompt}\n\n${buildRetryCorrectionMessage(
+          "Response was not valid JSON",
+          "The previous reply could not be parsed as a JSON object.",
+        )}`,
+        temperature: AI_BUDGETS.comprehensive.temperature,
+        maxTokens: resolveInsightsMaxTokens(),
+        // v1.21.5 — wider upstream budget; see the first generation call.
+        // v1.25 — honours the per-user response-timeout setting.
+        timeoutMs: effectiveTimeoutMs,
+        stage: "json-retry",
       });
       result = retry.result;
       workingProviderType = retry.workingProvider.providerType;
     } catch (retryErr) {
+      // The first pass already landed and was charged; the correction pass is
+      // what the ceiling refused. Same `skipped` treatment as the first call —
+      // a budget refusal is not a provider fault to retry against.
+      if (retryErr instanceof BriefingBudgetExceededError) {
+        annotate({
+          action: { name: "insights.generate.budget_exceeded" },
+          meta: {
+            locale,
+            stage: retryErr.stage,
+            totalAfter: retryErr.totalAfter,
+          },
+        });
+        return { status: "skipped", reason: "budget" };
+      }
       // v1.28.30 — annotate alongside the marker so an invalid-JSON night
       // is greppable under the same action as every other failure class.
       annotate({
@@ -973,19 +1000,17 @@ export async function generateComprehensiveInsight(
         meta: { locale, ungroundedCount: ungrounded.length },
       });
       try {
-        const retry = await runRawCompletionWithFallback({
+        const retry = await runBriefingCompletion({
           userId,
-          providers: chain,
-          params: singleUserTurn({
-            system: systemPrompt,
-            user: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
-            temperature: AI_BUDGETS.comprehensive.temperature,
-            maxTokens: resolveInsightsMaxTokens(),
-            // v1.21.5 — wider upstream budget; see the first generation call.
-            // v1.25 — honours the per-user response-timeout setting.
-            timeoutMs: effectiveTimeoutMs,
-            responseFormat: "json",
-          }),
+          chain,
+          systemPrompt,
+          userPrompt: `${userPrompt}\n\n${buildBriefingGroundingCorrection(ungrounded)}`,
+          temperature: AI_BUDGETS.comprehensive.temperature,
+          maxTokens: resolveInsightsMaxTokens(),
+          // v1.21.5 — wider upstream budget; see the first generation call.
+          // v1.25 — honours the per-user response-timeout setting.
+          timeoutMs: effectiveTimeoutMs,
+          stage: "grounding-retry",
         });
         const retryInsights = parseComprehensiveResult(retry.result.content);
         const retryUngrounded = findUngroundedBriefingNumbers(
@@ -1003,7 +1028,11 @@ export async function generateComprehensiveInsight(
         }
       } catch {
         // Retry failed on TRANSPORT (provider outage / timeout), not on
-        // content — the model never got its correction chance.
+        // content — the model never got its correction chance. A
+        // `BriefingBudgetExceededError` lands here too and is treated the same
+        // way on purpose: the model never got its correction chance either, so
+        // preferring the previously-cached (already-grounded) briefing over a
+        // hole is the right call. The ungrounded text is still never persisted.
         retryTransportFailed = true;
       }
     }
