@@ -457,3 +457,71 @@ describe("resolveCanonicalSlotInstant — DST robustness vs projector mint", () 
     expect(result?.toISOString()).toBe(projectorMint.toISOString());
   });
 });
+
+describe("slot dedupe contract — projector, reminder worker and intake write", () => {
+  // The three surfaces key on the slot instant BYTE-FOR-BYTE: the projector
+  // mints a pending row at `localHmAsUtc(<its tick>, tz, h, m)`, the reminder
+  // worker re-derives the same slot from ITS tick, and the intake write path
+  // snaps an incoming take to the canonical instant via
+  // `resolveCanonicalSlotInstant`. All three reference instants are
+  // different by construction — a cron tick, a later cron tick, and the
+  // moment the user actually pressed "take".
+  //
+  // That is the whole hazard. The primitive used to sample the zone offset
+  // at its REFERENCE rather than at the target local time, so on a
+  // transition day a pre-transition tick and a post-transition tick minted
+  // instants an hour apart for the same slot — the dedupe key stopped
+  // matching and a duplicate pending row became reachable.
+  //
+  // The existing DST cases above compare the resolver to a projector mint
+  // computed from the SAME reference, which cannot see this. These pass
+  // deliberately different references.
+
+  const SLOT_HOUR = 20;
+  const med = makeMedication([
+    makeSchedule({
+      timesOfDay: ["20:00"],
+      windowStart: "20:00",
+      windowEnd: "21:00",
+    }),
+  ]);
+
+  it("agrees across references on either side of the autumn fall-back", () => {
+    // Europe/Berlin 2026-10-25: 03:00 CEST → 02:00 CET.
+    const projectorTick = new Date("2026-10-25T00:30:00.000Z"); // 02:30 CEST
+    const workerTick = new Date("2026-10-25T17:00:00.000Z"); // 18:00 CET
+    const takePressedAt = new Date("2026-10-25T19:10:00.000Z"); // 20:10 CET
+
+    const projectorMint = localHmAsUtc(projectorTick, TZ, SLOT_HOUR, 0);
+    const workerMint = localHmAsUtc(workerTick, TZ, SLOT_HOUR, 0);
+    const writeMint = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming: takePressedAt,
+    });
+
+    expect(workerMint.toISOString()).toBe(projectorMint.toISOString());
+    expect(writeMint?.toISOString()).toBe(projectorMint.toISOString());
+    // And the shared instant really is 20:00 on the user's clock.
+    expect(projectorMint.toISOString()).toBe("2026-10-25T19:00:00.000Z");
+  });
+
+  it("agrees across references on either side of the spring-forward", () => {
+    // Europe/Berlin 2026-03-29: 02:00 CET → 03:00 CEST.
+    const projectorTick = new Date("2026-03-29T00:30:00.000Z"); // 01:30 CET
+    const workerTick = new Date("2026-03-29T16:00:00.000Z"); // 18:00 CEST
+    const takePressedAt = new Date("2026-03-29T18:10:00.000Z"); // 20:10 CEST
+
+    const projectorMint = localHmAsUtc(projectorTick, TZ, SLOT_HOUR, 0);
+    const workerMint = localHmAsUtc(workerTick, TZ, SLOT_HOUR, 0);
+    const writeMint = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming: takePressedAt,
+    });
+
+    expect(workerMint.toISOString()).toBe(projectorMint.toISOString());
+    expect(writeMint?.toISOString()).toBe(projectorMint.toISOString());
+    expect(projectorMint.toISOString()).toBe("2026-03-29T18:00:00.000Z");
+  });
+});

@@ -43,6 +43,11 @@
  */
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
+import {
+  localDayIndex,
+  wallClockInTz,
+  type WallClockParts,
+} from "@/lib/tz/wall-clock";
 
 /** One explicit per-dose on-time window as the API serialises it. */
 export interface DoseWindowEntryInput {
@@ -122,22 +127,17 @@ export interface NextDueGate {
 const DEFAULT_TZ = "Europe/Berlin";
 
 /**
- * Convert a `Date` from its underlying UTC instant into the wall-clock
- * value in the given IANA timezone so the per-minute arithmetic below
- * treats the user's day boundary correctly. Intentionally en-US — this is
- * not a user-facing format string, only a parseable round-trip to shift
- * the value into the target local time.
+ * Minute-of-day an observer in the target zone reads off the wall clock.
+ * Every band comparison below is minute-of-day arithmetic, so this is the
+ * only projection the status math needs.
  */
-export function toZonedDate(date: Date, tz: string = DEFAULT_TZ): Date {
-  return new Date(date.toLocaleString("en-US", { timeZone: tz }));
+function minuteOfDay(parts: WallClockParts): number {
+  return parts.hour * 60 + parts.minute;
 }
 
-/**
- * Legacy alias kept for the existing card call sites; new code should call
- * `toZonedDate(date, userTz)` with the user's real timezone.
- */
-export function toBerlinDate(date: Date): Date {
-  return toZonedDate(date, DEFAULT_TZ);
+/** True when two wall clocks name the same local calendar day. */
+function sameLocalDay(a: WallClockParts, b: WallClockParts): boolean {
+  return a.year === b.year && a.month === b.month && a.day === b.day;
 }
 
 export function parseTimeToMinutes(value: string): number {
@@ -293,14 +293,14 @@ function bandStatus(
 
 function getScheduleStatus(
   schedule: ScheduleWindowInput,
-  nowLocal: Date,
+  nowParts: WallClockParts,
   lateMinutes: number,
   missedMinutes: number,
 ): {
   status: Exclude<MedicationWindowStatus, null>;
   band: DoseWindowBounds;
 } | null {
-  const nowMins = nowLocal.getHours() * 60 + nowLocal.getMinutes();
+  const nowMins = minuteOfDay(nowParts);
   let best: {
     status: Exclude<MedicationWindowStatus, null>;
     band: DoseWindowBounds;
@@ -329,7 +329,7 @@ const EARLY_GRACE_MINUTES = DOSE_WINDOW_DEFAULTS.earlyGraceMinutes;
 function isLastIntakeInBand(
   lastTakenAt: string | null,
   band: DoseWindowBounds,
-  nowLocal: Date,
+  nowParts: WallClockParts,
   tz: string,
   /**
    * Lower bound (minutes-of-day) the early grace may not cross — the end
@@ -340,18 +340,12 @@ function isLastIntakeInBand(
 ): boolean {
   if (!lastTakenAt) return false;
 
-  const intake = toZonedDate(new Date(lastTakenAt), tz);
+  const intake = wallClockInTz(new Date(lastTakenAt), tz);
 
   // Must be same calendar day
-  if (
-    intake.getFullYear() !== nowLocal.getFullYear() ||
-    intake.getMonth() !== nowLocal.getMonth() ||
-    intake.getDate() !== nowLocal.getDate()
-  ) {
-    return false;
-  }
+  if (!sameLocalDay(intake, nowParts)) return false;
 
-  const intakeMins = intake.getHours() * 60 + intake.getMinutes();
+  const intakeMins = minuteOfDay(intake);
 
   // Handle legacy overnight windows
   const adjustedIntake =
@@ -411,28 +405,13 @@ function dayScaleCadence(daysOfWeek: string | null): {
  */
 function earlyTakeDaysAgo(
   lastTakenAt: string | null,
-  nowLocal: Date,
+  nowParts: WallClockParts,
   tz: string,
   periodDays: number,
 ): number | null {
   if (!lastTakenAt || periodDays < 2) return null;
-  const intake = toZonedDate(new Date(lastTakenAt), tz);
-  const dayMs = 24 * 60 * 60 * 1000;
-  const intakeDay = Math.floor(
-    new Date(
-      intake.getFullYear(),
-      intake.getMonth(),
-      intake.getDate(),
-    ).getTime() / dayMs,
-  );
-  const nowDay = Math.floor(
-    new Date(
-      nowLocal.getFullYear(),
-      nowLocal.getMonth(),
-      nowLocal.getDate(),
-    ).getTime() / dayMs,
-  );
-  const diff = nowDay - intakeDay;
+  const intake = wallClockInTz(new Date(lastTakenAt), tz);
+  const diff = localDayIndex(nowParts) - localDayIndex(intake);
   return diff >= 1 && diff < periodDays ? diff : null;
 }
 
@@ -452,14 +431,14 @@ function earlyTakeDaysAgo(
  */
 function countPassedDoses<Schedule extends ScheduleWindowInput>(
   schedules: Schedule[],
-  nowLocal: Date,
+  nowParts: WallClockParts,
 ): number {
-  const nowMins = nowLocal.getHours() * 60 + nowLocal.getMinutes();
+  const nowMins = minuteOfDay(nowParts);
   return schedules.reduce((sum, s) => {
     const recurrence = parseScheduleRecurrence(s.daysOfWeek);
     if (
       recurrence.daysOfWeek.length > 0 &&
-      !recurrence.daysOfWeek.includes(nowLocal.getDay())
+      !recurrence.daysOfWeek.includes(nowParts.weekday)
     ) {
       return sum;
     }
@@ -485,17 +464,22 @@ function countPassedDoses<Schedule extends ScheduleWindowInput>(
  * status when the last intake already falls inside the matched band so
  * the pill doesn't nag after the user took the dose.
  *
- * `nowBerlin` is the wall-clock "now" already shifted into the user's
- * timezone (via `toZonedDate`); `tz` must name the same timezone so the
- * last-intake comparison shifts `lastTakenAt` identically. The name and
- * the default are the legacy Berlin contract — callers that serve other
- * timezones pass their own.
+ * `now` is the real "now" instant — NOT a pre-shifted wall clock. The
+ * helper decomposes it in `tz` itself, so caller and helper can no longer
+ * disagree about which zone the comparison runs in. Callers used to pass a
+ * `Date` fabricated by rendering the instant in the target zone and
+ * re-parsing it as host-local; when that fabricated wall clock landed in
+ * the HOST zone's spring-forward gap the engine silently advanced it an
+ * hour, so a dose inside its window could read late and a just-taken dose
+ * could fail to suppress the take-now pill. Passing the instant removes
+ * that class outright.
  */
 export function reduceCurrentWindowStatus<
   Schedule extends ScheduleWindowInput,
 >(options: {
   schedules: Schedule[];
-  nowBerlin: Date;
+  /** The real current instant; decomposed in `tz` internally. */
+  now: Date;
   lateMinutes: number;
   missedMinutes: number;
   active: boolean;
@@ -508,7 +492,7 @@ export function reduceCurrentWindowStatus<
    * dashboard visit and the overdue pill went dark nondeterministically.
    */
   todayEventCount: number;
-  /** IANA timezone matching `nowBerlin`'s conversion; defaults to Berlin. */
+  /** IANA timezone the status math reasons in; defaults to Berlin. */
   tz?: string;
   /**
    * v1.16.6 — the server display-due gate. `undefined` keeps the legacy
@@ -526,7 +510,7 @@ export function reduceCurrentWindowStatus<
 }): CurrentWindowStatus<Schedule> {
   const {
     schedules,
-    nowBerlin,
+    now,
     lateMinutes,
     missedMinutes,
     active,
@@ -535,6 +519,7 @@ export function reduceCurrentWindowStatus<
     tz = DEFAULT_TZ,
     nextDue,
   } = options;
+  const nowParts = wallClockInTz(now, tz);
 
   const none: CurrentWindowStatus<Schedule> = {
     status: null,
@@ -545,25 +530,17 @@ export function reduceCurrentWindowStatus<
   if (!active) return none;
   if (nextDue === null) return none;
 
-  const passedDoseCount = countPassedDoses(schedules, nowBerlin);
+  const passedDoseCount = countPassedDoses(schedules, nowParts);
   const hasUncoveredOverdue = todayEventCount < passedDoseCount;
 
   // Display-due gate (see the option's doc above). Computed once: it does
   // not vary per schedule row — the server already reduced the rows to one
   // verdict.
   const dueIsToday =
-    nextDue != null &&
-    (() => {
-      const dueLocal = toZonedDate(nextDue.at, tz);
-      return (
-        dueLocal.getFullYear() === nowBerlin.getFullYear() &&
-        dueLocal.getMonth() === nowBerlin.getMonth() &&
-        dueLocal.getDate() === nowBerlin.getDate()
-      );
-    })();
+    nextDue != null && sameLocalDay(wallClockInTz(nextDue.at, tz), nowParts);
 
   return schedules.reduce<CurrentWindowStatus<Schedule>>((best, s) => {
-    const hit = getScheduleStatus(s, nowBerlin, lateMinutes, missedMinutes);
+    const hit = getScheduleStatus(s, nowParts, lateMinutes, missedMinutes);
     if (!hit) return best;
     // The pill must never read more overdue than the next-due line: a
     // future (non-overdue) display-due suppresses every overdue tier, and
@@ -588,7 +565,7 @@ export function reduceCurrentWindowStatus<
     );
     if (
       hit.status === "in_window" &&
-      isLastIntakeInBand(lastTakenAt, hit.band, nowBerlin, tz, earlyFloorMins)
+      isLastIntakeInBand(lastTakenAt, hit.band, nowParts, tz, earlyFloorMins)
     ) {
       return best;
     }
@@ -604,7 +581,7 @@ export function reduceCurrentWindowStatus<
       // framing changes; the day count rides along for the copy.
       const cadence = dayScaleCadence(s.daysOfWeek);
       const takenEarlyDaysAgo = cadence.dayScale
-        ? earlyTakeDaysAgo(lastTakenAt, nowBerlin, tz, cadence.periodDays)
+        ? earlyTakeDaysAgo(lastTakenAt, nowParts, tz, cadence.periodDays)
         : null;
       return {
         status: hit.status,

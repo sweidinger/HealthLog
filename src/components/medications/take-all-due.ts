@@ -42,7 +42,6 @@ import { apiPost } from "@/lib/api/api-fetch";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
 import {
   reduceCurrentWindowStatus,
-  toZonedDate,
   type ScheduleWindowInput,
 } from "@/lib/medications/window-status";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
@@ -133,7 +132,6 @@ export function deriveDueMedications(
   const tz = options.tz ?? "Europe/Berlin";
   const { lateMinutes, missedMinutes } =
     options.thresholds ?? DEFAULT_THRESHOLDS;
-  const nowLocal = toZonedDate(now, tz);
 
   const due: DueMedication[] = [];
   for (const m of medications) {
@@ -146,7 +144,7 @@ export function deriveDueMedications(
     const nextDueMs = m.nextDueAt ? new Date(m.nextDueAt).getTime() : NaN;
     const status = reduceCurrentWindowStatus({
       schedules: m.schedules,
-      nowBerlin: nowLocal,
+      now,
       lateMinutes,
       missedMinutes,
       active: m.active,

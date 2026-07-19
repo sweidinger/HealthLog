@@ -13,10 +13,8 @@ import { formatDateTime, formatTime } from "@/lib/format";
 import { getDateTimeFormat } from "@/lib/intl/formatter-cache";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
 import { formatDose } from "@/lib/medications/format-dose";
-import {
-  reduceCurrentWindowStatus,
-  toZonedDate,
-} from "@/lib/medications/window-status";
+import { reduceCurrentWindowStatus } from "@/lib/medications/window-status";
+import { resolveNextDueDayLabel } from "@/lib/medications/next-due-day-label";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
 import {
   estimateDailyDoseCount,
@@ -242,7 +240,7 @@ export function MedicationCard({
       a.windowStart.localeCompare(b.windowStart) ||
       a.windowEnd.localeCompare(b.windowEnd),
   );
-  const nowBerlin = toZonedDate(new Date(), userTz);
+  const now = new Date();
   // v1.8.4 — the next-due instant comes from the server (`nextDueAt`,
   // computed by the canonical recurrence engine anchored on the last
   // intake). The day label below derives from it; the window-range /
@@ -261,7 +259,7 @@ export function MedicationCard({
 
   const currentWindowStatus = reduceCurrentWindowStatus({
     schedules: sortedSchedules,
-    nowBerlin,
+    now,
     lateMinutes,
     missedMinutes,
     active: medication.active,
@@ -418,27 +416,15 @@ export function MedicationCard({
           // Format day label relative to today
           let dayLabel = "";
           if (nextAt) {
-            const nextDate = toZonedDate(new Date(nextAt), userTz);
-            const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
-            const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
-            const tomorrow = new Date(nowBerlin);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
-
-            const diffDays = Math.round(
-              (nextDate.getTime() - nowBerlin.getTime()) /
-                (24 * 60 * 60 * 1000),
-            );
-
-            if (nextStr === todayStr) {
-              dayLabel = t("medications.today");
-            } else if (nextStr === tomorrowStr) {
-              dayLabel = t("medications.tomorrow");
-            } else if (diffDays <= 5) {
-              dayLabel = weekdayLabel(nextDate.getDay());
-            } else {
-              dayLabel = fmt.dateWithWeekdaySmart(nextDate);
-            }
+            const label = resolveNextDueDayLabel(new Date(nextAt), now, userTz);
+            dayLabel =
+              label.kind === "today"
+                ? t("medications.today")
+                : label.kind === "tomorrow"
+                  ? t("medications.tomorrow")
+                  : label.kind === "weekday"
+                    ? weekdayLabel(label.weekday)
+                    : fmt.dateWithWeekdaySmart(label.instant);
           }
 
           // v1.16.1 — the TIME is the canonical next-due instant (the

@@ -5,8 +5,18 @@
  * the numbers now honour `daysOfWeek` and `intervalWeeks`. These
  * tests pin the contract for every cadence the production app
  * exercises: daily 1×/day, daily multi-dose, weekly Mondays-only,
- * bi-weekly, weekday-only multi-dose, and the DST-boundary day.
- * Closes #214.
+ * bi-weekly, and weekday-only multi-dose. Closes #214.
+ *
+ * The DST local-day walk is NOT pinned here. A "DST boundary" case used
+ * to sit in this file passing no timezone, so the slot builder took the
+ * legacy UTC path where the date carries no transition — it asserted
+ * `totalExpected === 7`, which holds in every zone and therefore could
+ * never see a double-emit. Threading a real zone through it does not
+ * help: the assertion stays true in Berlin, UTC, UTC+14 and UTC−11
+ * alike. The property it claimed lives in
+ * `src/lib/medications/scheduling/__tests__/compliance.test.ts`, which
+ * walks `buildCadenceTimeline` with an explicit zone across BOTH the 23 h
+ * spring-forward and the 25 h fall-back day.
  *
  * Each test uses `vi.useFakeTimers()` to pin `now` so the rolling
  * window is deterministic. `classifyIntakeTiming` tests below the
@@ -341,38 +351,6 @@ describe("calculateCompliance — cadence-aware adapter", () => {
     expect(result.rate).toBe(100);
     expect(result.taken).toBe(3);
     expect(result.missed).toBe(0);
-  });
-
-  it("DST boundary (Europe/Berlin spring-forward) does not inflate the expected count", () => {
-    // Spring-forward in Berlin: 2025-03-30 02:00 → 03:00. A daily
-    // schedule across this boundary must still emit one slot per
-    // local day — not two on the short day and zero on the next.
-    // Pin `now` to Apr-02 noon UTC and run a 7-day window so the
-    // boundary day is inside it. Generate one event per day
-    // (working backwards from NOW − 1 day so each event lands inside
-    // the window) and assert the totalExpected lands at 7 (not 8).
-    vi.setSystemTime(new Date("2025-04-02T12:00:00Z"));
-    const schedules: ComplianceSchedule[] = [
-      { windowStart: "10:00", windowEnd: "11:00", daysOfWeek: null },
-    ];
-    // Slots emitted by the timeline: Mar-27..Apr-02 (Mar-26's window
-    // sits below the rolling-window start of Mar-26 12:00). Generate
-    // one taken event per slot — today's 10:30 slot is also in the
-    // past relative to NOW = 12:00 so it counts as taken too.
-    const events = [];
-    for (let d = 0; d <= 6; d++) {
-      const at = new Date("2025-04-02T10:30:00Z");
-      at.setUTCDate(at.getUTCDate() - d);
-      events.push(eventAt(at, true));
-    }
-    const result = calculateCompliance(events, schedules, 7);
-    // The hard contract: totalExpected stays at 7 — not 8 (which
-    // would mean the DST short day double-emitted) and not 6 (which
-    // would mean the short day silently dropped a slot).
-    expect(result.totalExpected).toBe(7);
-    expect(result.taken).toBe(7);
-    expect(result.missed).toBe(0);
-    expect(result.rate).toBe(100);
   });
 
   it("filters events outside the rolling window", () => {
