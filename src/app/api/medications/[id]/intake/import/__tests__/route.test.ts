@@ -58,11 +58,16 @@ vi.mock("@/lib/notifications/medication-intake-sync", () => ({
   queueMedicationIntakeSync: vi.fn(),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn(),
+}));
+
 import { POST } from "../route";
 import { queueMedicationIntakeSync } from "@/lib/notifications/medication-intake-sync";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { consumeForIntake } from "@/lib/medications/inventory/consumption";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -89,6 +94,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+  vi.mocked(checkRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 60,
+    resetAt: Date.now() + 60_000,
+  });
   vi.mocked(prisma.medication.findUnique).mockResolvedValue({
     id: "m1",
     userId: "user-1",
@@ -243,5 +253,75 @@ describe("POST /api/medications/[id]/intake/import — inventory consumption", (
     // Only the fresh row consumes — the duplicate never re-creates an event,
     // so re-import cannot double-decrement.
     expect(consumeForIntake).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("POST /api/medications/[id]/intake/import — bounds and limiter", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.medicationIntakeEvent.create).mockImplementation(
+      (async (args: { data: { takenAt: Date } }) => ({
+        id: "evt-1",
+        takenAt: args.data.takenAt,
+      })) as never,
+    );
+  });
+
+  // The `\d{4}-\d{2}-\d{2}` regex has no upper bound. A future-dated row used
+  // to create a "taken" intake ahead of now, which then fed compliance and the
+  // dose-history ledger. The single and bulk intake twins bound this through
+  // `boundedTakenAtSchema`.
+  it("skips a future-dated row instead of importing it", async () => {
+    const future = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    const datum = future.toISOString().slice(0, 10);
+    const res = await POST(
+      postReq([{ datum, uhrzeit: "07:00:00" }]),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      data: { imported: number; skippedInvalid: number };
+    };
+    expect(body.data.imported).toBe(0);
+    expect(body.data.skippedInvalid).toBe(1);
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("still imports a historical row — the past side stays unbounded", async () => {
+    const res = await POST(
+      postReq([{ datum: "2019-03-04", uhrzeit: "07:00:00" }]),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { data: { imported: number } };
+    expect(body.data.imported).toBe(1);
+  });
+
+  // This was the one intake write path with no limiter, while running up to
+  // 1000 sequential find + create + inventory-consume iterations per call.
+  it("refuses with 429 once the import limiter trips", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 60_000,
+    });
+    const res = await POST(
+      postReq([{ datum: "2026-01-01", uhrzeit: "07:00:00" }]),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(429);
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("buckets the limiter per user", async () => {
+    await POST(
+      postReq([{ datum: "2026-01-01", uhrzeit: "07:00:00" }]),
+      ROUTE_CTX,
+    );
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      "medications:intake:import:user-1",
+      expect.any(Number),
+      expect.any(Number),
+    );
   });
 });

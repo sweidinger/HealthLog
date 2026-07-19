@@ -1234,6 +1234,43 @@ describe("classifyIntakeTiming", () => {
     );
   });
 
+  // A degenerate POINT window (`windowStart === windowEnd`) is a real shape on
+  // legacy rows. It used to take the overnight branch and inflate into a ~30h
+  // on-time band, so a dose taken many hours late still counted `on_time` and
+  // fed a perfect-compliance streak. It now widens symmetrically by the default
+  // on-time half-width, matching `resolveLegacyWindowBounds`.
+  describe("degenerate point window", () => {
+    it('keeps a dose at the point itself "on_time"', () => {
+      const takenAt = new Date("2025-01-15T07:00:00Z");
+      expect(
+        classifyIntakeTiming(takenAt, "07:00", "07:00", scheduledDate),
+      ).toBe("on_time");
+    });
+
+    it('does not classify a dose ~16h late as "on_time"', () => {
+      const takenAt = new Date("2025-01-15T23:00:00Z");
+      expect(
+        classifyIntakeTiming(takenAt, "07:00", "07:00", scheduledDate),
+      ).toBe("very_late");
+    });
+
+    it("does not swallow the whole day into the on-time band", () => {
+      // 13:00 is 6h past the point — outside the widened band + graces.
+      const takenAt = new Date("2025-01-15T13:00:00Z");
+      expect(
+        classifyIntakeTiming(takenAt, "07:00", "07:00", scheduledDate),
+      ).not.toBe("on_time");
+    });
+
+    it("still wraps a genuine overnight window", () => {
+      // 00:30 the next day sits inside a 23:00 -> 01:00 window.
+      const takenAt = new Date("2025-01-16T00:30:00Z");
+      expect(
+        classifyIntakeTiming(takenAt, "23:00", "01:00", scheduledDate),
+      ).toBe("on_time");
+    });
+  });
+
   it('returns "on_time" when taken within the window', () => {
     const takenAt = new Date("2025-01-15T08:30:00Z");
     expect(classifyIntakeTiming(takenAt, "08:00", "09:00", scheduledDate)).toBe(

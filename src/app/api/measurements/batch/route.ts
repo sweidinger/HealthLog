@@ -60,6 +60,7 @@ import {
   oppositeMergeSource,
   type MergeCandidate,
 } from "@/lib/measurements/cross-source-merge";
+import { isPlausibleEntryInstant } from "@/lib/validations/entry-instant";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
 import { deviceTypeEnum } from "@/lib/validations/source-priority";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -288,6 +289,22 @@ async function postBatch(request: NextRequest): Promise<Response> {
         index,
         status: "skipped",
         reason: "value_out_of_range",
+      };
+      continue;
+    }
+
+    // Time-plausibility guard, the bound the single-entry twin already applies
+    // through `validateEntryInstant` on `createMeasurementSchema.measuredAt`.
+    // Without it a future-dated row permanently won "latest reading" on every
+    // dashboard and poisoned the rollup buckets and the canonical picker. The
+    // past floor stays at 1900 (no `maxAgeMs`) because a historical Apple
+    // Health backfill is a legitimate, expected shape on this route; only the
+    // future side is a bug. Skipped per entry, like the range guard above.
+    if (!isPlausibleEntryInstant(mapped.takenAt)) {
+      results[index] = {
+        index,
+        status: "skipped",
+        reason: "implausible_timestamp",
       };
       continue;
     }
