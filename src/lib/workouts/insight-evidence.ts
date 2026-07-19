@@ -111,13 +111,25 @@ function median(values: number[]): number | null {
 }
 
 /**
+ * How far above the session's own mean a bucket must sit to count as an effort.
+ *
+ * A percentile alone is not enough, and the reason is worth keeping: on a flat
+ * ride the 90th percentile sits a beat or two above the mean, so ordinary
+ * sampling noise clears it and a steady session reports several "peaks" that
+ * the rider did not do. Five bpm is the smallest rise that is a change in
+ * effort rather than a change in measurement.
+ */
+const MIN_PEAK_PROMINENCE_BPM = 5;
+
+/**
  * Count the session's peaks.
  *
- * A peak is a bucket that is both a strict local maximum against its
- * neighbours AND at or above the 90th percentile of the session's bucket
- * means. Requiring both is what keeps a steady ride from reporting fifty
- * "peaks" out of ordinary sampling noise, and what keeps an interval session
- * from reporting one.
+ * A peak is a bucket that is a strict local maximum against its neighbours AND
+ * clears both thresholds: the 90th percentile of the session's bucket means
+ * (relative — it stands out for THIS session) and the prominence floor above
+ * the session mean (absolute — it is a real rise, not noise). Requiring all
+ * three is what keeps a steady ride from reporting efforts it did not contain
+ * while an interval session still reports each of its own.
  */
 function countPeaks(means: number[], threshold: number): number[] {
   const indices: number[] = [];
@@ -164,7 +176,10 @@ export function summariseHrShape(
   const sessionMean = avg(means);
 
   const sorted = [...means].sort((a, b) => a - b);
-  const peakIndices = countPeaks(means, percentile(sorted, 0.9));
+  const peakIndices = countPeaks(
+    means,
+    Math.max(percentile(sorted, 0.9), sessionMean + MIN_PEAK_PROMINENCE_BPM),
+  );
 
   // Settle time: from each peak, how long until the curve first comes back to
   // the session's own mean. A peak that never settles inside the session
