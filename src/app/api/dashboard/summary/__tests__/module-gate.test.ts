@@ -87,6 +87,8 @@ const ALL_KINDS = [
   "totalBodyWater",
   "boneMass",
   "oxygenSaturation",
+  "mood",
+  "bmi",
 ] as const;
 
 function card(kind: string) {
@@ -194,9 +196,26 @@ describe("GET /api/dashboard/summary — module gate", () => {
       "totalBodyWater",
       "boneMass",
       "oxygenSaturation",
+      // BMI is derived from weight + the profile height and belongs to no
+      // module, so it rides through with the other core vitals.
+      "bmi",
     ]) {
       expect(kinds).toContain(core);
     }
+  });
+
+  it("drops the mood card when the mood module is off", async () => {
+    // Mood is not a MeasurementType, so it gates through the synthetic
+    // `MOOD_ENTRY` key rather than a measurement enum value. Without that
+    // join the card would be unmapped and silently ship past a disabled
+    // module.
+    setDisabledModules(["mood"]);
+    const kinds = await emittedKinds();
+
+    expect(kinds).not.toContain("mood");
+    expect(kinds).toContain("weight");
+    expect(kinds).toContain("bmi");
+    expect(kinds).toHaveLength(ALL_KINDS.length - 1);
   });
 
   it("gates the cached body, so a toggle takes effect on the next request", async () => {

@@ -425,7 +425,9 @@
         "steps": "Pas",
         "totalBodyWater": "Eau corporelle totale",
         "boneMass": "Masse osseuse",
-        "oxygenSaturation": "Saturation en oxygène"
+        "oxygenSaturation": "Saturation en oxygène",
+        "mood": "Humeur",
+        "bmi": "IMC"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +439,9 @@
         "steps": "pas",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "",
+        "bmi": "kg/m²"
       }
     }
   },

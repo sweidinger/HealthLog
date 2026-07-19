@@ -425,7 +425,9 @@
         "steps": "Schritte",
         "totalBodyWater": "Gesamtkörperwasser",
         "boneMass": "Knochenmasse",
-        "oxygenSaturation": "Sauerstoffsättigung"
+        "oxygenSaturation": "Sauerstoffsättigung",
+        "mood": "Stimmung",
+        "bmi": "BMI"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +439,9 @@
         "steps": "Schritte",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "",
+        "bmi": "kg/m²"
       }
     }
   },

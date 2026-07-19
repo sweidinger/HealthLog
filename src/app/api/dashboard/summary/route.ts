@@ -74,6 +74,9 @@ import {
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import type { SleepStage } from "@/generated/prisma/client";
 import { loadBaselineProfile } from "@/lib/insights/derived/baseline";
+import { computeBmi } from "@/lib/insights/derived/bmi";
+import { isDerivedOk } from "@/lib/insights/derived/types";
+import { buildMoodDailySeries } from "@/lib/analytics/mood-series";
 import {
   reconstructNights,
   sleepNeedMinutes,
@@ -96,7 +99,9 @@ type MetricKind =
   | "steps"
   | "totalBodyWater"
   | "boneMass"
-  | "oxygenSaturation";
+  | "oxygenSaturation"
+  | "mood"
+  | "bmi";
 
 interface MetricCard {
   id: string;
@@ -196,6 +201,8 @@ const METRIC_TITLE_KEYS: Record<MetricKind, string> = {
   totalBodyWater: "dashboard.metric.title.totalBodyWater",
   boneMass: "dashboard.metric.title.boneMass",
   oxygenSaturation: "dashboard.metric.title.oxygenSaturation",
+  mood: "dashboard.metric.title.mood",
+  bmi: "dashboard.metric.title.bmi",
 };
 
 const METRIC_UNIT_KEYS: Record<MetricKind, string> = {
@@ -209,6 +216,8 @@ const METRIC_UNIT_KEYS: Record<MetricKind, string> = {
   totalBodyWater: "dashboard.metric.unit.totalBodyWater",
   boneMass: "dashboard.metric.unit.boneMass",
   oxygenSaturation: "dashboard.metric.unit.oxygenSaturation",
+  mood: "dashboard.metric.unit.mood",
+  bmi: "dashboard.metric.unit.bmi",
 };
 
 /**
@@ -615,10 +624,23 @@ async function buildDashboardSummary(
   // before the per-night reconstruction sums it. v1.17.0 — the baseline
   // profile rides along (one read) so the sleep-rhythm block resolves the
   // age-based sleep need the cumulative-debt deficit uses.
-  const [sleepPriorityJson, sleepProfile] = await Promise.all([
+  const [sleepPriorityJson, sleepProfile, moodSeries] = await Promise.all([
     loadUserSourcePriority(userId),
     loadBaselineProfile(prisma, userId),
+    // The mood card reads the SAME canonical daily series the web mood
+    // analytics and the dashboard snapshot read (`buildMoodDailySeries`),
+    // rollup fast-path included — never a second aggregation.
+    time("moodSeries", () => buildMoodDailySeries(userId, prisma)),
   ]);
+
+  // BMI is derived, not measured: it needs the profile height loaded above,
+  // so it cannot join the round before it. `computeBmi` is the one canonical
+  // implementation (the same one the web vitals dashboard renders through
+  // the derived-metric dispatch) — the route resolves the figure and the
+  // client consumes it, rather than every client re-deriving weight / m².
+  const bmiDerived = await time("bmi", () =>
+    computeBmi(userId, sleepProfile, { now }),
+  );
 
   // Per-type metadata lookup — typed Map so a metric with no readings
   // at all falls through `metaForType` to the `{ allTimeCount: 0,
@@ -951,6 +973,69 @@ async function buildDashboardSummary(
       updatedAt: latest?.at.toISOString() ?? meta.lastSeenAt,
       allTimeCount: meta.allTimeCount,
       lastSeenAt: meta.lastSeenAt,
+    });
+  }
+
+  // Mood — the one metric on this payload that is not a `Measurement`. The
+  // daily series is the canonical `buildMoodDailySeries` output (rollup
+  // fast-path, 1..5 scale, one entry per day with an average score), the
+  // same series the web mood analytics and the dashboard snapshot render.
+  // Emitted only when the account has ever logged a mood, matching the
+  // `allTimeCount === 0` gate every optional card above uses.
+  if (moodSeries.entryCount > 0) {
+    const spark = moodSeries.entries.slice(-SPARK_DAYS).map((e) => e.score);
+    const latestEntry = moodSeries.entries[moodSeries.entries.length - 1];
+    // The series carries UTC day labels, not timestamps — the entry's day is
+    // the only instant the source actually pins, so it is emitted as the
+    // day's start rather than inventing a reading time.
+    const latestAt = latestEntry
+      ? new Date(`${latestEntry.date}T00:00:00.000Z`).toISOString()
+      : null;
+    metrics.push({
+      id: "mood",
+      kind: "mood",
+      titleKey: METRIC_TITLE_KEYS.mood,
+      latestValue: latestEntry?.score ?? null,
+      secondaryValue: null,
+      unitKey: METRIC_UNIT_KEYS.mood,
+      unit: null,
+      sleepStages: null,
+      sleepSourceDiscrepancy: null,
+      trend: trendOf(spark),
+      sparkline: spark,
+      updatedAt: latestAt,
+      allTimeCount: moodSeries.entryCount,
+      lastSeenAt: latestAt,
+    });
+  }
+
+  // BMI — derived from the latest weight at the profile height by
+  // `computeBmi`, the single implementation the web vitals dashboard also
+  // renders. The card is omitted when the derivation is insufficient
+  // (no height on the profile, or no weight inside its window): the card
+  // shape has no "unknown" state to express honestly, and a card with a
+  // null value would read as a logging gap rather than a missing profile
+  // field. Clients that want to prompt for a height should do so from the
+  // profile surface, not from an empty dashboard tile.
+  if (isDerivedOk(bmiDerived)) {
+    const spark = bmiDerived.value.series.slice(-SPARK_DAYS);
+    metrics.push({
+      id: "bmi",
+      kind: "bmi",
+      titleKey: METRIC_TITLE_KEYS.bmi,
+      latestValue: bmiDerived.value.bmi,
+      secondaryValue: null,
+      unitKey: METRIC_UNIT_KEYS.bmi,
+      unit: null,
+      sleepStages: null,
+      sleepSourceDiscrepancy: null,
+      trend: trendOf(spark),
+      sparkline: spark,
+      // BMI moves exactly when weight does, so the weight metadata is the
+      // honest recency signal — there is no separate BMI reading.
+      updatedAt: metaForType("WEIGHT").lastSeenAt,
+      allTimeCount: metaForType("WEIGHT").allTimeCount,
+      lastSeenAt: metaForType("WEIGHT").lastSeenAt,
     });
   }
 

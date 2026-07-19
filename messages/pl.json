@@ -425,7 +425,9 @@
         "steps": "Kroki",
         "totalBodyWater": "Całkowita woda w organizmie",
         "boneMass": "Masa kostna",
-        "oxygenSaturation": "Saturacja tlenem"
+        "oxygenSaturation": "Saturacja tlenem",
+        "mood": "Nastrój",
+        "bmi": "BMI"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +439,9 @@
         "steps": "kroki",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "",
+        "bmi": "kg/m²"
       }
     }
   },

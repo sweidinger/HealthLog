@@ -425,7 +425,9 @@
         "steps": "Steps",
         "totalBodyWater": "Total Body Water",
         "boneMass": "Bone Mass",
-        "oxygenSaturation": "Oxygen Saturation"
+        "oxygenSaturation": "Oxygen Saturation",
+        "mood": "Mood",
+        "bmi": "BMI"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +439,9 @@
         "steps": "steps",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "",
+        "bmi": "kg/m²"
       }
     }
   },
