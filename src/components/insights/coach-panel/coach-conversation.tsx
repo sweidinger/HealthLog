@@ -233,6 +233,15 @@ export interface CoachConversationProps {
    */
   initialDocumentId?: string | null;
   /**
+   * v1.31.0 — the workout a FRESH conversation is scoped to ("Ask why" on the
+   * workout-detail page, or `/coach?workout=<id>`). Threads onto the first
+   * turn only, exactly like `launchScope`: once the thread exists the server
+   * has already pinned the workout's evidence section onto its snapshot, so
+   * re-sending it would be per-turn work that buys nothing. That gate is what
+   * keeps snapshot-once intact.
+   */
+  initialWorkoutId?: string | null;
+  /**
    * v1.28.52 (Documents R3) — hand the chrome an imperative getter for the
    * live conversation id (parallel to `registerReset`). The drawer reads it at
    * maximize time so it can hand off to `/coach?c=<id>` when a thread already
@@ -258,6 +267,7 @@ export function CoachConversation({
   initialConversationId,
   autoOpenMostRecent = false,
   initialDocumentId,
+  initialWorkoutId,
   registerConversationIdGetter,
 }: CoachConversationProps) {
   const { t } = useTranslations();
@@ -628,12 +638,16 @@ export function CoachConversation({
     // `guidedQuestion`) are suppressed on a fenced turn — that endpoint has no
     // snapshot and no guided flow. `pendingAttachmentIds` travels ONLY on a
     // brand-new conversation (first-turn attach).
+    // Same first-turn gate as `scope` — see `initialWorkoutId`.
+    const workoutId =
+      currentConversationId === null ? (initialWorkoutId ?? undefined) : undefined;
     const wasFreshFenced = currentConversationId === null && fenced;
     const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
       guidedQuestion: fenced ? undefined : (guidedQuestion ?? undefined),
       scope: fenced ? undefined : scope,
+      workoutId: fenced ? undefined : workoutId,
       fenced,
       pendingAttachmentIds:
         currentConversationId === null ? pendingAttachmentIds : undefined,
@@ -706,6 +720,10 @@ export function CoachConversation({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
       scope: fenced ? undefined : scope,
+      workoutId:
+        fenced || currentConversationId !== null
+          ? undefined
+          : (initialWorkoutId ?? undefined),
       fenced,
       pendingAttachmentIds:
         currentConversationId === null ? pendingAttachmentIds : undefined,
