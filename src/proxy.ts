@@ -188,6 +188,40 @@ function generateNonce(): string {
   return btoa(binary);
 }
 
+/**
+ * Transport-level security headers every response carries, including the early
+ * exits (worker-only 503, legacy 301s, demo-mode 403, and the login /
+ * onboarding / MFA redirects) that return before the full header block below.
+ *
+ * Those exits used to answer with no HSTS, no framing refusal and no nosniff at
+ * all. The gap was one hop — a redirect has no rendered body and the follow-up
+ * navigation re-enters this function and does get the full set — but "the next
+ * request will be protected" is not a reason for this one not to be, and HSTS
+ * in particular is worth the most on the first hop over a hostile network.
+ *
+ * Deliberately the transport subset, not the whole block: the per-route CSP
+ * below is nonce-bound and carries carve-outs for the document-serve and share
+ * routes that only make sense for a response with a body to protect.
+ */
+function applyBaselineSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("X-Permitted-Cross-Domain-Policies", "none");
+  if (process.env.NODE_ENV !== "development") {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
+  }
+  return response;
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -195,26 +229,32 @@ export function proxy(request: NextRequest) {
   // serving requests that would either crash (no DB pool ready for writes from
   // the worker) or duplicate work that the dedicated web container is doing.
   if (!shouldRunWeb()) {
-    return NextResponse.json(
-      {
-        data: null,
-        error:
-          "This container runs the worker only — point HTTP at the web service.",
-      },
-      { status: 503, headers: { "X-HealthLog-Process-Type": "worker" } },
+    return applyBaselineSecurityHeaders(
+      NextResponse.json(
+        {
+          data: null,
+          error:
+            "This container runs the worker only — point HTTP at the web service.",
+        },
+        { status: 503, headers: { "X-HealthLog-Process-Type": "worker" } },
+      ),
     );
   }
 
   // 301 redirects for renamed routes
   const redirect = LEGACY_REDIRECTS[pathname];
   if (redirect) {
-    return NextResponse.redirect(new URL(redirect, request.url), 301);
+    return applyBaselineSecurityHeaders(
+      NextResponse.redirect(new URL(redirect, request.url), 301),
+    );
   }
 
   // 301 for the v1.5 admin section-anchor → dynamic-route migration.
   const legacyAdmin = LEGACY_ADMIN_ANCHORS[pathname];
   if (legacyAdmin) {
-    return NextResponse.redirect(new URL(legacyAdmin, request.url), 301);
+    return applyBaselineSecurityHeaders(
+      NextResponse.redirect(new URL(legacyAdmin, request.url), 301),
+    );
   }
 
   // Demo mode: block all mutations except login
@@ -230,13 +270,15 @@ export function proxy(request: NextRequest) {
         (entry) => pathname === entry.path && method === entry.method,
       )
     ) {
-      return NextResponse.json(
-        {
-          data: null,
-          error: "Demo mode: modifications are disabled",
-          meta: { demo: true },
-        },
-        { status: 403 },
+      return applyBaselineSecurityHeaders(
+        NextResponse.json(
+          {
+            data: null,
+            error: "Demo mode: modifications are disabled",
+            meta: { demo: true },
+          },
+          { status: 403 },
+        ),
       );
     }
   }
@@ -252,7 +294,9 @@ export function proxy(request: NextRequest) {
   if (isSessionGatedPage) {
     const hasSession = request.cookies.has("healthlog_session");
     if (!hasSession) {
-      return NextResponse.redirect(new URL("/auth/login", request.url));
+      return applyBaselineSecurityHeaders(
+        NextResponse.redirect(new URL("/auth/login", request.url)),
+      );
     }
 
     // v1.4.22 C4 — server-side onboarding redirect. Previously the
@@ -272,7 +316,9 @@ export function proxy(request: NextRequest) {
     const isOnboardingSurface =
       pathname === "/onboarding" || pathname.startsWith("/onboarding/");
     if (onboardingPending && !isOnboardingSurface) {
-      return NextResponse.redirect(new URL("/onboarding", request.url));
+      return applyBaselineSecurityHeaders(
+        NextResponse.redirect(new URL("/onboarding", request.url)),
+      );
     }
 
     // v1.23 — admin-enforced MFA forced-enrollment gate. When the operator
@@ -289,7 +335,9 @@ export function proxy(request: NextRequest) {
     const isMfaEnrollSurface =
       pathname === "/enroll-mfa" || pathname.startsWith("/settings/security");
     if (mfaEnrollRequired && !isMfaEnrollSurface && !isOnboardingSurface) {
-      return NextResponse.redirect(new URL("/enroll-mfa", request.url));
+      return applyBaselineSecurityHeaders(
+        NextResponse.redirect(new URL("/enroll-mfa", request.url)),
+      );
     }
   }
 

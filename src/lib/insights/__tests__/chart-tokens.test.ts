@@ -252,3 +252,43 @@ describe("ALLOWED_CHART_TOKENS — drift guard", () => {
     expect(ALLOWED_CHART_TOKENS).not.toContain("metric:COMPLIANCE");
   });
 });
+
+describe("orphan-enum stripping stays coupled to the allowlist", () => {
+  // `ORPHAN_ENUMS` used to be a hand-maintained literal and drifted every time
+  // `ALLOWED_CHART_TOKENS` grew — by v1.30 eighteen allowlisted metrics had no
+  // strip entry, so the raw enum leaked into rendered prose. It is now derived;
+  // this guard is what keeps it derived.
+  const PROSE_SAFE = new Set(["WEIGHT", "PULSE", "MOOD", "RESILIENCE"]);
+
+  it.each(
+    ALLOWED_CHART_TOKENS.map((t) => t.replace(/^metric:/, "")).filter(
+      (name) => !PROSE_SAFE.has(name),
+    ),
+  )("strips the bare enum %s out of prose", (name) => {
+    const stripped = stripChartTokens(`Your ${name} is elevated.`);
+    expect(stripped).not.toContain(name);
+  });
+
+  it.each([...PROSE_SAFE])(
+    "leaves the prose-safe single word %s alone",
+    (word) => {
+      expect(stripChartTokens(`Your ${word} trend is stable.`)).toContain(word);
+    },
+  );
+
+  // The tokens the drift actually leaked, named so a regression is legible.
+  it.each([
+    "PHQ9_SCORE",
+    "GAD7_SCORE",
+    "WHO5_SCORE",
+    "SCI_SCORE",
+    "GRIP_STRENGTH",
+    "CARDIO_LOAD",
+    "ANS_CHARGE",
+    "BODY_FAT",
+    "BLOOD_GLUCOSE",
+    "OXYGEN_SATURATION",
+  ])("strips %s, which the stale literal list had missed", (name) => {
+    expect(stripChartTokens(`Your ${name} is elevated.`)).not.toContain(name);
+  });
+});
