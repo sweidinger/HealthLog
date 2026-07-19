@@ -2,7 +2,6 @@
 
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useTranslations } from "@/lib/i18n/context";
 import { useSleepRhythm } from "./use-sleep-rhythm";
 import { SleepDebtCard } from "./sleep-debt-card";
 
@@ -27,24 +26,9 @@ import { SleepDebtCard } from "./sleep-debt-card";
  */
 export function SleepRhythmSection({ enabled }: { enabled: boolean }) {
   const { isAuthenticated } = useAuth();
-  const { t } = useTranslations();
-  const { data, isLoading, isError } = useSleepRhythm(
-    isAuthenticated && enabled,
-  );
+  const { data, isLoading } = useSleepRhythm(isAuthenticated && enabled);
 
   if (!enabled) return null;
-
-  if (isError) {
-    return (
-      <div
-        data-slot="sleep-rhythm-error"
-        role="status"
-        className="bg-card border-border text-muted-foreground rounded-xl border p-4 text-sm"
-      >
-        {t("insights.sleep.rhythm.loadError")}
-      </div>
-    );
-  }
 
   if (isLoading || !data) {
     return (

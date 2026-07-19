@@ -155,20 +155,81 @@ describe("read-failure branch is wired on every swept surface", () => {
     "src/components/custom-metrics/custom-metric-values-list.tsx",
     "src/app/achievements/page.tsx",
     "src/components/insights/nutrients/micronutrients-card.tsx",
-    "src/components/insights/sleep/chronotype-section.tsx",
+    // The three sleep-rhythm cards share one read, so the PAGE owns the single
+    // error notice rather than each card painting its own copy of it.
+    "src/app/insights/sleep/page.tsx",
   ] as const;
 
   for (const rel of surfaces) {
     it(`${rel} reads isError and offers a retry`, () => {
       const source = readFileSync(join(process.cwd(), rel), "utf8");
       expect(source).toMatch(/isError/);
-      // chronotype-section is the one surface that legitimately renders an
-      // inline notice rather than the card (it sits inside a chart section),
-      // so it is exempt from the retry affordance but not from the branch.
-      if (!rel.endsWith("chronotype-section.tsx")) {
-        expect(source).toMatch(/onRetry=/);
-        expect(source).toMatch(/refetch/);
-      }
+      expect(source).toMatch(/onRetry=/);
+      expect(source).toMatch(/refetch/);
     });
   }
+});
+
+describe("the shared sleep-rhythm read has exactly one error notice", () => {
+  it("no rhythm card renders the load-error string itself", () => {
+    // One failed read used to paint the same sentence three times on
+    // /insights/sleep, none of them offering a retry.
+    for (const rel of [
+      "src/components/insights/sleep/chronotype-section.tsx",
+      "src/components/insights/sleep/average-sleep-section.tsx",
+      "src/components/insights/sleep/sleep-rhythm-section.tsx",
+    ]) {
+      const source = readFileSync(join(process.cwd(), rel), "utf8");
+      expect(source).not.toContain("rhythm.loadError");
+    }
+    const page = readFileSync(
+      join(process.cwd(), "src/app/insights/sleep/page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("rhythm.loadError");
+    expect(page).toContain("QueryErrorCard");
+  });
+});
+
+/**
+ * The /insights/sleep page renders the shared rhythm error itself, so the
+ * behaviour is observable — a structural check would still pass if the gate
+ * were short-circuited, which the mutation check proved.
+ */
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => "/insights/sleep",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("@/hooks/use-insights-analytics", () => ({
+  useInsightsAnalytics: () => ({ isEmpty: false }),
+}));
+
+// The shared rhythm read is mocked at the hook rather than seeded in the cache:
+// the hook sets its own staleTime, which makes a cache-seeded failure look like
+// a pending refetch during a server render and hides the branch under test.
+vi.mock("@/components/insights/sleep/use-sleep-rhythm", () => ({
+  useSleepRhythm: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: true,
+    refetch: () => {},
+  }),
+}));
+
+const { default: SleepPage } = await import("@/app/insights/sleep/page");
+
+describe("/insights/sleep — shared rhythm read", () => {
+  it("renders exactly one error notice with a retry when the read fails", () => {
+    const html = render(<SleepPage />, makeClient());
+
+    // React escapes the apostrophe in the copy, so count the rendered cards
+    // rather than the raw bundle string.
+    const notices = html.split('data-slot="query-error-card"').length - 1;
+    expect(notices).toBe(1);
+    expect(html).toContain(en.common.retry);
+    // The three sibling cards must not render alongside the notice.
+    expect(html).not.toContain('data-slot="chronotype-error"');
+  });
 });
