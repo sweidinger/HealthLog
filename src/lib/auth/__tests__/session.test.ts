@@ -6,23 +6,48 @@ const cookieState = vi.hoisted(() => ({
   set: vi.fn(),
 }));
 
+interface SessionRow {
+  id: string;
+  userId: string;
+  tokenHash: string | null;
+  expiresAt: Date;
+  lastActiveAt: Date | null;
+  user: { id: string; locale?: string | null };
+}
+
+const store = vi.hoisted(() => ({ sessions: [] as unknown[] }));
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     session: {
-      findUnique: vi.fn(),
+      // Dispatches on the `where` shape so the two resolution paths — by
+      // secret hash and by primary key — stay distinguishable in assertions.
+      findUnique: vi.fn(
+        async ({ where }: { where: { id?: string; tokenHash?: string } }) => {
+          const rows = store.sessions as SessionRow[];
+          if (where.tokenHash !== undefined) {
+            return rows.find((r) => r.tokenHash === where.tokenHash) ?? null;
+          }
+          return rows.find((r) => r.id === where.id) ?? null;
+        },
+      ),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const row = {
+          id: `sess_cuid_${(store.sessions as SessionRow[]).length + 1}`,
+          lastActiveAt: null,
+          user: { id: data.userId as string },
+          ...data,
+        } as unknown as SessionRow;
+        (store.sessions as SessionRow[]).push(row);
+        return row;
+      }),
       delete: vi.fn(),
       deleteMany: vi.fn(),
       update: vi.fn(),
     },
-    apiToken: {
-      updateMany: vi.fn(),
-    },
-    refreshToken: {
-      updateMany: vi.fn(),
-    },
-    trustedDevice: {
-      deleteMany: vi.fn(),
-    },
+    apiToken: { updateMany: vi.fn() },
+    refreshToken: { updateMany: vi.fn() },
+    trustedDevice: { deleteMany: vi.fn() },
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   },
 }));
@@ -33,6 +58,12 @@ vi.mock("@/lib/db-compat", () => ({
 
 vi.mock("@/lib/logging/context", () => ({
   getEvent: () => undefined,
+}));
+
+// Deterministic stand-in for the HMAC so tests assert the *shape* of the
+// stored value rather than re-deriving a keyed digest.
+vi.mock("@/lib/auth/hmac", () => ({
+  hashToken: (raw: string) => `hash:${raw}`,
 }));
 
 vi.mock("next/headers", () => ({
@@ -47,20 +78,165 @@ vi.mock("next/headers", () => ({
 }));
 
 import { prisma } from "@/lib/db";
-import { getSession, destroyAllSessions, destroySession } from "../session";
+import {
+  getSession,
+  createSession,
+  destroyAllSessions,
+  destroySession,
+} from "../session";
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+function seed(row: Partial<SessionRow> & { id: string }): SessionRow {
+  const full: SessionRow = {
+    userId: "user-1",
+    tokenHash: null,
+    expiresAt: new Date(Date.now() + THIRTY_DAYS_MS),
+    lastActiveAt: new Date(),
+    user: { id: row.userId ?? "user-1" },
+    ...row,
+  } as SessionRow;
+  (store.sessions as SessionRow[]).push(full);
+  return full;
+}
 
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.clearAllMocks();
+  store.sessions = [];
   cookieState.sessionId = "sess-expired";
+  // `clearAllMocks` drops recorded calls but keeps implementations, so a
+  // rejection staged by one test would otherwise leak into the next. Re-arm
+  // the write mocks with a benign default each time.
+  vi.mocked(prisma.session.delete).mockResolvedValue({} as never);
+  vi.mocked(prisma.session.deleteMany).mockResolvedValue({ count: 1 } as never);
+  vi.mocked(prisma.session.update).mockResolvedValue({} as never);
+});
+
+describe("createSession", () => {
+  it("puts a CSPRNG secret in the cookie, never the row's primary key", async () => {
+    cookieState.sessionId = undefined;
+
+    await createSession("user-1", false);
+
+    const row = (store.sessions as SessionRow[])[0];
+    const cookieValue = cookieState.set.mock.calls.find(
+      (c) => c[0] === "healthlog_session",
+    )![1] as string;
+
+    // A cuid is collision-resistant, not unguessable. The cookie must not be
+    // the primary key under any encoding.
+    expect(cookieValue).not.toBe(row.id);
+    expect(cookieValue).not.toContain(row.id);
+    // 32 bytes of randomness, hex-encoded, behind a greppable prefix.
+    expect(cookieValue).toMatch(/^hls_[0-9a-f]{64}$/);
+    // Only the hash is persisted — a table dump yields no usable cookie.
+    expect(row.tokenHash).toBe(`hash:${cookieValue}`);
+    expect(row.tokenHash).not.toContain(row.id);
+  });
+
+  it("mints a distinct secret per session", async () => {
+    cookieState.sessionId = undefined;
+    await createSession("user-1", false);
+    await createSession("user-1", false);
+
+    const [first, second] = cookieState.set.mock.calls
+      .filter((c) => c[0] === "healthlog_session")
+      .map((c) => c[1] as string);
+
+    expect(first).not.toBe(second);
+  });
+});
+
+describe("getSession — cookie resolution", () => {
+  it("resolves a modern cookie by its hash, not by primary key", async () => {
+    const row = seed({ id: "sess_cuid_1", tokenHash: "hash:hls_abc" });
+    cookieState.sessionId = "hls_abc";
+
+    const result = await getSession();
+
+    expect(result?.session.id).toBe(row.id);
+    // The lookup went through the hash column.
+    expect(prisma.session.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { tokenHash: "hash:hls_abc" } }),
+    );
+  });
+
+  it("refuses a modern-shaped cookie whose hash matches nothing", async () => {
+    seed({ id: "sess_cuid_1", tokenHash: "hash:hls_real" });
+    cookieState.sessionId = "hls_forged";
+
+    await expect(getSession()).resolves.toBeNull();
+  });
+
+  it("still accepts a pre-upgrade cookie carrying the row id (no forced logout)", async () => {
+    // The compatibility path. A session minted before the secret existed has
+    // a NULL token_hash and the browser holds its cuid; the deploy must not
+    // sign that user out.
+    const row = seed({ id: "sess_legacy", tokenHash: null });
+    cookieState.sessionId = "sess_legacy";
+
+    const result = await getSession();
+
+    expect(result?.session.id).toBe(row.id);
+    expect(result?.user.id).toBe("user-1");
+  });
+
+  it("retires the row id once that row holds a secret", async () => {
+    // Same cuid, but the row has been issued a secret. The id is an internal
+    // identifier again and must not authenticate anything — otherwise the
+    // guessable-credential surface never actually closes.
+    seed({ id: "sess_upgraded", tokenHash: "hash:hls_xyz" });
+    cookieState.sessionId = "sess_upgraded";
+
+    await expect(getSession()).resolves.toBeNull();
+  });
+});
+
+describe("getSession — sliding expiry", () => {
+  it("extends a modern session and re-emits the same secret", async () => {
+    seed({
+      id: "sess_cuid_1",
+      tokenHash: "hash:hls_abc",
+      expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    });
+    cookieState.sessionId = "hls_abc";
+
+    await getSession();
+
+    expect(prisma.session.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "sess_cuid_1" } }),
+    );
+    const cookieValue = cookieState.set.mock.calls.find(
+      (c) => c[0] === "healthlog_session",
+    )![1];
+    expect(cookieValue).toBe("hls_abc");
+  });
+
+  it("withholds the extension from a legacy session so the id path drains", async () => {
+    // A legacy row must not renew itself indefinitely, or an active user could
+    // ride a cuid-as-credential session forever. Capped at the expiry it
+    // already carries, the path is gone within the session lifetime.
+    seed({
+      id: "sess_legacy",
+      tokenHash: null,
+      expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    });
+    cookieState.sessionId = "sess_legacy";
+
+    const result = await getSession();
+
+    expect(result).not.toBeNull();
+    expect(prisma.session.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("getSession", () => {
   it("swallows expired-session delete races and clears cookies", async () => {
-    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+    seed({
       id: "sess-expired",
+      tokenHash: null,
       expiresAt: new Date(Date.now() - 1000),
-      user: { id: "user-1" },
-    } as never);
+    });
     vi.mocked(prisma.session.deleteMany).mockRejectedValue(
       new Error("already deleted") as never,
     );
@@ -76,7 +252,33 @@ describe("getSession", () => {
 });
 
 describe("destroySession", () => {
+  it("deletes the row the secret resolves to, not the cookie value", async () => {
+    // The cookie is no longer the primary key, so a logout that deletes by
+    // cookie value would no-op and leave the session alive.
+    seed({ id: "sess_cuid_1", tokenHash: "hash:hls_abc" });
+    cookieState.sessionId = "hls_abc";
+
+    await destroySession();
+
+    expect(prisma.session.delete).toHaveBeenCalledWith({
+      where: { id: "sess_cuid_1" },
+    });
+    expect(cookieState.delete).toHaveBeenCalledWith("healthlog_session");
+  });
+
+  it("logs a legacy cookie out too", async () => {
+    seed({ id: "sess_legacy", tokenHash: null });
+    cookieState.sessionId = "sess_legacy";
+
+    await destroySession();
+
+    expect(prisma.session.delete).toHaveBeenCalledWith({
+      where: { id: "sess_legacy" },
+    });
+  });
+
   it("treats an already-deleted session row (P2025) as an idempotent logout", async () => {
+    seed({ id: "sess-gone", tokenHash: null });
     cookieState.sessionId = "sess-gone";
     vi.mocked(prisma.session.delete).mockRejectedValue(
       Object.assign(new Error("record not found"), { code: "P2025" }) as never,
@@ -92,6 +294,7 @@ describe("destroySession", () => {
   });
 
   it("clears the cookie even when the row delete fails on a transient fault", async () => {
+    seed({ id: "sess-live", tokenHash: null });
     cookieState.sessionId = "sess-live";
     vi.mocked(prisma.session.delete).mockRejectedValue(
       Object.assign(new Error("connection reset"), { code: "P1001" }) as never,

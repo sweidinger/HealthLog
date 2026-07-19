@@ -1023,6 +1023,16 @@ model Passkey {
 model Session {
   id            String    @id @default(cuid())
   userId        String    @map("user_id")
+  // v1.30.32 — HMAC-SHA256 of the session cookie's secret. The cookie carries
+  // a 32-byte CSPRNG token (`hls_<hex>`), never this row's cuid: a cuid is
+  // collision-resistant, not unguessable (embedded timestamp + counter), and a
+  // session identifier is a bearer credential. Hash-at-rest mirrors the
+  // ApiToken / RefreshToken posture — a database read yields no usable cookie.
+  //
+  // Nullable for the transition only: rows minted before this column existed
+  // carry NULL and are still resolvable by id until they expire. See the
+  // resolution comment in `src/lib/auth/session.ts`.
+  tokenHash     String?   @unique @map("token_hash")
   expiresAt     DateTime  @map("expires_at")
   createdAt     DateTime  @default(now()) @map("created_at")
   ipAddress     String?   @map("ip_address")
