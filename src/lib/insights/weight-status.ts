@@ -34,8 +34,7 @@ import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import {
   type SupportedLocale,
   normalizeLocale,
-  normalizeSummaryText,
-  parseSummaryFromContent,
+  finalizeStatusSummary,
   persistStatusInsight,
   round,
   summarizeSeries,
@@ -638,9 +637,26 @@ export async function prepareWeightStatusForUser(
         stubText: getNoKeyWeightStatusText(locale, weightSignal),
       }),
     finalize: async (outcome): Promise<StatusCardResult> => {
-      const summary = normalizeSummaryText(
-        parseSummaryFromContent(outcome.content),
-      );
+      // Outbound safety screen. The only transform here used to be
+      // whitespace-normalisation, so a dose-change imperative or a fabricated
+      // clinical risk score persisted as the day's cached assessment. Policy
+      // for a background-generated card is WITHHOLD: serve the deterministic
+      // stub and persist no model text (see `finalizeStatusSummary`).
+      const screened = finalizeStatusSummary(outcome.content, locale);
+      if (!screened.ok) {
+        annotate({
+          action: { name: "insights.status.outbound_blocked" },
+          meta: { cacheAction, reason: screened.reason },
+        });
+        return returnTimeoutFallback({
+          cacheAction,
+          reason: "screened",
+          userId: userId,
+          todayKey: todayKey,
+          stubText: getNoKeyWeightStatusText(locale, weightSignal),
+        });
+      }
+      const summary = screened.text;
       if (!summary) {
         throw new Error("Weight-status summary was empty after normalization");
       }

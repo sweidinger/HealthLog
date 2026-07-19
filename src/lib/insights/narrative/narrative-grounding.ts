@@ -21,42 +21,27 @@
  * Pure + side-effect-free, so it unit-tests in isolation.
  */
 import type { PeriodNarrativeContext } from "@/lib/insights/narrative/period-narrative";
+import type { Locale } from "@/lib/i18n/config";
+import {
+  screenModelOutput,
+  INSIGHTS_CONTRACTS,
+} from "@/lib/ai/safety/outbound-screen";
 
 /** Absolute + relative number-match tolerance (rounding slack). */
 const ABS_TOLERANCE = 0.15;
 const REL_TOLERANCE = 0.02;
 
 /**
- * Causal phrases that violate the descriptive-never-causal contract. Word-
- * boundary anchored, case-insensitive. The list is the EN + DE causal
- * vocabulary; "associated with" / "moved with" / "assoziiert" stay PERMITTED
- * (they are the descriptive framing the contract requires).
+ * The causal bank used to live here as an EN + DE list, which meant GROUND
+ * RULE 12 was enforced in code on this one surface and only for two of the six
+ * locales it ships in. It now comes from the shared screen, which carries all
+ * six — so a French or Polish narrative asserting causation is caught the same
+ * way a German one always was. The screen also adds the dose and risk-score
+ * contracts, which this surface never checked at all: the narrative is
+ * persisted prose and a dose imperative in it is as unsafe as one in the Coach.
  */
-const CAUSAL_PATTERNS: readonly RegExp[] = [
-  /\bbecause\s+of\b/i,
-  /\bbecause\b/i,
-  /\bcaused?\s+by\b/i,
-  /\bcaus(?:e|es|ed|ing)\b/i,
-  /\bdue\s+to\b/i,
-  /\bled\s+to\b/i,
-  /\bresulted\s+in\b/i,
-  /\bresult\s+of\b/i,
-  /\bculprit\b/i,
-  /\bdriven\s+by\b/i,
-  /\bthanks\s+to\b/i,
-  /\bowing\s+to\b/i,
-  // DE
-  /\bweil\b/i,
-  /\bwegen\b/i,
-  /\bverursach\w*/i,
-  /\baufgrund\b/i,
-  /\bführt[e]?\s+zu\b/i,
-  /\bdurch\s+\w+\s+(?:verursacht|ausgelöst)\b/i,
-  /\bschuld\b/i,
-  /\bauslöser\b/i,
-];
-
-export type NarrativeGroundingReason = "causal_language" | "ungrounded_number";
+export type NarrativeGroundingReason =
+  "causal_language" | "ungrounded_number" | "dose_prescription" | "risk_score";
 
 export interface NarrativeGroundingFinding {
   reason: NarrativeGroundingReason;
@@ -140,16 +125,20 @@ function isStructural(value: number, raw: string): boolean {
 export function validateNarrativeText(
   text: string,
   context: PeriodNarrativeContext,
+  locale: Locale,
 ): NarrativeGroundingFinding[] {
   const findings: NarrativeGroundingFinding[] = [];
   if (typeof text !== "string" || text.trim().length === 0) return findings;
 
-  for (const pattern of CAUSAL_PATTERNS) {
-    const m = pattern.exec(text);
-    if (m) {
-      findings.push({ reason: "causal_language", source: m[0].slice(0, 32) });
-      break; // one causal flag is enough to trigger the corrective retry
-    }
+  const screened = screenModelOutput(text, locale, INSIGHTS_CONTRACTS);
+  if (screened.block && screened.reason) {
+    findings.push({
+      reason:
+        screened.reason === "causal_claim"
+          ? "causal_language"
+          : screened.reason,
+      source: screened.reason,
+    });
   }
 
   const authoritative = authoritativeValues(context);

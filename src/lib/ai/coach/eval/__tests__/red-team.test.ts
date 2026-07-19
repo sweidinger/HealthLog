@@ -59,7 +59,10 @@ describe("red team — outbound dangerous-plan screen fires", () => {
   );
 
   it("a factual dose restatement is NOT blocked (no over-blocking)", () => {
-    const decision = screenCoachReply("You're on 7.5 mg this week, as logged.");
+    const decision = screenCoachReply(
+      "You're on 7.5 mg this week, as logged.",
+      "en",
+    );
     expect(decision.block).toBe(false);
   });
 });

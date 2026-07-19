@@ -17,6 +17,8 @@ vi.mock("@/lib/db", () => ({
       findFirst: vi.fn(),
       updateMany: vi.fn(),
     },
+    // The job reads the owner's locale to pick the outbound screen's banks.
+    user: { findUnique: vi.fn() },
   },
 }));
 vi.mock("@/lib/jobs/boss-instance", () => ({ getGlobalBoss: vi.fn() }));
@@ -103,6 +105,9 @@ beforeEach(() => {
   vi.mocked(prisma.inboundDocument.updateMany).mockResolvedValue({
     count: 1,
   } as never);
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({
+    locale: "en",
+  } as never);
   vi.mocked(documentAutoReadEnabled).mockResolvedValue(true);
   vi.mocked(resolveDocumentVisionProvider).mockResolvedValue(PICK as never);
   vi.mocked(assertDocumentEgressConsent).mockResolvedValue(undefined);
@@ -110,6 +115,7 @@ beforeEach(() => {
   visionOk();
   vi.mocked(runDocumentSummary).mockResolvedValue({
     summary: "A lab report from a clinic listing routine blood values.",
+    blocked: null,
   } as never);
   vi.mocked(reserveBudget).mockResolvedValue({
     allowed: true,

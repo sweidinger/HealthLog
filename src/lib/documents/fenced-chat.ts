@@ -431,7 +431,7 @@ Reply now as the assistant, grounded ONLY in the documents above, in ${
     if (!replyText) return { ok: false, code: "documents.chat.provider.empty" };
 
     // ── Outbound safety screen (dose-prescription / fabricated risk) ──
-    const outbound = screenCoachReply(replyText);
+    const outbound = screenCoachReply(replyText, locale);
     if (outbound.block && outbound.reason) {
       replyText = coachOutboundFallback(outbound.reason, locale);
       annotate({

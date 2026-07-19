@@ -1,4 +1,37 @@
-import type { AIInsightResponse } from "./schema";
+/**
+ * Reachability note. This module was written for `generateInsight()`, whose
+ * only caller is `runWithFallback()` — and `runWithFallback()` has no
+ * production caller left (every live surface routes through
+ * `runRawCompletionWithFallback` instead). The coverage annotation therefore
+ * never executed in production: an audit surface that implied enforcement it
+ * did not perform. Rather than delete working, tested logic, the input type is
+ * widened to the structural shape both payloads share and the comprehensive
+ * post-parse step now calls it, so the admin quality dashboard sees real data.
+ */
+
+/**
+ * The minimum recommendation shape the coverage check needs. Both the strict
+ * `AIInsightResponse` and the live `InsightResult` satisfy it; the live union
+ * also admits a bare string, which carries neither an id nor a citation and is
+ * therefore counted as uncited when it makes a normative claim.
+ */
+export interface RecommendationForCoverage {
+  id?: string;
+  text: string;
+  referenceId?: string;
+  /**
+   * Callers pass their own richer recommendation objects (severity, rationale,
+   * metricSource, …). Only the three fields above are read; the index
+   * signature keeps a wider literal assignable without a cast at every site.
+   */
+  [key: string]: unknown;
+}
+
+export interface PayloadForCoverage {
+  recommendations: ReadonlyArray<RecommendationForCoverage | string>;
+  /** Callers pass the whole payload; only `recommendations` is read. */
+  [key: string]: unknown;
+}
 
 /**
  * v1.4.16 phase B5a — citation-coverage post-validation.
@@ -68,20 +101,24 @@ export interface CitationCoverage {
  * the successful parse and forwards the result via `annotate()`.
  */
 export function computeCitationCoverage(
-  parsed: AIInsightResponse,
+  parsed: PayloadForCoverage,
 ): CitationCoverage {
   const total = parsed.recommendations.length;
   let normative = 0;
   let cited = 0;
   const uncitedIds: string[] = [];
 
-  for (const rec of parsed.recommendations) {
+  for (const [index, raw] of parsed.recommendations.entries()) {
+    const rec: RecommendationForCoverage =
+      typeof raw === "string" ? { text: raw } : raw;
     if (!detectsNormativeClaim(rec.text)) continue;
     normative += 1;
     if (rec.referenceId) {
       cited += 1;
     } else {
-      uncitedIds.push(rec.id);
+      // A legacy string rec has no id of its own; index it so the dashboard
+      // can still point at which entry was uncited.
+      uncitedIds.push(rec.id ?? `index:${index}`);
     }
   }
 

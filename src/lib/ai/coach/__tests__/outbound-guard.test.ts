@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 
+import type { Locale } from "@/lib/i18n/config";
+
 import {
   screenCoachReply,
   coachOutboundFallback,
@@ -9,46 +11,49 @@ import {
 } from "@/lib/ai/coach/outbound-guard";
 
 describe("screenCoachReply — dose-prescription", () => {
-  const blocked = [
-    "You should step up to 2.4 mg next week.",
-    "Consider increasing to 10 mg.",
-    "I'd recommend a 0.5 mg dose to start.",
-    "Erhöhe auf 7,5 mg, sobald du dich daran gewöhnt hast.",
-    "Du kannst die nächste Stufe 5 mg ausprobieren.",
-    "Lower your dose to 1.0 mg.",
+  const blocked: Array<[string, Locale]> = [
+    ["You should step up to 2.4 mg next week.", "en"],
+    ["Consider increasing to 10 mg.", "en"],
+    ["I'd recommend a 0.5 mg dose to start.", "en"],
+    ["Erhöhe auf 7,5 mg, sobald du dich daran gewöhnt hast.", "de"],
+    ["Du kannst die nächste Stufe 5 mg ausprobieren.", "de"],
+    ["Lower your dose to 1.0 mg.", "en"],
   ];
-  for (const reply of blocked) {
+  for (const [reply, locale] of blocked) {
     it(`blocks: ${reply.slice(0, 32)}`, () => {
-      const d = screenCoachReply(reply);
+      const d = screenCoachReply(reply, locale);
       expect(d.block).toBe(true);
       expect(d.reason).toBe("dose_prescription");
     });
   }
 
-  const allowed = [
-    "You're on week 3 of 7.5 mg, and your weight is tracking down.",
-    "Your snapshot shows you take 5 mg daily — adherence looks steady.",
-    "Dein Snapshot zeigt 7,5 mg in Woche 3 — die Einnahmetreue ist gut.",
-    "Talk to your prescriber about whether your dose is still right.",
+  const allowed: Array<[string, Locale]> = [
+    ["You're on week 3 of 7.5 mg, and your weight is tracking down.", "en"],
+    ["Your snapshot shows you take 5 mg daily — adherence looks steady.", "en"],
+    [
+      "Dein Snapshot zeigt 7,5 mg in Woche 3 — die Einnahmetreue ist gut.",
+      "de",
+    ],
+    ["Talk to your prescriber about whether your dose is still right.", "en"],
   ];
-  for (const reply of allowed) {
+  for (const [reply, locale] of allowed) {
     it(`allows factual mention: ${reply.slice(0, 32)}`, () => {
-      expect(screenCoachReply(reply).block).toBe(false);
+      expect(screenCoachReply(reply, locale).block).toBe(false);
     });
   }
 });
 
 describe("screenCoachReply — risk score", () => {
-  const blocked = [
-    "Your 10-year cardiovascular risk is about 12%.",
-    "That puts your stroke risk at 8%.",
-    "Your ASCVD score suggests elevated risk.",
-    "Dein 10-Jahres-Risiko liegt bei etwa 14%.",
-    "Das ergibt ein Risiko von 12% in den nächsten Jahren.",
+  const blocked: Array<[string, Locale]> = [
+    ["Your 10-year cardiovascular risk is about 12%.", "en"],
+    ["That puts your stroke risk at 8%.", "en"],
+    ["Your ASCVD score suggests elevated risk.", "en"],
+    ["Dein 10-Jahres-Risiko liegt bei etwa 14%.", "de"],
+    ["Das ergibt ein Risiko von 12% in den nächsten Jahren.", "de"],
   ];
-  for (const reply of blocked) {
+  for (const [reply, locale] of blocked) {
     it(`blocks: ${reply.slice(0, 32)}`, () => {
-      const d = screenCoachReply(reply);
+      const d = screenCoachReply(reply, locale);
       expect(d.block).toBe(true);
       expect(d.reason).toBe("risk_score");
     });
@@ -56,7 +61,8 @@ describe("screenCoachReply — risk score", () => {
 
   it("allows a plain percentage that is not a risk claim", () => {
     expect(
-      screenCoachReply("Your adherence was 92% over the last 30 days.").block,
+      screenCoachReply("Your adherence was 92% over the last 30 days.", "en")
+        .block,
     ).toBe(false);
   });
 });
@@ -65,10 +71,10 @@ describe("screenCoachReply — clean replies", () => {
   it("passes a grounded, non-prescriptive reply", () => {
     const reply =
       "Your systolic is averaging 128 mmHg this week, 4 below your monthly mean. Nice and steady — keep the routine going.";
-    expect(screenCoachReply(reply).block).toBe(false);
+    expect(screenCoachReply(reply, "en").block).toBe(false);
   });
   it("passes an empty reply through (handled upstream)", () => {
-    expect(screenCoachReply("").block).toBe(false);
+    expect(screenCoachReply("", "en").block).toBe(false);
   });
 });
 

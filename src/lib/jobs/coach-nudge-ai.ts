@@ -138,7 +138,7 @@ Rephrase it warmly and naturally in your own words, following every rule. Return
  * unusable (empty / over-length / unsafe). Strips wrapping quotes and collapses
  * whitespace; rejects rather than mid-word-clamping an over-long reply.
  */
-function sanitiseAiBody(raw: string): string | null {
+function sanitiseAiBody(raw: string, locale: Locale): string | null {
   let text = (raw ?? "").trim();
   if (!text) return null;
   // Strip a single layer of wrapping quotes the model sometimes adds.
@@ -151,7 +151,7 @@ function sanitiseAiBody(raw: string): string | null {
   if (text.length > COACH_NUDGE_AI_MAX_BODY_CHARS) return null;
   // Same outbound content fence the Coach reply path runs: a dose-prescription
   // or a fabricated risk score is rejected, falling back to the template.
-  if (screenCoachReply(text).block) return null;
+  if (screenCoachReply(text, locale).block) return null;
   return text;
 }
 
@@ -234,7 +234,7 @@ export const composeNudgeWithAI: ComposeNudgeWithAI = async (params) => {
       result.cachedInputTokens ?? 0,
     ).catch(() => {});
 
-    const body = sanitiseAiBody(result.content);
+    const body = sanitiseAiBody(result.content, params.locale);
     if (!body) {
       annotate({ action: { name: "coach.nudge.ai.fallback" } });
       return null;
