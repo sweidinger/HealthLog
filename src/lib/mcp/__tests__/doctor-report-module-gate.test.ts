@@ -103,7 +103,7 @@ describe("doctor-visit aggregate — doctorReport module gate", () => {
   describe.each([
     {
       name: "fixed resource",
-      run: () => fixedResource.read(ctx, {}),
+      run: () => fixedResource.read(ctx),
     },
     {
       name: "windowed template",
@@ -142,7 +142,7 @@ describe("doctor-visit aggregate — doctorReport module gate", () => {
   });
 
   it("gates on doctorReport specifically", async () => {
-    await fixedResource.read(ctx, {});
+    await fixedResource.read(ctx);
     expect(isModuleEnabled).toHaveBeenCalledWith("u1", "doctorReport");
   });
 });
