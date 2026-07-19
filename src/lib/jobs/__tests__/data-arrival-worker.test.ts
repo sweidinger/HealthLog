@@ -28,12 +28,20 @@ vi.mock("@/lib/jobs/reminder/shared", () => ({
   getWorkerPrisma: () => fakePrisma,
   workerLog: vi.fn(),
 }));
+// The spine reaches the Activity Insight only through the generator-free
+// enqueue module — importing the worker here would make its provider clients
+// reachable from the spine and break the zero-spend module-graph guard.
+vi.mock("@/lib/jobs/workout-insight-generate-shared", () => ({
+  enqueueWorkoutInsight: vi.fn(async () => ({ enqueued: true })),
+}));
 
 const createMany = vi.fn(async (_args: unknown) => ({ count: 1 }));
 const updateMany = vi.fn(async (_args: unknown) => ({ count: 1 }));
 const fakePrisma = { arrivalReaction: { createMany, updateMany } };
 
 const { runDataArrival } = await import("../data-arrival");
+const { enqueueWorkoutInsight } =
+  await import("@/lib/jobs/workout-insight-generate-shared");
 
 type Runnable = Parameters<typeof runDataArrival>[1];
 
@@ -53,6 +61,7 @@ function arrival(overrides: Partial<Runnable> = {}): Runnable {
 beforeEach(() => {
   createMany.mockClear().mockResolvedValue({ count: 1 });
   updateMany.mockClear().mockResolvedValue({ count: 1 });
+  vi.mocked(enqueueWorkoutInsight).mockClear();
 });
 
 describe("data-arrival worker", () => {
@@ -90,7 +99,31 @@ describe("data-arrival worker", () => {
       arrival({ kind: "workout", refId: "w-2" }),
     );
     if (result.status !== "processed") throw new Error("unreachable");
-    expect(result.actions).toContain("workout_pending_insight");
+    expect(result.actions).toContain("workout_insight_enqueued");
+    // The action name is a label; the dispatch is the contract.
+    expect(enqueueWorkoutInsight).toHaveBeenCalledWith({
+      userId: "user-1",
+      workoutId: "w-2",
+    });
+  });
+
+  it("does not dispatch a workout arrival that carries no referent", async () => {
+    // A paragraph is addressed by workout id. A seam that forgot to carry one
+    // must be visible rather than silently generating against nothing.
+    const result = await runDataArrival(
+      fakePrisma as never,
+      arrival({ kind: "workout", refId: undefined }),
+    );
+    if (result.status !== "processed") throw new Error("unreachable");
+    expect(result.actions).toContain("workout_no_ref");
+    expect(enqueueWorkoutInsight).not.toHaveBeenCalled();
+  });
+
+  it("never dispatches the workout insight for a non-workout arrival", async () => {
+    await runDataArrival(fakePrisma as never, arrival({ kind: "sleep_night" }));
+    await runDataArrival(fakePrisma as never, arrival({ kind: "weight" }));
+    await runDataArrival(fakePrisma as never, arrival({ kind: "labs_panel" }));
+    expect(enqueueWorkoutInsight).not.toHaveBeenCalled();
   });
 
   it("moves the marker forward on a later arrival, never backwards", async () => {
