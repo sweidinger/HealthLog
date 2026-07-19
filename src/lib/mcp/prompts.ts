@@ -23,6 +23,7 @@ import { z } from "zod/v4";
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 import { collectDoctorReportData } from "@/lib/doctor-report-data";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import { summariseForVisit } from "./doctor-visit-summary";
 import { coachScopeWindowSchema } from "@/lib/ai/coach/types";
 import type { CoachScopeWindow } from "@/lib/ai/coach/types";
@@ -281,6 +282,25 @@ export const MCP_PROMPTS: McpPromptDefinition[] = [
       const window = (
         typeof args.window === "string" ? args.window : "last90days"
       ) as CoachScopeWindow;
+      // v1.30.22 — same whole-record gate the doctor-visit RESOURCE applies.
+      // A prompt assembles real retrieved data, so it egresses exactly the
+      // aggregate the resource does and needs the same door. Refuse, don't
+      // omit: there is no honest partial visit summary, and an empty one
+      // invites the assistant to narrate "nothing on file".
+      if (!(await isModuleEnabled(ctx.userId, "doctorReport"))) {
+        annotate({
+          action: { name: "mcp.prompt.invoked" },
+          meta: {
+            prompt: "doctor_visit_summary",
+            refused: "module_disabled",
+          },
+        });
+        throw new Error(
+          'The "doctorReport" module is turned off for this account, so the ' +
+            "visit summary is not available.",
+        );
+      }
+
       const days = WINDOW_DAYS[window] ?? 90;
       const end = new Date();
       const start = new Date(end.getTime() - days * MS_PER_DAY);

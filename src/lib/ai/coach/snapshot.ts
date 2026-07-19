@@ -50,6 +50,7 @@ import type { MeasurementType } from "@/generated/prisma/client";
 import type { ReferenceMetric } from "@/lib/reference-ranges";
 import { isCycleAvailableForUser } from "@/lib/cycle/gate";
 import { resolveModuleMap, type ModuleKey } from "@/lib/modules/gate";
+import { MODULE_SCOPED_SOURCES } from "@/lib/modules/measurement-scope";
 import { SCHEDULE_COMPLIANCE_SELECT } from "@/lib/analytics/compliance";
 import type { BaselineProfile } from "@/lib/insights/derived";
 import {
@@ -222,26 +223,15 @@ const CORE_CLUSTERS: ReadonlySet<CoachDataCluster> = new Set<CoachDataCluster>([
  * W1 foundation prescribes. `coach` is the surface being narrated, not
  * a data domain. `labs` / `achievements` / `insights` / `doctorReport`
  * own no coach-snapshot data domain.
+ *
+ * v1.30.22 — the table itself moved to `@/lib/modules/measurement-scope` so
+ * the reads that deliberately bypass this builder (the MCP rich reads) gate
+ * off the SAME ownership map instead of inheriting nothing. The narrowing
+ * below is unchanged; only the definition site moved.
  */
-const MODULE_EXCLUDED_SOURCES: Partial<Record<ModuleKey, CoachScopeSource[]>> =
-  {
-    mood: ["mood"],
-    sleep: ["sleep"],
-    glucose: ["glucose"],
-    workouts: ["workouts"],
-    recovery: ["hrv", "resting_hr", "vo2_max"],
-    // The environment/exposure cluster owns exactly these sources (mirrors
-    // `CLUSTER_SOURCES.environment` in clusters.ts). When the opt-in
-    // environment module is off, strip its audio-exposure / daylight /
-    // skin-temperature blocks so the model never sees a disabled domain.
-    environment: [
-      "audio_env",
-      "audio_headphone",
-      "audio_event",
-      "daylight",
-      "skin_temp",
-    ],
-  };
+const MODULE_EXCLUDED_SOURCES = MODULE_SCOPED_SOURCES as Partial<
+  Record<ModuleKey, CoachScopeSource[]>
+>;
 
 /**
  * Build the Coach prompt snapshot for `userId`. Always uses

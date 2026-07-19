@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.30.23] — 2026-07-19
+
+Switching a module off holds on the connector wire too.
+
+- **Assistant connectors honour your module switches.** Three read paths reached the data directly instead of through the gated builder, so with a module off a connected assistant could still read the whole-record doctor summary, and could still get baselines, comparisons and level-shift detection for a metric whose own series correctly reported no data. Correlations were reachable the same way — and through the in-app assistant as well, which had the identical gap. All of them now check first.
+- **A shared clinician link served the whole-record summary without checking that module** — the same aggregate, reachable by someone who is not signed in at all. It now degrades to the documents-only view instead.
+- **The function that assembles that summary now refuses on its own** when the module is off, rather than trusting each of its five callers to remember. Three of them had not.
+- **The confirmation that background queues were migrated is now visible.** The previous release reported it at a log level that is deliberately discarded, so there was no way to tell from the outside whether it had taken effect. It is now a boot entry that appears on every start, including one where nothing needed migrating.
+
+No breaking changes.
+
 ## [1.30.22] — 2026-07-19
 
 Background work stops piling up on itself.

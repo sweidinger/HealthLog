@@ -21,6 +21,8 @@ import { PgBoss } from "pg-boss";
 import { prisma } from "@/lib/db";
 
 import { workerLog } from "./shared";
+import { withBackgroundEvent } from "@/lib/logging/background";
+import { annotate } from "@/lib/logging/context";
 
 /**
  * Cron schedule tuple: `[queueName, cronExpression, sendOptions?]`. The
@@ -107,6 +109,9 @@ export type QueuePolicyTable = Readonly<Record<string, QueuePolicyDecision>>;
 async function reconcileQueuePolicies(
   policies: QueuePolicyTable,
 ): Promise<void> {
+  const reconciled: string[] = [];
+  const failed: string[] = [];
+
   for (const [name, { policy }] of Object.entries(policies)) {
     try {
       const changed = await prisma.$executeRaw`
@@ -114,15 +119,35 @@ async function reconcileQueuePolicies(
         SET policy = ${policy}, updated_on = now()
         WHERE name = ${name} AND policy IS DISTINCT FROM ${policy}
       `;
-      if (changed > 0) {
-        workerLog("info", `[queue-policy] reconciled ${name} to ${policy}`);
-      }
+      if (changed > 0) reconciled.push(`${name}=${policy}`);
     } catch (err) {
       // Never fail worker boot on a reconcile miss: the queue still works, it
       // just keeps whatever de-duplication semantics it already had.
+      failed.push(name);
       workerLog("error", `[queue-policy] failed to reconcile ${name}`, err);
     }
   }
+
+  // The reconcile is the ONLY thing that carries a policy onto a queue that
+  // already exists — `createQueue` cannot, because `create_queue()` ends in
+  // ON CONFLICT DO NOTHING. So whether it ran is the difference between this
+  // fix working and doing nothing at all on an upgraded instance, and that has
+  // to be observable. `workerLog("info", …)` is deliberately silent, which
+  // made the intended signal impossible to see; a wide event reaches stdout
+  // and the log store like every other boot task.
+  //
+  // Emitted on EVERY boot, including the no-op one: "reconciled 0" on a second
+  // boot is the confirmation that the first boot already migrated everything.
+  // Silence would be indistinguishable from the reconcile never running.
+  await withBackgroundEvent("worker.boot.queue_policy_reconcile", async () => {
+    annotate({
+      meta: {
+        queue_policy_reconciled_count: reconciled.length,
+        queue_policy_reconciled: reconciled.join(",") || "none",
+        queue_policy_failed_count: failed.length,
+      },
+    });
+  });
 }
 
 /**
