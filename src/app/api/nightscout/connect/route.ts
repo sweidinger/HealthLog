@@ -12,6 +12,7 @@ import { markReconnected } from "@/lib/integrations/status";
 import { SafeFetchError } from "@/lib/safe-fetch";
 import { fetchSgvEntries, NightscoutApiError } from "@/lib/nightscout/client";
 import { nightscoutConnectSchema } from "@/lib/validations/nightscout";
+import { isPublicUrl } from "@/lib/validations/notifications";
 
 /**
  * Connect (or update) the user's Nightscout instance (v1.17.0).
@@ -48,6 +49,25 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   const { url, token, allowPrivateHost } = result.data;
+
+  // SSRF floor at INPUT time, not merely as a side effect of the live probe
+  // below. `fetchSgvEntries` does route through `safeFetch` with the same
+  // public-host pin, so today both paths refuse the same URLs — but that
+  // makes the guard on the value we PERSIST contingent on the probe staying
+  // exactly where it is. Reorder it, make it best-effort, or add a "save
+  // without testing" affordance and the stored URL is suddenly unchecked.
+  // Assert it here so the thing that gets encrypted onto the row is the
+  // thing that was validated.
+  //
+  // Gated on the same explicit opt-in the fetch path uses: a self-hoster who
+  // deliberately points at a LAN instance has asked for the private host and
+  // must still be able to connect.
+  if (!allowPrivateHost && !isPublicUrl(url)) {
+    return apiError(
+      "That instance is on a private network. Enable the private-network option to connect to it.",
+      422,
+    );
+  }
 
   // Live validation: pull a single SGV entry. A connection that can't even
   // fetch one row is not worth storing.

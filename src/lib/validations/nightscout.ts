@@ -7,11 +7,17 @@ import { z } from "zod/v4";
  * on `User` (`nightscoutUrlEncrypted` / `nightscoutTokenEncrypted`); the
  * private-host opt-in maps to `nightscoutAllowPrivateHost`.
  *
- * The URL is validated to be a parseable http(s) origin at input time. The
- * SSRF floor (public-host requirement, unless `allowPrivateHost` is set) is
- * enforced at fetch time by the client through `safeFetch` — input-shape
- * validation here only rejects garbage early so the connect route can return
- * a clear 422 instead of letting a malformed string reach the egress layer.
+ * The URL is validated to be a parseable http(s) origin here. The SSRF floor
+ * (public-host requirement, unless `allowPrivateHost` is set) is asserted
+ * twice on purpose: the connect route runs `isPublicUrl` before it persists
+ * anything, and `safeFetch` re-checks plus pins the resolved IP at connect
+ * time. The shape check here only rejects garbage early so the route can
+ * return a clear 422 instead of letting a malformed string reach either.
+ *
+ * The floor is NOT expressed as a Zod refinement because it depends on the
+ * sibling `allowPrivateHost` field and needs its own error message; folding
+ * it in here would collapse "malformed URL" and "private host, opt in to
+ * reach it" into one opaque 422.
  */
 export const nightscoutConnectSchema = z.object({
   // Trimmed: a trailing space / newline from a copy button reaches the
