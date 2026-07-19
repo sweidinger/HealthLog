@@ -45,8 +45,8 @@ instead of waiting for a daily rollup to notice.
   failure path — the same discipline the rest of the AI surface already
   holds to.
 
-One migration this release (0257); an additional dashboard-widget migration
-carried over from the prior line. No breaking changes.
+Two migrations this release (0257, 0259); an additional dashboard-widget
+migration carried over from the prior line. No breaking changes.
 
 ## [1.30.35] — 2026-07-19
 
