@@ -118,7 +118,7 @@ export {
 } from "@/lib/dashboard/widget-modules";
 import {
   WIDGET_MODULE_BY_ID,
-  SUMMARY_TYPE_MODULE,
+  disabledSummaryTypes,
 } from "@/lib/dashboard/widget-modules";
 
 const GLUCOSE_CONTEXTS = [
@@ -965,10 +965,9 @@ function gateSummariesByModules(
   summaries: Record<string, DataSummary>;
   lastSeenByType: Record<string, { lastSeenAt: string } | null>;
 } {
-  const dropped = new Set<string>();
-  for (const [type, moduleKey] of Object.entries(SUMMARY_TYPE_MODULE)) {
-    if (moduleKey && modules[moduleKey] === false) dropped.add(type);
-  }
+  // The drop decision is shared with `GET /api/dashboard/summary` — see
+  // `disabledSummaryTypes`. Only the filtering below is snapshot-shaped.
+  const dropped = disabledSummaryTypes(modules);
   if (dropped.size === 0) return { summaries, lastSeenByType };
   const outSummaries: Record<string, DataSummary> = {};
   for (const [type, summary] of Object.entries(summaries)) {

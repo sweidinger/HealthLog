@@ -37,6 +37,9 @@
  *     been pruned, so an incremental delta could silently miss it).
  *   - `syncVersion` is echoed per row so the client can keep its mirror's
  *     version monotonic.
+ *   - The `cycleDays` / `cycles` blocks are MODULE-GATED: an account with
+ *     cycle tracking off gets both blocks empty (never a 403 — see the
+ *     gate note in the handler) and their cursor watermarks untouched.
  *
  * `apiHandler` + `requireAuth` (cookie OR Bearer; iOS uses Bearer).
  * Read-only — no idempotency, no write side-effect (unlike the legacy
@@ -67,6 +70,7 @@ import {
   type CycleDayLogDTO,
   type MenstrualCycleDTO,
 } from "@/lib/cycle/dto";
+import { isModuleEnabled } from "@/lib/modules/gate";
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
@@ -192,6 +196,36 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const serverNow = new Date();
 
+  // ── module gate: cycle ────────────────────────────────────────────
+  // The `cycleDays` / `cycles` domains carry period days and per-day
+  // symptom rows — the same data every `/api/cycle/*` route refuses with a
+  // 403 when the module is off. Without this the delta feed re-served them
+  // ungated to the very same token.
+  //
+  // OMIT, NOT 403 — deliberately, and unlike the whole-record FHIR export.
+  // This feed multiplexes five domains over one cursor: refusing the whole
+  // request would wedge measurement / mood / intake catch-up for every
+  // account with cycle tracking off, which (the gate delegates to
+  // `isCycleEnabled`) is the default for most accounts. A partial payload
+  // is the only outcome that keeps the client syncing while still honouring
+  // the promise that a disabled module hands out nothing.
+  //
+  // The two cycle watermarks are deliberately NOT advanced while the module
+  // is off (the queries are skipped, so `advanceCursor` sees an empty page
+  // and leaves the prior watermark untouched). Re-enabling therefore resumes
+  // from where the client actually left off instead of silently skipping the
+  // rows that changed while the module was hidden.
+  //
+  // KNOWN GAP, out of scope here: a client that synced cycle rows BEFORE the
+  // module was turned off keeps its stale local mirror. Emitting tombstones
+  // for them would be wrong — a tombstone means deleted, and disabling a
+  // module must leave the rows intact so re-enabling finds a complete
+  // history. Purging a paired client's mirror needs an explicit
+  // "module went dark" signal in the feed contract plus client support for
+  // it; that is an additive wire change and an iOS-client change, not a
+  // server-side gate fix, so it is left for a coordinated contract cycle.
+  const cycleEnabled = await isModuleEnabled(user.id, "cycle");
+
   // The retention horizon: tombstones older than this may have been
   // pruned by the cleanup job, so a cursor that predates it can no longer
   // be trusted to deliver every deletion incrementally.
@@ -291,17 +325,23 @@ export const GET = apiHandler(async (request: NextRequest) => {
           updatedAt: true,
         },
       }),
-      prisma.cycleDayLog.findMany({
-        where: { userId: user.id, ...keysetFilter(cursor.cycleDays) },
-        orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
-        take: limit + 1,
-        include: dayLogSymptomInclude,
-      }),
-      prisma.menstrualCycle.findMany({
-        where: { userId: user.id, ...keysetFilter(cursor.cycles) },
-        orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
-        take: limit + 1,
-      }),
+      // Skipped outright when the module is off — not filtered after the
+      // fact — so the disabled rows are never read out of Postgres at all.
+      cycleEnabled
+        ? prisma.cycleDayLog.findMany({
+            where: { userId: user.id, ...keysetFilter(cursor.cycleDays) },
+            orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+            take: limit + 1,
+            include: dayLogSymptomInclude,
+          })
+        : [],
+      cycleEnabled
+        ? prisma.menstrualCycle.findMany({
+            where: { userId: user.id, ...keysetFilter(cursor.cycles) },
+            orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+            take: limit + 1,
+          })
+        : [],
     ]);
 
   const nextCursor: SyncCursor = { ...cursor };
@@ -464,6 +504,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       cycle_day_tombstones: cycleDayTombstones.length,
       cycle_upserts: cycleUpserts.length,
       cycle_tombstones: cycleTombstones.length,
+      cycle_module_enabled: cycleEnabled,
       has_more: hasMore,
       cursor_present: Boolean(parsed.data.cursor),
     },

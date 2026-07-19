@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.30.19] — 2026-07-19
+
+Switching a module off now holds everywhere.
+
+- **Three surfaces ignored your module switches.** The per-topic endpoints have always honoured them, but the sync feed still sent cycle data, the FHIR export still returned the full record including the insurance number, and the dashboard summary still built glucose and sleep cards — all regardless of whether those modules were on. Each now honours the switch: the sync feed leaves the cycle rows out, the FHIR export refuses the same way the health-record export already did, and the summary omits the cards. Nothing is deleted — turning a module back on finds the history complete, and the sync feed picks up where it left off rather than skipping what changed while it was hidden.
+- **Two assistant features reached a provider without a consent record.** The follow-up questions after saving your profile, and the assistant's own nudges, both sent data to a provider without checking whether consent was on file — and could fall back to the server-wide key. Both now check first and fall back to their non-generated text when consent is absent. The follow-up questions also moved to the same reservation-based spend accounting everything else uses; a self-hoster on their own key is no longer measured against the operator's daily ceiling.
+- The check that was supposed to catch the module gaps accepted a helper being imported as proof that a gate existed. It now pins which module each surface must check and names the tests that exercise a disabled one.
+
+No breaking changes to the web app. The native client may see a 403 from the FHIR endpoints and absent cards where a module is off — see the coordination note.
+
 ## [1.30.18] — 2026-07-19
 
 Health data and credentials no longer reach the logs or the backups.

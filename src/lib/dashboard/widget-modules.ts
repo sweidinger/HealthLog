@@ -75,3 +75,70 @@ export const SUMMARY_TYPE_MODULE: Partial<Record<string, ModuleKey>> = {
   // on the `nutrients` module like the rest of that store's surfaces.
   NUTRIENT_WATER: "nutrients",
 };
+
+/**
+ * The summary types a module map turns off. Lifted out of
+ * `gateSummariesByModules` in `@/lib/dashboard/snapshot` so the two
+ * dashboard aggregates that both surface per-metric data — the snapshot
+ * builder and the iOS `GET /api/dashboard/summary` payload — decide from
+ * ONE map instead of each carrying its own copy.
+ *
+ * The two callers shape their payloads differently (the snapshot keys
+ * summaries by `MeasurementType`; the summary route emits an array of
+ * metric cards keyed by an iOS `MetricKind`), so what is shared is this
+ * decision, not the filtering itself.
+ */
+export function disabledSummaryTypes(
+  modules: Partial<Record<ModuleKey, boolean>>,
+): Set<string> {
+  const dropped = new Set<string>();
+  for (const [type, moduleKey] of Object.entries(SUMMARY_TYPE_MODULE)) {
+    if (moduleKey && modules[moduleKey] === false) dropped.add(type);
+  }
+  return dropped;
+}
+
+/**
+ * iOS `MetricKind` (the `kind` on a `GET /api/dashboard/summary` metric
+ * card) → the `MeasurementType` it is built from. The summary route emits
+ * cards by kind, but module membership is defined per measurement type in
+ * `SUMMARY_TYPE_MODULE` above; this map is the join between the two so the
+ * summary payload gates off the SAME source of truth as the snapshot rather
+ * than a second, drift-prone kind→module list.
+ *
+ * Kinds whose type carries no `SUMMARY_TYPE_MODULE` entry (weight, blood
+ * pressure, pulse, body fat, steps, body water, bone mass, SpO₂) are core
+ * vitals and always pass through — they are listed anyway so a reader can
+ * see the full emitted set and so a new card cannot be added without
+ * deciding which type backs it.
+ */
+export const SUMMARY_METRIC_TYPE_BY_KIND: Record<string, string> = {
+  weight: "WEIGHT",
+  bloodPressure: "BLOOD_PRESSURE_SYS",
+  pulse: "PULSE",
+  bodyFat: "BODY_FAT",
+  glucose: "BLOOD_GLUCOSE",
+  sleep: "SLEEP_DURATION",
+  steps: "ACTIVITY_STEPS",
+  totalBodyWater: "TOTAL_BODY_WATER",
+  boneMass: "BONE_MASS",
+  oxygenSaturation: "OXYGEN_SATURATION",
+};
+
+/**
+ * Drop the metric cards whose backing measurement type belongs to a module
+ * the account turned off. A card whose kind is absent from
+ * `SUMMARY_METRIC_TYPE_BY_KIND` is kept — an unmapped kind is a core metric
+ * or a new one, and silently hiding it would be worse than surfacing it.
+ */
+export function gateMetricCardsByModules<T extends { kind: string }>(
+  cards: ReadonlyArray<T>,
+  modules: Partial<Record<ModuleKey, boolean>>,
+): T[] {
+  const dropped = disabledSummaryTypes(modules);
+  if (dropped.size === 0) return [...cards];
+  return cards.filter((card) => {
+    const type = SUMMARY_METRIC_TYPE_BY_KIND[card.kind];
+    return !type || !dropped.has(type);
+  });
+}
