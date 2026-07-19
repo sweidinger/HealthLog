@@ -9,6 +9,7 @@ import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { WorkoutList } from "@/components/insights/workout-list";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 
 /**
  * v1.4.32 — `/insights/workouts`.
@@ -36,7 +37,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function InsightsWorkoutsPageClient() {
   const { t } = useTranslations();
   const { ready } = useModulePageGuard("workouts");
-  const { data, isLoading, isEmpty } = useWorkouts({ limit: 100 });
+  // `isError` / `refetch` were already on the hook and simply not read here, so
+  // a failed list read fell through every branch to `null` and painted a titled
+  // shell with nothing in it — no message, no way back. Not the empty state,
+  // but just as opaque.
+  const { data, isLoading, isEmpty, isError, refetch } = useWorkouts({
+    limit: 100,
+  });
 
   // v1.18.0 B1 — bounce a direct URL hit on a disabled-workouts account.
   if (!ready) {
@@ -57,7 +64,12 @@ export default function InsightsWorkoutsPageClient() {
       {/* No `<MetricRangeControls>` here: workouts are session records, not a
           MeasurementType series, so the period-over-period range read has
           nothing to aggregate. */}
-      {isLoading ? (
+      {isError ? (
+        <QueryErrorCard
+          title={t("insights.workouts.loadError")}
+          onRetry={() => refetch()}
+        />
+      ) : isLoading ? (
         <div data-slot="workouts-loading" className="space-y-2">
           <Skeleton className="h-14 w-full rounded-lg" />
           <Skeleton className="h-14 w-full rounded-lg" />

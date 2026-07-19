@@ -5,6 +5,7 @@ import { Leaf } from "lucide-react";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorCard } from "@/components/ui/query-error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TileHeader } from "@/components/insights/tile-header";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,7 +54,11 @@ export function MicronutrientsCard() {
   const sex =
     user?.gender === "MALE" || user?.gender === "FEMALE" ? user.gender : null;
 
-  const { data, isLoading } = useQuery({
+  // A failed read left `data` undefined, `rows` empty, and the card rendered
+  // its "no micronutrient data" EmptyState — the same output as an account that
+  // genuinely logs no nutrients. The sibling hydration card already routes
+  // through QueryErrorCard; this one now matches it.
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.nutrientIntake(WINDOW_DAYS),
     queryFn: () =>
       apiGet<NutrientIntakeOverview>(`/api/nutrients?days=${WINDOW_DAYS}`),
@@ -72,7 +77,12 @@ export function MicronutrientsCard() {
         <TileHeader icon={Leaf} title={t("nutrients.micronutrients.title")} />
       </CardHeader>
       <CardContent className="space-y-3">
-        {isLoading ? (
+        {isError ? (
+          <QueryErrorCard
+            title={t("nutrients.micronutrients.loadError")}
+            onRetry={() => void refetch()}
+          />
+        ) : isLoading ? (
           <div className="space-y-1" aria-hidden="true">
             <Skeleton className="h-9 w-full rounded-md" />
             <Skeleton className="h-9 w-full rounded-md" />

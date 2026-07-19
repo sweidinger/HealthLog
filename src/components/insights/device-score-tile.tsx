@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
+import { resolveIntlLocale } from "@/lib/format-locale";
 import type { DataSummary } from "@/lib/analytics/trends";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LearningGate } from "@/components/ui/learning-gate";
@@ -72,7 +73,7 @@ export function DeviceScoreTile({
   learningThreshold = 3,
   className,
 }: DeviceScoreTileProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const { user } = useAuth();
 
   const count = summary?.count ?? 0;
@@ -83,7 +84,7 @@ export function DeviceScoreTile({
   const isLearning = count < learningThreshold;
 
   const fmt = (value: number) =>
-    value.toLocaleString(undefined, {
+    value.toLocaleString(resolveIntlLocale(locale), {
       minimumFractionDigits: fractionDigits,
       maximumFractionDigits: fractionDigits,
     });

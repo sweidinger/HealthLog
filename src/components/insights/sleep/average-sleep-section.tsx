@@ -2,7 +2,6 @@
 
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useTranslations } from "@/lib/i18n/context";
 import { useSleepRhythm } from "./use-sleep-rhythm";
 import { AverageSleepCard } from "./average-sleep-card";
 
@@ -21,24 +20,17 @@ import { AverageSleepCard } from "./average-sleep-card";
  */
 export function AverageSleepSection({ enabled }: { enabled: boolean }) {
   const { isAuthenticated } = useAuth();
-  const { t } = useTranslations();
   const { data, isLoading, isError } = useSleepRhythm(
     isAuthenticated && enabled,
   );
 
   if (!enabled) return null;
 
-  if (isError) {
-    return (
-      <div
-        data-slot="average-sleep-error"
-        role="status"
-        className="bg-card border-border text-muted-foreground rounded-xl border p-4 text-sm"
-      >
-        {t("insights.sleep.rhythm.loadError")}
-      </div>
-    );
-  }
+  // The page owns the single error notice for this shared read (all three
+  // cards resolve the same query, so a per-card notice printed it three
+  // times). Bail out here rather than falling through to the skeleton below,
+  // which would otherwise spin forever on a failed read.
+  if (isError) return null;
 
   if (isLoading || !data) {
     return (
