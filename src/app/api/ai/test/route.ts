@@ -10,6 +10,32 @@ import { singleUserTurn } from "@/lib/ai/types";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { annotate } from "@/lib/logging/context";
+import {
+  buildDateKey,
+  reconcileSpend,
+  reserveBudget,
+  resolveDailyCap,
+} from "@/lib/ai/coach/budget";
+
+/**
+ * Output ceiling of the probe below. Mirrors the `maxTokens` on the completion
+ * so the ledger reserves what the call can actually spend.
+ */
+const AI_TEST_MAX_TOKENS = 32;
+
+/**
+ * Daily ceiling on connection tests per user.
+ *
+ * The 5/min bucket alone bounded burst rate but nothing cumulative: sustained,
+ * it permits ~7 200 probes/day, and with an empty body this route resolves the
+ * SAME chain generation uses — which can be the operator's own credential. That
+ * is unmetered operator spend on a surface that exists to answer "are my
+ * settings right?". A person checks that a handful of times after editing a
+ * provider; 50 is far above real use and far below anything that matters on the
+ * bill.
+ */
+const AI_TEST_DAILY_LIMIT = 50;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +59,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const rl = await checkRateLimit(`ai-test:${user.id}`, 5, 60_000);
   if (!rl.allowed) return apiError("Too many test requests", 429);
+
+  // Cumulative ceiling on top of the burst bucket — see AI_TEST_DAILY_LIMIT.
+  const daily = await checkRateLimit(
+    `ai-test-daily:${user.id}`,
+    AI_TEST_DAILY_LIMIT,
+    ONE_DAY_MS,
+  );
+  if (!daily.allowed) {
+    annotate({ action: { name: "ai.test.daily_limit" } });
+    return apiError("Too many test requests today", 429);
+  }
 
   // Body is optional. Empty body → behaves like before (test the saved
   // config). Non-empty body → tests the unsaved selection without
@@ -65,17 +102,45 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("No AI provider configured", 422);
   }
 
+  // Meter the probe on the same daily ledger every other AI surface writes to,
+  // so operator-key spend from this route is visible rather than invisible.
+  // `admin-key` is the operator's own credential and draws the operator
+  // ceiling; an override names the caller's own key, and every other resolved
+  // type is the user's own egress, so those draw the user-plan ceiling.
+  const dateKey = buildDateKey();
+  const reservation = await reserveBudget(
+    user.id,
+    AI_TEST_MAX_TOKENS,
+    dateKey,
+    resolveDailyCap([
+      {
+        providerType: provider.type === "admin-key" ? "admin-openai" : "local",
+      },
+    ]),
+  );
+  if (!reservation.allowed) {
+    annotate({ action: { name: "ai.test.budget_exceeded" } });
+    return apiError("Daily AI budget exhausted", 429);
+  }
+
   try {
     const result = await provider.generateCompletion(
       singleUserTurn({
         system: "You are a connection-test responder.",
         user: 'Reply with the JSON object {"ok": true} and nothing else.',
         temperature: 0,
-        maxTokens: 32,
+        maxTokens: AI_TEST_MAX_TOKENS,
         // The probe asks for a JSON object — keep the OpenAI / Codex strict
         // JSON mode it relied on before the response_format gate landed.
         responseFormat: "json",
       }),
+    );
+
+    await reconcileSpend(
+      user.id,
+      reservation.reserved,
+      result.tokensUsed ?? reservation.reserved,
+      dateKey,
     );
 
     return apiSuccess({
@@ -91,6 +156,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // Log full details server-side for the operator and respond with a
     // categorised, generic reason.
     const err = e as Error & { httpStatus?: number; bodyExcerpt?: string };
+    // A failed probe produced no reported usage — refund the reservation so a
+    // provider that is simply misconfigured doesn't burn the caller's ledger
+    // while they fix it.
+    await reconcileSpend(user.id, reservation.reserved, 0, dateKey);
     annotate({
       meta: {
         ai_test_error: err.message.slice(0, 500),

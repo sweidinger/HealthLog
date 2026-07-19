@@ -24,6 +24,17 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(async () => ({ allowed: true })),
 }));
 
+vi.mock("@/lib/ai/coach/budget", () => ({
+  buildDateKey: () => "2026-01-01",
+  reserveBudget: vi.fn(async () => ({
+    allowed: true,
+    reserved: 32,
+    totalAfter: 32,
+  })),
+  reconcileSpend: vi.fn(async () => undefined),
+  resolveDailyCap: () => 200_000,
+}));
+
 vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));

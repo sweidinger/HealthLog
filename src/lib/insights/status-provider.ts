@@ -10,6 +10,12 @@ import {
   type ConsentSurface,
 } from "@/lib/ai/consent-guard";
 import { annotate } from "@/lib/logging/context";
+import {
+  buildDateKey,
+  reconcileSpend,
+  reserveBudget,
+  resolveDailyCap,
+} from "@/lib/ai/coach/budget";
 import { AI_BUDGETS, REFERENCE_AI_SEED } from "@/lib/ai/ai-budgets";
 import { singleUserTurn } from "@/lib/ai/types";
 import { STATUS_PROVIDER_TIMEOUT_MS, withTimeout } from "./with-timeout";
@@ -189,6 +195,49 @@ export async function runStatusCompletion(
     STATUS_PROVIDER_TIMEOUT_MS,
   );
 
+  const maxTokens = args.maxTokens ?? AI_BUDGETS.status.maxTokens;
+
+  // The day's token ledger. Until now this chokepoint — the provider entry for
+  // EVERY status/reference family (the specialised cards, the generic metric
+  // cards, biomarker cards, the batched assessment, the derived scores, the
+  // period narrative, and the off-request Coach memory workers: rolling
+  // summary, fact extraction, plan proposals) — ran with no accounting at all,
+  // so none of that spend appeared in `coach_usage` and no ceiling applied.
+  //
+  // The reservation is atomic (single upsert-increment), matching the Coach and
+  // document paths: a read-then-write check would let concurrent generations
+  // each observe a sub-cap total and all proceed. We reserve an ESTIMATE up
+  // front — the output ceiling plus a ~4-chars-per-token approximation of the
+  // prompt we are about to send — and reconcile against the provider's reported
+  // count afterwards, refunding in full when nothing was generated.
+  //
+  // The cap follows the COST OWNER, not the surface: `resolveDailyCap` charges
+  // the operator ceiling only when the chain's primary is the operator's own
+  // credential (`admin-openai` / `admin-codex`). A self-hoster on their own key
+  // or a local model is measured against the generous user-plan ceiling, so
+  // their own hardware/plan is never rationed by the operator's bill.
+  const dateKey = buildDateKey();
+  const estimatedTokens =
+    maxTokens + Math.ceil((systemPrompt.length + userPrompt.length) / 4);
+  const reservation = await reserveBudget(
+    userId,
+    estimatedTokens,
+    dateKey,
+    resolveDailyCap(chain),
+  );
+  if (!reservation.allowed) {
+    // Over the day's ceiling. Reported as `error` — a TRANSIENT miss the caller
+    // serves the fallback for without persisting it — deliberately NOT `none`,
+    // which callers cache as the settled "no provider configured" assessment.
+    // The distinct annotation keeps the refusal observable even though the
+    // result shape is shared.
+    annotate({
+      action: { name: "insights.status.budget_exceeded" },
+      meta: { cacheAction, totalAfter: reservation.totalAfter },
+    });
+    return { kind: "error" };
+  }
+
   const raced = await withTimeout(
     () =>
       runRawCompletionWithFallback({
@@ -198,7 +247,7 @@ export async function runStatusCompletion(
           system: systemPrompt,
           user: userPrompt,
           temperature: args.temperature ?? AI_BUDGETS.status.temperature,
-          maxTokens: args.maxTokens ?? AI_BUDGETS.status.maxTokens,
+          maxTokens,
           // v1.18.7 — status/reference output is reproducible: pin the
           // deterministic seed unless a caller overrides it.
           seed: args.seed ?? REFERENCE_AI_SEED,
@@ -213,13 +262,26 @@ export async function runStatusCompletion(
   );
 
   if (raced.timedOut) {
+    // A timed-out generation may still have burned upstream tokens, but we have
+    // no reported count to charge — refund the reservation rather than bill an
+    // invented figure.
+    await reconcileSpend(userId, reservation.reserved, 0, dateKey);
     return { kind: "timeout" };
   }
   if (raced.errored || raced.value === null) {
+    await reconcileSpend(userId, reservation.reserved, 0, dateKey);
     return { kind: "error" };
   }
 
   const { result, workingProvider } = raced.value;
+  // Reconcile against what the provider actually reported. This runs for the
+  // empty-content branch too: those tokens were burned upstream even though the
+  // reply was unusable, so they stay on the ledger rather than being refunded
+  // into a free retry loop. Falls back to the reservation when the provider
+  // reports no count, so an unreported generation is never billed as zero.
+  const actualTokens = result.tokensUsed ?? reservation.reserved;
+  await reconcileSpend(userId, reservation.reserved, actualTokens, dateKey);
+
   const content = result.content;
   if (typeof content !== "string" || content.trim().length === 0) {
     annotate({

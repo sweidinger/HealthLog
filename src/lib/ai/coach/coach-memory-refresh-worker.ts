@@ -2,11 +2,18 @@
  * v1.11.1 — worker pipeline for the combined Coach memory-refresh queue.
  *
  * Runs both background generators for one conversation, sequentially so they
- * share the wake-up but each pays its own budget check inside
- * `runStatusCompletion`: the rolling conversation summary first, then durable
- * fact extraction. Each step is fault-isolated — a failure or no-provider in
- * one never sinks the other or the job. Kept out of the route bundle (the
- * route imports only `enqueueCoachMemoryRefresh` from `coach-memory-shared`).
+ * share the wake-up: the rolling conversation summary first, then durable fact
+ * extraction. Each step is fault-isolated — a failure or no-provider in one
+ * never sinks the other or the job. Kept out of the route bundle (the route
+ * imports only `enqueueCoachMemoryRefresh` from `coach-memory-shared`).
+ *
+ * Both steps reserve and reconcile against the caller's daily token ledger
+ * inside `runStatusCompletion`, so this off-request work is metered on the same
+ * `coach_usage` row as the chat turn that triggered it, against the ceiling
+ * that matches the chain's cost owner. This comment previously asserted the
+ * same guarantee while no such accounting existed anywhere on the path — the
+ * chokepoint did no budget work at all, so every generator behind it, not just
+ * these two, spent unmetered.
  */
 import { annotate } from "@/lib/logging/context";
 
