@@ -15,8 +15,17 @@
  * assertion about the patient, never as the app's conclusion. The mandatory
  * human review screen is the hard backstop — nothing commits without per-fact
  * confirmation, and a low-confidence fact fails closed.
+ *
+ * Provenance is resolved, not echoed. The model returns a quote of the span it
+ * read a fact from; that quote is used to LOOK UP the real span in the extracted
+ * text (`anchorSourceText`) and the document's own characters are what gets
+ * stored. A quote that matches nothing is dropped and the fact is flagged
+ * unanchored — an anchor that points at nothing, or at the wrong span, is worse
+ * than an honest "unverified" because the review screen presents it to a human
+ * as a verbatim transcription of their record.
  */
 import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
+import { anchorSourceText } from "@/lib/documents/anchor-source-text";
 import {
   DOCUMENT_TEXT_FENCE_START,
   DOCUMENT_TEXT_FENCE_END,
@@ -263,17 +272,28 @@ export async function runInboundExtraction(
   const reportDate = normaliseDate(envelope.reportDate);
 
   const facts: StagedFactInput[] = [];
+  let unanchored = 0;
   for (const raw of envelope.facts.slice(0, INBOUND_MAX_FACTS)) {
     const data = mapFactData(raw);
     if (!data) continue;
     const confidence = raw.confidence;
+    // The model's `sourceText` is a LOOKUP KEY, never content: we search the
+    // extracted text for it and store the span the document actually carries.
+    // A quote we cannot locate is dropped and the fact is marked unanchored —
+    // the reviewer is told "unverified" rather than shown a quote the document
+    // may never have contained. Vision mode has no extracted text at all, so
+    // every fact from it is unanchored by construction.
+    const anchor = anchorSourceText(raw.sourceText, args.ocrText);
+    if (!anchor.anchored) unanchored += 1;
     facts.push({
       factType: raw.type,
       confidence,
       needsReview: confidence < INBOUND_CONFIDENCE_FLOOR,
       data,
       provenance: {
-        sourceText: raw.sourceText.trim().slice(0, 2000),
+        sourceText: anchor.sourceText,
+        anchored: anchor.anchored,
+        sourceOffset: anchor.sourceOffset,
         page: raw.page,
         confidence,
       },
@@ -286,6 +306,7 @@ export async function runInboundExtraction(
       mode: isTextMode ? "text" : "vision",
       providerType: args.providerType,
       facts: facts.length,
+      unanchored,
       conditions: facts.filter((f) => f.factType === "CONDITION").length,
       observations: facts.filter((f) => f.factType === "OBSERVATION").length,
       medications: facts.filter((f) => f.factType === "MEDICATION_STATEMENT")

@@ -26,6 +26,13 @@
  *     side (`analytics`, `comprehensive`, `summaries-slice`) decides
  *     whether to fall through to the live aggregator + persist-on-miss
  *     via its own per-tier freshness probe.
+ *
+ * Repair contract: a recompute REPLACES every bucket in the window it was
+ * asked for. That includes buckets the live aggregate returns nothing for —
+ * without it, a bucket outlives the rows it was folded from. See the
+ * `deleteWhere` note in `persistRollupRows` for the three shapes that hole
+ * took. Nothing here reads both tiers; the rollup replaces the legacy read and
+ * falls back to live SQL only on a coverage miss.
  */
 import { prisma } from "@/lib/db";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
@@ -217,9 +224,15 @@ export async function recomputeUserRollups(
       from: alignedFrom,
       to: alignedTo,
     });
-    if (rows.length === 0) continue;
-
-    rowsUpserted += await persistRollupRows(userId, granularity, rows);
+    // No `continue` on an empty aggregate: an empty result is a STATEMENT —
+    // this window holds no readings any more — and the prune below is what
+    // acts on it. Skipping the write here is what let a bucket outlive its
+    // source rows.
+    rowsUpserted += await persistRollupRows(userId, granularity, rows, {
+      from: alignedFrom,
+      to: alignedTo,
+      types: opts.types,
+    });
   }
 
   return { rowsUpserted, durationMs: Date.now() - startedAt };
@@ -263,7 +276,9 @@ export async function recomputeBucketsForMeasurement(
       },
     });
   } else {
-    await persistRollupRows(userId, "DAY", rows);
+    // No prune scope: this call owns exactly one (type, day) bucket and the
+    // branch above already deletes it by hand when the day emptied out.
+    await persistRollupRows(userId, "DAY", rows, null);
   }
 
   // WEEK / MONTH / YEAR — enqueue. Each granularity covers a range
@@ -530,40 +545,102 @@ async function runRollupAggregate(input: {
 }
 
 /**
- * UPSERT the aggregate rows into `measurement_rollups`. Returns the
- * number of rows touched. Uses a chunked raw insert with
- * `ON CONFLICT DO UPDATE` so the round-trip count is bounded
- * regardless of fan-out width AND a concurrent writer on the same
- * partition can never raise a unique violation.
+ * The window a recompute authoritatively re-derived. Every rollup bucket inside
+ * it is replaced by the freshly computed rows — including buckets the aggregate
+ * returned NOTHING for, which is the only way a bucket whose source rows all
+ * disappeared can be removed. `types` narrows the prune to the types the
+ * aggregate was scoped to; `undefined` means it covered every type.
  */
-async function persistRollupRows(
+interface PruneScope {
+  from: Date;
+  to: Date;
+  types?: MeasurementType[];
+}
+
+/**
+ * Delete scope for a caller that wrote a single known bucket rather than a
+ * re-derived window: the [min, max] bucket range of the rows themselves, per
+ * type. Correct there precisely because the caller already knows which bucket
+ * it touched and deletes it by hand when the aggregate comes back empty.
+ */
+function buildReturnedRangeDeleteWhere(
   userId: string,
   granularity: RollupGranularity,
   rows: RollupRow[],
-): Promise<number> {
-  if (rows.length === 0) return 0;
-
-  // v1.11.1 — rows are now minted per source. Delete-then-upsert the affected
-  // (type, bucket) partitions across ALL sources before writing, so a source
-  // that disappeared from a bucket (the user disconnected a provider, or
-  // deleted the last reading from one device) does not strand a stale
-  // per-source row that a plain upsert would never revisit. The delete is
-  // scoped to the [min, max] bucket range of the rows being written, per type
-  // — an indexed range delete, cheap on the single-day write hook and bounded
-  // on the full backfill.
+) {
   const types = [...new Set(rows.map((r) => r.type as MeasurementType))];
-  let minBucket = rows[0].bucket_start;
-  let maxBucket = rows[0].bucket_start;
+  let minBucket = rows[0]!.bucket_start;
+  let maxBucket = rows[0]!.bucket_start;
   for (const r of rows) {
     if (r.bucket_start < minBucket) minBucket = r.bucket_start;
     if (r.bucket_start > maxBucket) maxBucket = r.bucket_start;
   }
-  const deleteWhere = {
+  return {
     userId,
     granularity,
     type: { in: types },
     bucketStart: { gte: minBucket, lte: maxBucket },
   };
+}
+
+/**
+ * UPSERT the aggregate rows into `measurement_rollups`. Returns the
+ * number of rows touched. Uses a chunked raw insert with
+ * `ON CONFLICT DO UPDATE` so the round-trip count is bounded
+ * regardless of fan-out width AND a concurrent writer on the same
+ * partition can never raise a unique violation.
+ *
+ * `prune` is the recomputed window when the caller re-derived a whole span
+ * (`recomputeUserRollups`), or `null` when it wrote a single known bucket and
+ * handles its own empty case (`recomputeBucketsForMeasurement`). See the
+ * `deleteWhere` note below for why the distinction matters.
+ */
+async function persistRollupRows(
+  userId: string,
+  granularity: RollupGranularity,
+  rows: RollupRow[],
+  prune: PruneScope | null,
+): Promise<number> {
+  // v1.11.1 — rows are now minted per source. Delete-then-upsert the affected
+  // (type, bucket) partitions across ALL sources before writing, so a source
+  // that disappeared from a bucket (the user disconnected a provider, or
+  // deleted the last reading from one device) does not strand a stale
+  // per-source row that a plain upsert would never revisit.
+  //
+  // The delete is scoped to the RECOMPUTED WINDOW when the caller supplies one,
+  // not to the [min, max] range of the rows coming back. Scoping it to the
+  // returned rows made the repair self-limiting in exactly the case that needs
+  // it: a recompute can only ever overwrite a bucket the live aggregate still
+  // produces, so a bucket whose source rows all disappeared was never in the
+  // delete range and survived with its stale aggregate. Three shapes of the
+  // same hole — an empty aggregate skipped the write entirely, a returned range
+  // narrower than the requested window left the edges untouched, and a type
+  // that lost every reading dropped out of `type: { in: … }` altogether. The
+  // WEEK / MONTH / YEAR worker hit all three: deleting the last reading of a
+  // type in a week dropped the DAY bucket (the write hook deletes that one by
+  // hand) while the coarser buckets kept the stale aggregate forever, and the
+  // coverage probe still reported `hasBuckets = true` so the read-swap served
+  // them instead of falling back to live SQL.
+  const pruneWhere = prune
+    ? {
+        userId,
+        granularity,
+        ...(prune.types ? { type: { in: prune.types } } : {}),
+        bucketStart: { gte: prune.from, lt: prune.to },
+      }
+    : null;
+
+  if (rows.length === 0) {
+    // Nothing to write. With a prune scope there is still work to do: the
+    // window is authoritatively empty, so every bucket in it must go. No
+    // transaction needed — there is no insert leg that could leave a gap.
+    if (!pruneWhere) return 0;
+    await prisma.measurementRollup.deleteMany({ where: pruneWhere });
+    return 0;
+  }
+
+  const deleteWhere =
+    pruneWhere ?? buildReturnedRangeDeleteWhere(userId, granularity, rows);
 
   // v1.28.33 (issue #486) — the insert leg is a raw
   // `INSERT … ON CONFLICT (pk) DO UPDATE` instead of `createMany`. The

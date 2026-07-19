@@ -159,9 +159,28 @@ export function encryptFactProvenance(
   return encryptToBytes(JSON.stringify(provenance));
 }
 
-/** Decrypt a staged fact's provenance back to its DTO shape. */
+/**
+ * Decrypt a staged fact's provenance back to its DTO shape.
+ *
+ * Rows written before provenance was anchored carry the model's own echo of the
+ * span with no record of whether it ever matched the document. That is exactly
+ * the unverified case, so they resolve to `anchored: false`. The stored text is
+ * preserved rather than blanked — it is the only provenance those rows have —
+ * but the flag stops a consumer presenting it as a checked transcription.
+ */
 export function decryptFactProvenance(buf: Uint8Array): FactProvenance {
-  return JSON.parse(decryptFromBytes(buf)) as FactProvenance;
+  const raw = JSON.parse(decryptFromBytes(buf)) as Partial<FactProvenance>;
+  const anchored = raw.anchored === true;
+  return {
+    sourceText: typeof raw.sourceText === "string" ? raw.sourceText : "",
+    anchored,
+    sourceOffset:
+      anchored && typeof raw.sourceOffset === "number"
+        ? raw.sourceOffset
+        : null,
+    page: typeof raw.page === "number" ? raw.page : null,
+    confidence: typeof raw.confidence === "number" ? raw.confidence : 0,
+  };
 }
 
 /**

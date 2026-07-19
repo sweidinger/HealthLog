@@ -567,6 +567,124 @@ describe("persistRollupRows — large path (via recomputeUserRollups)", () => {
   });
 });
 
+/**
+ * A recompute REPLACES every bucket in the window it was asked for.
+ *
+ * Scoping the delete to the [min, max] range of the rows the aggregate
+ * RETURNED made the repair self-limiting in exactly the case that needs it: a
+ * bucket whose source rows all disappeared is not in the returned range, so it
+ * survived with its stale aggregate while `probeRollupCoverage` still reported
+ * `hasBuckets = true` and the read-swap served it instead of falling back to
+ * live SQL. The write hook masked this for DAY (it deletes its own bucket by
+ * hand when the day empties) but nothing covered the WEEK / MONTH / YEAR
+ * worker, which recomputes one bucket span at a time.
+ */
+describe("recomputeUserRollups — prunes the whole recomputed window", () => {
+  function rowsInBucket(bucketStart: Date, type = "WEIGHT") {
+    return [
+      {
+        type,
+        source: "MANUAL",
+        bucket_start: bucketStart,
+        count: BigInt(1),
+        mean: 80,
+        min_value: 80,
+        max_value: 80,
+        sum_value: 80,
+        sd: 0,
+        slope: 0,
+        r2: 0,
+      },
+    ];
+  }
+
+  it("deletes the stale bucket when the window's last reading is gone", async () => {
+    // The exact damage: the user deleted their last WEIGHT reading of the
+    // week, so the WEEK aggregate for that span now returns nothing.
+    queryRawUnsafe.mockResolvedValueOnce([]);
+
+    await recomputeUserRollups("user-1", {
+      granularities: ["WEEK"],
+      types: ["WEIGHT"],
+      from: new Date(Date.UTC(2024, 2, 4)),
+      to: new Date(Date.UTC(2024, 2, 11)),
+    });
+
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    const where = deleteMany.mock.calls[0][0].where;
+    expect(where).toMatchObject({
+      userId: "user-1",
+      granularity: "WEEK",
+      type: { in: ["WEIGHT"] },
+    });
+    expect(where.bucketStart.gte.toISOString()).toBe(
+      "2024-03-04T00:00:00.000Z",
+    );
+    expect(where.bucketStart.lt.toISOString()).toBe("2024-03-11T00:00:00.000Z");
+    // Nothing to write — the window is authoritatively empty.
+    expect(txExecuteRawUnsafe).not.toHaveBeenCalled();
+  });
+
+  it("covers the requested window, not just the range the aggregate returned", async () => {
+    // Readings survive only in the middle of the window; the buckets at both
+    // edges lost theirs. The delete must still reach the edges.
+    queryRawUnsafe.mockResolvedValueOnce(
+      rowsInBucket(new Date(Date.UTC(2024, 2, 10))),
+    );
+    txExecuteRawUnsafe.mockResolvedValueOnce(1);
+
+    await recomputeUserRollups("user-1", {
+      granularities: ["DAY"],
+      from: new Date(Date.UTC(2024, 2, 1)),
+      to: new Date(Date.UTC(2024, 2, 20)),
+    });
+
+    const where = deleteMany.mock.calls[0][0].where;
+    expect(where.bucketStart.gte.toISOString()).toBe(
+      "2024-03-01T00:00:00.000Z",
+    );
+    expect(where.bucketStart.lt.toISOString()).toBe("2024-03-20T00:00:00.000Z");
+  });
+
+  it("prunes every type when the recompute was not type-scoped", async () => {
+    // A type that lost all its readings drops out of the returned rows
+    // entirely, so a `type: { in: <returned types> }` filter could never
+    // reach its buckets.
+    queryRawUnsafe.mockResolvedValueOnce(
+      rowsInBucket(new Date(Date.UTC(2024, 2, 10))),
+    );
+    txExecuteRawUnsafe.mockResolvedValueOnce(1);
+
+    await recomputeUserRollups("user-1", {
+      granularities: ["DAY"],
+      from: new Date(Date.UTC(2024, 2, 1)),
+      to: new Date(Date.UTC(2024, 2, 20)),
+    });
+
+    const where = deleteMany.mock.calls[0][0].where;
+    expect(where.type).toBeUndefined();
+  });
+
+  it("still writes the fresh rows it did compute", async () => {
+    queryRawUnsafe.mockResolvedValueOnce(
+      rowsInBucket(new Date(Date.UTC(2024, 2, 10))),
+    );
+    txExecuteRawUnsafe.mockResolvedValueOnce(1);
+
+    const result = await recomputeUserRollups("user-1", {
+      granularities: ["DAY"],
+      from: new Date(Date.UTC(2024, 2, 1)),
+      to: new Date(Date.UTC(2024, 2, 20)),
+    });
+
+    // Delete and upsert share the one interactive transaction, so a reader
+    // never observes the pruned window without its replacement rows.
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(txExecuteRawUnsafe).toHaveBeenCalledTimes(1);
+    expect(result.rowsUpserted).toBe(1);
+  });
+});
+
 describe("enqueueRollupRecompute", () => {
   it("is a silent no-op when no boss is attached", async () => {
     getGlobalBossMock.mockReturnValue(null);

@@ -120,7 +120,13 @@ beforeEach(() => {
           referenceHigh: 17,
           effectiveDate: "2026-07-10",
         },
-        provenance: { sourceText: "Hämoglobin 14.2", page: 0, confidence: 0.9 },
+        provenance: {
+          sourceText: "Hämoglobin 14.2",
+          anchored: true,
+          sourceOffset: 0,
+          page: 0,
+          confidence: 0.9,
+        },
       },
     ],
   });

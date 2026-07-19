@@ -97,8 +97,12 @@ export async function linkOcrLabsToVaultDocument(
         confidence: 1,
         needsReview: false,
         dataEncrypted: encryptFactData(observationFromLab(lab)),
+        // No document span to point at: this fact is minted from an already
+        // committed lab row, not transcribed from the document text.
         provenanceEncrypted: encryptFactProvenance({
           sourceText: "",
+          anchored: false,
+          sourceOffset: null,
           page: null,
           confidence: 1,
         }),
