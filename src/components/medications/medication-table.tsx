@@ -29,7 +29,7 @@ import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import { useMedicationIntake } from "@/components/medications/use-medication-intake";
 import { reduceCurrentWindowStatus } from "@/lib/medications/window-status";
-import { localDayIndex, wallClockInTz } from "@/lib/tz/wall-clock";
+import { resolveNextDueDayLabel } from "@/lib/medications/next-due-day-label";
 import { formatTime } from "@/lib/format";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -418,7 +418,6 @@ function MedicationTableRowItem({
       a.windowEnd.localeCompare(b.windowEnd),
   );
   const now = new Date();
-  const nowParts = wallClockInTz(now, userTz);
   const nextDueMs = medication.nextDueAt
     ? new Date(medication.nextDueAt).getTime()
     : NaN;
@@ -533,22 +532,15 @@ function MedicationTableRowItem({
         </span>
       );
     } else if (nextAt) {
-      // Same contract as the card: both clocks read in the PROFILE
-      // timezone, a calendar-day distance rather than an hour count, and
-      // the RAW instant handed to `dateWithWeekdaySmart` — the formatter
-      // applies `userTz` itself, so passing a zone-shifted Date converted
-      // twice and could render the wrong calendar day.
-      const nextInstant = new Date(nextAt);
-      const nextParts = wallClockInTz(nextInstant, userTz);
-      const dayDelta = localDayIndex(nextParts) - localDayIndex(nowParts);
+      const label = resolveNextDueDayLabel(new Date(nextAt), now, userTz);
       const dayLabel =
-        dayDelta === 0
+        label.kind === "today"
           ? t("medications.today")
-          : dayDelta === 1
+          : label.kind === "tomorrow"
             ? t("medications.tomorrow")
-            : dayDelta <= 5
-              ? weekdayLabel(nextParts.weekday)
-              : fmt.dateWithWeekdaySmart(nextInstant);
+            : label.kind === "weekday"
+              ? weekdayLabel(label.weekday)
+              : fmt.dateWithWeekdaySmart(label.instant);
       nextCell = (
         <span>
           {dayLabel}, {formatTime(new Date(nextAt).toISOString())}

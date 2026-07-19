@@ -11,7 +11,7 @@
  *     so a two-dose row keeps the overdue pill up until BOTH doses are
  *     covered by today's intake events.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { reduceCurrentWindowStatus } from "../window-status";
 import { zonedWallClockToUtc } from "@/lib/tz/wall-clock";
@@ -450,5 +450,81 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
     });
     expect(res.status).toBe("in_window");
     expect(res.takenEarlyDaysAgo).toBe(1);
+  });
+});
+
+describe("reduceCurrentWindowStatus — HOST zone must not reach the verdict", () => {
+  // The status math used to receive a `Date` fabricated by rendering the
+  // instant in the profile zone and re-parsing it as HOST-local. When that
+  // fabricated wall clock landed in the HOST zone's spring-forward gap the
+  // engine silently advanced it an hour, so a dose sitting inside its window
+  // could be classified late and a just-taken dose could fail to suppress
+  // the take-now pill. One hour a year, only for users whose device zone
+  // differs from their profile zone — i.e. never visible to a UTC-only,
+  // single-zone suite.
+  const ORIGINAL_TZ = process.env.TZ;
+  afterEach(() => {
+    process.env.TZ = ORIGINAL_TZ;
+  });
+
+  /** 02:30 Berlin on 2026-03-08 — a perfectly ordinary CET wall clock. */
+  const nowBerlin0230 = zonedWallClockToUtc(
+    { year: 2026, month: 3, day: 8, hour: 2, minute: 30 },
+    "Europe/Berlin",
+  );
+  const band0200to0300 = [
+    { windowStart: "02:00", windowEnd: "03:00", daysOfWeek: null },
+  ];
+
+  it("reads in_window under a host zone whose spring-forward gap contains the profile clock", () => {
+    // America/New_York springs forward 2026-03-08 02:00 → 03:00, so 02:30
+    // does not exist on the host clock that day.
+    process.env.TZ = "America/New_York";
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: band0200to0300,
+      now: nowBerlin0230,
+      tz: "Europe/Berlin",
+    });
+    expect(res.status).toBe("in_window");
+  });
+
+  it("returns the same verdict from every host zone", () => {
+    const verdicts = new Set<string>();
+    for (const host of [
+      "UTC",
+      "America/New_York",
+      "Australia/Sydney",
+      "Asia/Kolkata",
+      "Europe/Berlin",
+    ]) {
+      process.env.TZ = host;
+      verdicts.add(
+        String(
+          reduceCurrentWindowStatus({
+            ...BASE,
+            schedules: band0200to0300,
+            now: nowBerlin0230,
+            tz: "Europe/Berlin",
+          }).status,
+        ),
+      );
+    }
+    expect([...verdicts]).toEqual(["in_window"]);
+  });
+
+  it("suppresses the take-now pill for a just-taken dose under the same host gap", () => {
+    // 01:15Z is 02:15 Berlin — inside the 02:00–03:00 band, 15 minutes
+    // before `now`. The pill must stay dark.
+    process.env.TZ = "America/New_York";
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: band0200to0300,
+      now: nowBerlin0230,
+      lastTakenAt: "2026-03-08T01:15:00.000Z",
+      todayEventCount: 1,
+      tz: "Europe/Berlin",
+    });
+    expect(res.status).toBeNull();
   });
 });
