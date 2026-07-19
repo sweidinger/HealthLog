@@ -83,7 +83,7 @@ export async function issueAccessAndRefresh(
 }
 
 export type RotationFailureReason =
-  "not_found" | "expired" | "already_used" | "revoked";
+  "not_found" | "expired" | "already_used" | "revoked" | "device_mismatch";
 
 export type RotationResult =
   | { ok: true; bundle: IssuedRefreshBundle }
@@ -156,6 +156,26 @@ export async function rotateRefreshToken(input: {
       });
     }
     return { ok: false, reason: "already_used" };
+  }
+
+  // A live token belongs to the device it was issued to. The M-4 escalation
+  // above already treats a mismatched deviceId on a REPLAY as a spoofing
+  // signal; the same mismatch on a still-live token is refused outright
+  // rather than silently rotated. Without this the reuse-detection scope is
+  // only as honest as the caller: a thief could rotate a stolen token under
+  // their own fabricated device id, and the resulting family — keyed on the
+  // attacker's id, because `issueAccessAndRefresh` below inherits
+  // `row.deviceId ?? input.deviceId` — would sit outside the victim device's
+  // containment blast radius.
+  //
+  // Both ids must be present to compare. A stored null means the row predates
+  // per-device issuance and cannot be attributed; a presented null means the
+  // caller sent no `X-Device-Id` header. Neither is treated as a mismatch, so
+  // this cannot lock out an older client that never sends the header.
+  const presentedId = input.deviceId ?? null;
+  const storedId = row.deviceId ?? null;
+  if (presentedId !== null && storedId !== null && presentedId !== storedId) {
+    return { ok: false, reason: "device_mismatch" };
   }
 
   // Issue the new pair first, THEN mark old consumed in a transaction.
