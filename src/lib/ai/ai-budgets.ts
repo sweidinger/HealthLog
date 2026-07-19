@@ -124,6 +124,18 @@ export const AI_BUDGETS = {
   coachNudge: { temperature: 0.6, maxTokens: 160, timeoutMs: 9000 },
 
   /**
+   * v1.31.0 — the arrival reaction line. ONE sentence replacing the Today
+   * hero's lead for the rest of the day, written at most once per arrival kind
+   * per local day (the `ArrivalReaction` unique row is the throttle). 220
+   * tokens is generous for a single sentence and leaves room for a model that
+   * warms up before it commits. Temperature between the reference surfaces and
+   * the conversational ones: the verdict must stay stable against the same
+   * evidence, but a line the user reads every day should not read as a
+   * template.
+   */
+  arrivalReaction: { temperature: 0.45, maxTokens: 220, timeoutMs: 12_000 },
+
+  /**
    * Coach rolling-conversation summary worker — a compact summary of the
    * elided older turns. 200 tokens.
    */

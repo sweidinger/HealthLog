@@ -30,6 +30,11 @@ import {
   type MorningDigestRefreshPayload,
 } from "@/lib/jobs/morning-digest-refresh";
 import { DATA_ARRIVAL_QUEUE, handleDataArrival } from "@/lib/jobs/data-arrival";
+import {
+  REACTION_LINE_QUEUE,
+  handleReactionLine,
+} from "@/lib/jobs/reaction-line";
+import type { ReactionLineJob } from "@/lib/arrivals/reaction-line-shared";
 import type { DataArrival } from "@/lib/arrivals/types";
 import {
   DAILY_BRIEFING_QUEUE,
@@ -179,6 +184,10 @@ const allQueues = [
   // this entry pg-boss never provisions the queue and every emit silently
   // drops (the v1.4.37 dead-queue class).
   DATA_ARRIVAL_QUEUE,
+  // v1.31.0 — the day's single arrival reaction line. Send-only, enqueued by
+  // the spine worker on the pass that claimed the day's marker. Without this
+  // entry pg-boss never provisions the queue and every enqueue silently drops.
+  REACTION_LINE_QUEUE,
   // v1.10.0 — computed scores (WX-C / WX-E). Nightly Recovery / Stress /
   // Strain compute + store. The queue MUST be registered here or pg-boss
   // never provisions it and the nightly schedule silently never fires.
@@ -302,6 +311,16 @@ const queuePolicies: QueuePolicyTable = {
   // id and DOES pass `singletonSeconds`, so it is constrained by pg-boss's
   // `job_i4` index regardless of this policy. Both shapes coexist on one
   // queue safely: they populate different columns.
+  // The reaction line's key is `reaction-line:<user>:<kind>:<localDate>` — the
+  // same day-scoped shape, and for the same reason: a wall-clock window cannot
+  // express a user's local date. `exclusive` is what makes the key real, and it
+  // is the queue-level restatement of the durable claim the worker re-checks
+  // (`generatedAt`) before it spends anything.
+  [REACTION_LINE_QUEUE]: {
+    policy: "exclusive",
+    reason:
+      "Day-scoped per-kind keys carry the user's local date; under standard they coalesce nothing and a retried spine job could stack a second provider call behind the first.",
+  },
   [DATA_ARRIVAL_QUEUE]: {
     policy: "exclusive",
     reason:
@@ -531,6 +550,14 @@ export async function registerStatusQueues(
     DATA_ARRIVAL_QUEUE,
     { localConcurrency: 1 },
     handleDataArrival,
+  );
+  // v1.31.0 — the arrival reaction line. Single-flight: this is the spine's
+  // ONE provider call, and a second concurrent slot would only race the same
+  // durable `generatedAt` claim exactly one of them can win.
+  await boss.work<ReactionLineJob>(
+    REACTION_LINE_QUEUE,
+    { localConcurrency: 1 },
+    handleReactionLine,
   );
   // S5 — daily-briefing fallback slot. Single-flight; the `push_attempts`
   // frequency cap makes an overlapping tick a no-op (a second same-day attempt
