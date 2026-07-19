@@ -29420,6 +29420,12 @@ components:
           properties:
             sourceText:
               type: string
+            anchored:
+              type: boolean
+            sourceOffset:
+              anyOf:
+                - type: number
+                - type: "null"
             page:
               anyOf:
                 - type: number
@@ -29428,6 +29434,8 @@ components:
               type: number
           required:
             - sourceText
+            - anchored
+            - sourceOffset
             - page
             - confidence
           additionalProperties: false

@@ -179,8 +179,22 @@ export type InboundExtraction = z.infer<typeof inboundExtractionSchema>;
 
 /** Per-field provenance carried on every staged fact. */
 export interface FactProvenance {
-  /** The verbatim source span the value was transcribed from. */
+  /**
+   * The verbatim source span the value was transcribed from, read back out of
+   * the extracted document text — NOT the model's echo of it. Empty string when
+   * the span could not be located (see `anchored`).
+   */
   sourceText: string;
+  /**
+   * True only when `sourceText` was resolved against the extracted document
+   * text. False means the quote is unverifiable and none is stored: either the
+   * model's echo matched nothing in the source, or the extraction ran in vision
+   * mode, where there is no extracted text to verify against. A reviewer must
+   * read an unanchored fact against the original document itself.
+   */
+  anchored: boolean;
+  /** Character offset of the span in the extracted text; null when unanchored. */
+  sourceOffset: number | null;
   /** Optional 0-based page index. */
   page: number | null;
   /** The model's self-reported confidence (0..1). */
