@@ -18,7 +18,10 @@ import {
   mfaWebauthnLoginVerifySchema,
 } from "@/lib/validations/mfa";
 import { oidcNativeTokenSchema } from "@/lib/validations/oidc-native";
-import { stepUpMintSchema } from "@/lib/validations/step-up";
+import {
+  stepUpMintSchema,
+  stepUpOptionsSchema,
+} from "@/lib/validations/step-up";
 import { dataEnvelope, stdResponses, errorEnvelope } from "./shared";
 
 // ── Sub-schemas owned here (route-specific shapes) ───────────────────
@@ -312,6 +315,14 @@ const stepUpMintResponse = z
       ),
     expiresAt: z.iso.datetime({ offset: true }),
     expiresInSeconds: z.number().int(),
+    method: z
+      .enum(["password", "totp", "webauthn", "passkey"])
+      .describe("The factor that was re-proved."),
+    satisfiesFreshFactor: z
+      .boolean()
+      .describe(
+        "Whether this elevation reaches the fresh-factor routes (MFA disable, recovery-code regeneration, security-key removal). False for a password proof — mirroring the web, where a password login never marks a session second-factor-verified.",
+      ),
   })
   .meta({ id: "StepUpMintResponse" });
 
@@ -426,9 +437,14 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/auth/step-up/options": {
     post: {
       tags: ["Auth"],
-      summary: "Begin a passkey re-proof for a step-up elevation (Bearer only)",
+      summary:
+        "Begin a WebAuthn re-proof for a step-up elevation (Bearer only)",
       description:
-        "Returns SimpleWebAuthn assertion options scoped to the calling account's primary passkeys, plus a challenge id to present at POST /api/auth/step-up. Bearer-only: a cookie session is refused, because a browser re-proves its factor at login and carries the result on its session row. Returns 409 when the account has no passkey registered — use the password arm of the mint instead.",
+        'Returns SimpleWebAuthn assertion options plus a challenge id to present at POST /api/auth/step-up. `method: "passkey"` scopes the assertion to the account\'s primary passkeys; `method: "webauthn"` to its registered second-factor security keys. Bearer-only: a cookie session is refused, because a browser re-proves its factor at login and carries the result on its session row. Returns 409 when the account has no credential of the requested kind — fall back to another arm of the mint.',
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: stepUpOptionsSchema } },
+      },
       responses: {
         "200": {
           description: "Assertion options issued.",
@@ -454,10 +470,11 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Auth"],
       summary: "Mint a single-use step-up elevation (Bearer only)",
       description:
-        "Re-prove the account password or a primary passkey and receive an opaque elevation that authorises exactly ONE second-factor-management call.\n\n" +
-        "The elevation is the Bearer transport's equivalent of the web's fresh-second-factor session stamp. It is bound to the exact token that minted it (another token, including the same account's, cannot redeem it), single-use, and valid for five minutes — the same window the cookie path uses. Present it as `X-Step-Up: hle_…` alongside the normal `Authorization: Bearer` header.\n\n" +
-        "Presenting the token alone mints nothing: the body must carry a fresh factor proof. Every failure — wrong password, no password set on an SSO-provisioned account, an assertion for another account, a stale challenge — returns the same 401 with the same prose, and is audited server-side. Rate-limited per account (5 / 15 min) and per source address.\n\n" +
-        "Accepting routes (the complete set): GET /api/auth/me/mfa; POST /api/auth/me/mfa/totp/setup; POST /api/auth/me/mfa/totp/confirm; POST /api/auth/me/mfa/disable; POST /api/auth/me/mfa/recovery-codes/regenerate; POST /api/auth/me/mfa/webauthn/register/options; POST /api/auth/me/mfa/webauthn/register/verify; PATCH and DELETE /api/auth/me/mfa/webauthn/{id}. Nothing else accepts one — admin endpoints stay cookie-only.",
+        "Re-prove a factor and receive an opaque elevation that authorises exactly ONE second-factor-management call.\n\n" +
+        "WHICH factor you re-prove decides WHAT the elevation reaches. `password` reaches the same routes a plain cookie session reaches. `totp`, `webauthn`, and `passkey` additionally satisfy the fresh-factor routes — MFA disable, recovery-code regeneration, security-key removal — which is precisely the set of ceremonies for which the web marks a session second-factor-verified. The response carries `satisfiesFreshFactor` so a client can choose the right ceremony up front rather than discovering the refusal after spending a proof. A recovery code is NOT accepted here; an account that has lost its authenticator manages its second factor on the web.\n\n" +
+        "The elevation is bound to the exact token that minted it (another token, including the same account's, cannot redeem it), single-use, and valid for five minutes — the same window the cookie path uses. Present it as `X-Step-Up: hle_…` alongside the normal `Authorization: Bearer` header. It is spent only when the target route is about to act, so a 429, a 422, or a wrong code does not burn it.\n\n" +
+        "Presenting the token alone mints nothing: the body must carry a fresh factor proof. Every failure — wrong password, no password set on an SSO-provisioned account, an assertion for another account, a stale challenge, a replayed TOTP step — returns the same 401 with the same prose, and is audited server-side. Rate-limited per account (5 / 15 min) and per source address.\n\n" +
+        "Accepting routes (the complete set): POST /api/auth/me/mfa/totp/setup; POST /api/auth/me/mfa/totp/confirm; POST /api/auth/me/mfa/disable; POST /api/auth/me/mfa/recovery-codes/regenerate; POST /api/auth/me/mfa/webauthn/register/options; POST /api/auth/me/mfa/webauthn/register/verify; PATCH and DELETE /api/auth/me/mfa/webauthn/{id}. The last three of those and disable require a fresh-factor proof. GET /api/auth/me/mfa needs no elevation at all. Nothing else accepts one — admin endpoints stay cookie-only.",
       requestBody: {
         required: true,
         content: { "application/json": { schema: stepUpMintSchema } },
@@ -581,10 +598,9 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/auth/me/mfa": {
     get: {
       tags: ["Auth"],
-      summary: "Second-factor status (cookie session or step-up elevation)",
+      summary: "Second-factor status (cookie session or Bearer token)",
       description:
-        "Whether TOTP is active, how many recovery codes remain, and the registered WebAuthn security keys. Metadata only — no secret, code, or public key." +
-        MFA_MANAGEMENT_AUTH_NOTE,
+        "Whether TOTP is active, how many recovery codes remain, and the registered WebAuthn security keys. Metadata only — no secret, no code, no public key, no credential id. Plain authentication (cookie session or cookie-equivalent token); unlike every mutation on this surface it needs no step-up elevation, because the payload carries no credential material.",
       responses: {
         "200": {
           description: "Second-factor status.",

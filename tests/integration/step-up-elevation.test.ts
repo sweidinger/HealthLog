@@ -817,6 +817,25 @@ describe("E10 — a password proof cannot reach the destructive routes", () => {
     expect(await getPrismaClient().webauthnMfaCredential.count()).toBe(1);
   });
 
+  it("refuses at the CLAIM too, not only at the validation", async () => {
+    // Defence in depth, and it needs its own test: the gate validates before it
+    // claims, so removing the check inside `claimStepUpElevation` leaves every
+    // route-level case above green. Driven straight at the primitive.
+    const { raw, id } = await mintToken("e10i");
+    useToken(raw);
+    const elevation = elevationOf(await mintElevation(PASSWORD));
+
+    const { claimStepUpElevation } = await import("@/lib/auth/step-up");
+    const claimed = await claimStepUpElevation({
+      rawToken: elevation,
+      userId: USER_ID,
+      apiTokenId: id,
+      requireFreshFactor: true,
+    });
+
+    expect(claimed).toEqual({ ok: false, reason: "insufficient_factor" });
+  });
+
   it("does NOT burn the elevation when the factor is too weak", async () => {
     // The refusal is about reach, not validity. The same elevation must still
     // work on the routes it was always entitled to.
@@ -1033,6 +1052,37 @@ describe("E12 — a rejected request keeps the elevation spendable", () => {
       }),
     );
     expect(good.status).toBe(200);
+  });
+
+  it("IS spent once the route actually acts", async () => {
+    // The other half of the two-phase split. Deferring the claim buys nothing if
+    // the route then forgets to make it — the elevation would stay redeemable
+    // for the rest of its five minutes.
+    //
+    // Driven through recovery-code regeneration rather than disable: disable
+    // calls `destroyOtherSessions`, which deletes the account's elevations
+    // outright, so the row is gone afterwards either way and the assertion
+    // would pass whether or not the route committed. Regeneration leaves the
+    // row in place, so `consumedAt` is a real observation.
+    const secret = await enrolTotp();
+    const { raw } = await mintToken("e12c");
+    useToken(raw);
+    const elevation = elevationOf(await mintTotpElevation(secret));
+
+    useElevation(elevation);
+    const { POST } =
+      await import("@/app/api/auth/me/mfa/recovery-codes/regenerate/route");
+    const ok = await POST(
+      req("/api/auth/me/mfa/recovery-codes/regenerate", "POST"),
+    );
+    expect(ok.status).toBe(200);
+
+    const row = await getPrismaClient().stepUpElevation.findFirst();
+    expect(row).not.toBeNull();
+    expect(row?.consumedAt).not.toBeNull();
+
+    // And the spent value opens nothing else.
+    expect((await callMfaSetup()).status).toBe(401);
   });
 
   it("survives a malformed body", async () => {
