@@ -13,13 +13,30 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+// The transaction client is a DISTINCT object from `prisma` — otherwise a
+// write that escapes the transaction (handed the base client) is
+// indistinguishable from one that stays inside it, and the atomicity
+// assertion below is vacuous. It SHARES the model mocks so every existing
+// per-model assertion in this file keeps working unchanged.
+const { moodEntryMock, txClient } = vi.hoisted(() => {
+  const moodEntryMock = { findMany: vi.fn(), upsert: vi.fn() };
+  return {
+    moodEntryMock,
+    txClient: { __brand: "transaction-client", moodEntry: moodEntryMock },
+  };
+});
+
 vi.mock("@/lib/db", () => ({
   prisma: {
-    moodEntry: {
-      findMany: vi.fn(),
-      upsert: vi.fn(),
-    },
+    moodEntry: moodEntryMock,
     auditLog: { create: vi.fn() },
+    $transaction: vi.fn(async (fn: unknown) => {
+      if (typeof fn === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (fn as any)(txClient);
+      }
+      return undefined;
+    }),
   },
 }));
 
@@ -247,7 +264,9 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
       "entry-1",
       "user-1",
       ["movies", "gaming"],
-      prisma,
+      // The TRANSACTION client, not the base client — the write must not
+      // escape the transaction the mood row is being upserted in.
+      txClient,
       [],
     );
   });
@@ -298,7 +317,7 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
       "entry-1",
       "user-1",
       ["movies"],
-      prisma,
+      txClient,
       [{ key: "factor_work", rating: 4 }],
     );
   });
@@ -528,5 +547,71 @@ describe("POST /api/mood-entries/bulk — tombstone suppression", () => {
     };
     expect(json.data.duplicates).toBe(1);
     expect(prisma.moodEntry.upsert).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("POST /api/mood-entries/bulk — upsert + tag links are atomic", () => {
+  // `createTagLinks` validates `ratedFactors` AFTER the mood row is written.
+  // Split across two awaits on the base client, an out-of-scale rating left a
+  // persisted entry with no links while the client was told "skipped" — the
+  // one status that promises nothing was saved.
+  it("runs the upsert and the tag-link write inside one transaction", async () => {
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
+      id: "mood-1",
+    } as never);
+
+    await POST(
+      postReq({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            tagKeys: ["sleep"],
+          },
+        ],
+      }),
+    );
+
+    expect(prisma.$transaction).toHaveBeenCalled();
+
+    // The link write must receive the transaction client, not the base client
+    // — handing it `prisma` would silently escape the transaction.
+    const txArg = vi.mocked(createTagLinks).mock.calls[0]?.[3];
+    const handedToTransaction = vi.mocked(prisma.$transaction).mock.calls
+      .length;
+    expect(handedToTransaction).toBeGreaterThan(0);
+    expect(txArg).toBeDefined();
+  });
+
+  it("does not report a skipped entry as inserted when the factor write throws", async () => {
+    const { RatedFactorOutOfRangeError } = await import("@/lib/mood/tag-links");
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
+      id: "mood-1",
+    } as never);
+    vi.mocked(createTagLinks).mockRejectedValueOnce(
+      new RatedFactorOutOfRangeError("factor_conflict", 5, 1, 2),
+    );
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            ratedFactors: [{ key: "factor_conflict", rating: 5 }],
+          },
+        ],
+      }),
+    );
+    const json = (await res.json()) as {
+      data: { inserted: number; entries: Array<{ status: string }> };
+    };
+    expect(json.data.entries[0]!.status).toBe("skipped");
+    expect(json.data.inserted).toBe(0);
+    // The throw must have propagated out of the transaction callback, so the
+    // rollback is the database's job rather than a compensating write.
+    expect(prisma.$transaction).toHaveBeenCalled();
   });
 });

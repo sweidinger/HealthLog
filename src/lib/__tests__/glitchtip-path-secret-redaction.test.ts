@@ -39,7 +39,9 @@ vi.mock("@/lib/monitoring-settings", () => ({
   })),
 }));
 
-const sendGlitchtipEvent = vi.fn(async (_payload: unknown) => {});
+const sendGlitchtipEvent = vi.fn<(payload: unknown) => Promise<void>>(
+  async () => {},
+);
 vi.mock("@/lib/monitoring/glitchtip", () => ({
   sendGlitchtipEvent: (payload: unknown) => sendGlitchtipEvent(payload),
 }));
@@ -62,10 +64,10 @@ beforeEach(() => {
   sendGlitchtipEvent.mockClear();
 });
 
-function throwingHandler() {
-  return apiHandler(async (_request: NextRequest) => {
+function throwingHandler(): (request: NextRequest) => Promise<Response> {
+  return apiHandler(async () => {
     throw new Error("boom");
-  });
+  }) as unknown as (request: NextRequest) => Promise<Response>;
 }
 
 async function forwardedPayload(url: string) {
