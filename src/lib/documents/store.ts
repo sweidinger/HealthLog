@@ -20,6 +20,7 @@ import { servingClassFor } from "@/lib/documents/upload-policy";
 import type {
   DocumentConditionLinkDto,
   DocumentContentIndexSourceValue,
+  DocumentSummaryStateValue,
   ExtractedFactDto,
   FactData,
   FactProvenance,
@@ -241,12 +242,22 @@ export function serialiseDocumentDetail(
   // failing the whole detail load — the field is descriptive, not load-bearing,
   // and the ciphertext is never returned (fail-closed to null).
   let summary: string | null = null;
+  // The stored state is the truth EXCEPT when the ciphertext will not open: a
+  // READY row we cannot decrypt has no summary to show, and reporting READY
+  // would leave the view rendering a heading over nothing. Degrade to
+  // UNAVAILABLE so what the user is told matches what they can see.
+  let summaryState: DocumentSummaryStateValue = doc.summaryState;
   if (doc.summaryEncrypted && doc.summaryEncrypted.byteLength > 0) {
     try {
       summary = decryptDocumentSummary(doc.summaryEncrypted);
     } catch {
       summary = null;
+      summaryState = "UNAVAILABLE";
     }
+  } else if (summaryState === "READY") {
+    // READY with no ciphertext should be unreachable; trust the bytes, not the
+    // flag, rather than promising a summary that is not there.
+    summaryState = "UNAVAILABLE";
   }
   return {
     ...serialiseDocument(
@@ -262,5 +273,6 @@ export function serialiseDocumentDetail(
     summaryGeneratedAt: doc.summaryGeneratedAt
       ? doc.summaryGeneratedAt.toISOString()
       : null,
+    summaryState,
   };
 }

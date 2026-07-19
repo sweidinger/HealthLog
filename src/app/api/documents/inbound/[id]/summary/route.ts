@@ -3,11 +3,17 @@
  * extracted text.
  *
  * `?mode=summary` (default) returns a short plain-language summary of WHAT the
- * document is; `?mode=text` returns its raw transcribed text. Both are transient
- * (P2-D4): the result is returned once and NOTHING is persisted except the
- * AI-budget ledger and the audit log — never coach memory, snapshots, the
- * structured stores, or the search index. The summary is descriptive only and
- * is forbidden from diagnosing (interpretation boundary G7).
+ * document is; `?mode=text` returns its raw transcribed text. The summary is
+ * descriptive only and is forbidden from diagnosing (interpretation boundary
+ * G7).
+ *
+ * `mode=text` stays transient (P2-D4) — a transcription is a read-through of the
+ * user's own file and there is nothing to keep. `mode=summary` PERSISTS onto the
+ * document row since v1.30.31: the user asked for it explicitly, it is the same
+ * artefact the background job stores, and keeping it means a second open shows
+ * the paragraph instead of buying it again. Beyond that the old rule holds —
+ * nothing reaches coach memory, snapshots, the structured stores, or the search
+ * index; a summary the safety screen blocked is never stored as text.
  *
  * Same VISION/TEXT dispatch and gauntlet as the extract route. The document is
  * UNTRUSTED (prompt-injection): the server never acts on an instruction inside
@@ -47,6 +53,8 @@ import {
   transcribeDocument,
   type DescribeInput,
 } from "@/lib/documents/describe";
+import { encryptDocumentSummary } from "@/lib/documents/store";
+import type { OutboundReason } from "@/lib/ai/safety/outbound-screen";
 import {
   resolveDocumentTextProvider,
   resolveDocumentVisionProvider,
@@ -85,18 +93,88 @@ function resolveMode(request: NextRequest): DocumentSummaryMode {
     : "summary";
 }
 
-/** Run the requested describe call (summary or raw text) over the input. */
+/**
+ * Run the requested describe call (summary or raw text) over the input.
+ *
+ * `mode=summary` PERSISTS a clean result onto the document (v1.30.31). The
+ * route was session-only by design (P2-D4), and the transcription leg still is
+ * — but a summary that the user explicitly asked for and that passed the screen
+ * is exactly the artefact the background job stores, and re-deriving it on every
+ * open would mean paying a provider call to show the same paragraph twice. This
+ * is a deliberate user action, not a warm-on-mount: nothing generates because a
+ * view rendered. It is also the only repair path for the documents the
+ * background job never ran for — those uploaded before the auto-read opt-in
+ * went on, which no backfill ever reaches.
+ */
 async function describe(
   mode: DocumentSummaryMode,
   input: DescribeInput,
   locale: Locale,
+  persist: { userId: string; documentId: string } | null,
 ): Promise<{ summary: string } | { text: string }> {
   if (mode === "text") return transcribeDocument(input);
   // REPLACE policy: the user clicked "summarise" and is waiting, so a screened
   // summary becomes a short honest statement rather than an empty panel. The
   // document itself and the extracted text remain reachable and unaltered.
   const { summary, blocked } = await runDocumentSummary({ ...input, locale });
+  if (persist) await persistSummary(persist, summary, blocked);
   return { summary: blocked ? documentSummaryBlockedCopy(locale) : summary };
+}
+
+/**
+ * Store a screened-clean summary, or record the refusal as a state.
+ *
+ * A blocked summary NEVER lands as text — the honest statement the caller shows
+ * is generated copy for this response, not the model's prose, and persisting it
+ * would put a refusal where a summary belongs. Only the WITHHELD state is kept,
+ * and it is not terminal: the user can ask again.
+ *
+ * Storing is best-effort. The user is waiting on the summary they can already
+ * read in the response; a failed write must not turn that into an error.
+ */
+async function persistSummary(
+  target: { userId: string; documentId: string },
+  summary: string,
+  blocked: OutboundReason | null,
+): Promise<void> {
+  try {
+    if (blocked) {
+      await prisma.inboundDocument.updateMany({
+        where: {
+          id: target.documentId,
+          userId: target.userId,
+          deletedAt: null,
+          summaryState: { not: "READY" },
+        },
+        data: { summaryState: "WITHHELD" },
+      });
+      return;
+    }
+    // Scoped to a document without a stored summary: an explicit re-run must
+    // not silently replace a summary the user already has on screen.
+    const written = await prisma.inboundDocument.updateMany({
+      where: {
+        id: target.documentId,
+        userId: target.userId,
+        deletedAt: null,
+        summaryEncrypted: null,
+      },
+      data: {
+        summaryEncrypted: encryptDocumentSummary(summary),
+        summaryGeneratedAt: new Date(),
+        summaryState: "READY",
+      },
+    });
+    annotate({
+      action: { name: "documents.summary.persisted" },
+      meta: { documentId: target.documentId, stored: written.count > 0 },
+    });
+  } catch {
+    annotate({
+      action: { name: "documents.summary.persistFailed" },
+      meta: { documentId: target.documentId },
+    });
+  }
 }
 
 /** The budget the requested mode charges. */
@@ -237,6 +315,7 @@ async function handleTextSummary(
         ocrText: parsed.data.text,
       },
       locale,
+      { userId, documentId: document.id },
     );
     await reconcileSpend(
       userId,
@@ -322,6 +401,7 @@ async function handleVisionSummary(
         documents: vision.documents,
       },
       locale,
+      { userId, documentId: document.id },
     );
     await reconcileSpend(
       userId,

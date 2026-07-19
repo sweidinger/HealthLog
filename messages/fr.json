@@ -8476,7 +8476,12 @@
       "title": "Détails du document",
       "summary": {
         "title": "Résumé",
-        "pending": "Le résumé est en cours de préparation."
+        "pending": "Le résumé est en cours de préparation.",
+        "none": "Aucun résumé n’a encore été généré pour ce document.",
+        "withheld": "Un résumé a été généré mais n’a pas passé le contrôle de sécurité, il n’est donc pas affiché. Vous pouvez réessayer ou lire le document lui-même.",
+        "unavailable": "Aucun résumé n’a pu être généré pour ce document.",
+        "generate": "Générer le résumé",
+        "generating": "Génération…"
       },
       "loadError": "Impossible de charger ce document.",
       "saveError": "Impossible d'enregistrer la modification.",
@@ -8558,7 +8563,6 @@
       "close": "Masquer"
     },
     "ai": {
-      "statusAiRead": "Lu par l’IA",
       "readDone": "L’IA a lu votre document.",
       "read": "Lire avec l’IA",
       "reread": "Relire",
