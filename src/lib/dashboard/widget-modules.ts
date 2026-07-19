@@ -74,6 +74,11 @@ export const SUMMARY_TYPE_MODULE: Partial<Record<string, ModuleKey>> = {
   // `NutrientIntakeDay` (nutrient="water", summed across sources). Gated
   // on the `nutrients` module like the rest of that store's surfaces.
   NUTRIENT_WATER: "nutrients",
+  // Mood is a `MoodEntry`-derived summary, not a `MeasurementType`, so it
+  // rides the same synthetic-key route as `NUTRIENT_WATER`. Gated on the
+  // `mood` module: turning the module off must drop the dashboard card on
+  // every client, not just hide the web widget.
+  MOOD_ENTRY: "mood",
 };
 
 /**
@@ -123,6 +128,13 @@ export const SUMMARY_METRIC_TYPE_BY_KIND: Record<string, string> = {
   totalBodyWater: "TOTAL_BODY_WATER",
   boneMass: "BONE_MASS",
   oxygenSaturation: "OXYGEN_SATURATION",
+  // Synthetic key — see `MOOD_ENTRY` in `SUMMARY_TYPE_MODULE`.
+  mood: "MOOD_ENTRY",
+  // BMI is derived from weight + the profile height and belongs to no
+  // module, exactly like weight and body fat. Listed so the full emitted
+  // set stays readable and a future card cannot be added without deciding
+  // what backs it.
+  bmi: "WEIGHT",
 };
 
 /**

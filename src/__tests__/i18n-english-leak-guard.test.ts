@@ -81,6 +81,8 @@ const LEGIT_IDENTICAL = new Set<string>([
   // Clinical abbreviations / SI units — identical across locales.
   "charts.vo2Max",
   "cycle.insights.crosstab.unitGlucose",
+  "dashboard.metric.unit.bmi",
+  "dashboard.metric.unit.mood",
   "dashboard.metric.unit.glucose",
   "dashboard.vo2Max",
   "dashboard.vo2MaxShort",

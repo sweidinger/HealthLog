@@ -425,7 +425,9 @@
         "steps": "Pas",
         "totalBodyWater": "Eau corporelle totale",
         "boneMass": "Masse osseuse",
-        "oxygenSaturation": "Saturation en oxygène"
+        "oxygenSaturation": "Saturation en oxygène",
+        "mood": "Humeur",
+        "bmi": "IMC"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +439,9 @@
         "steps": "pas",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "/5",
+        "bmi": "kg/m²"
       }
     }
   },
@@ -578,7 +582,7 @@
     "bulkDeleteSuccess": "{count} mesures supprimées",
     "bulkDeleteError": "Erreur lors de la suppression des mesures sélectionnées",
     "bulkDeleteConfirmTitle": "Supprimer {count} mesures ?",
-    "bulkDeleteConfirmBody": "Les {count} mesures sélectionnées seront définitivement supprimées.",
+    "bulkDeleteConfirmBody": "Les {count} mesures sélectionnées seront supprimées. Vous pourrez annuler cette action pendant un court instant juste après.",
     "typePhq9Score": "Score PHQ-9",
     "typeGad7Score": "Score GAD-7",
     "typeGripStrength": "Force de préhension",
@@ -726,7 +730,7 @@
     "bulkDeleteSuccess": "{count} entrées supprimées",
     "bulkDeleteError": "Erreur lors de la suppression des entrées sélectionnées",
     "bulkDeleteConfirmTitle": "Supprimer {count} entrées ?",
-    "bulkDeleteConfirmBody": "Les {count} entrées d'humeur sélectionnées seront définitivement supprimées.",
+    "bulkDeleteConfirmBody": "Les {count} entrées d'humeur sélectionnées seront supprimées. Vous pourrez annuler cette action pendant un court instant juste après.",
     "customize": "Personnaliser les étiquettes d’humeur",
     "addTagInline": "Ajouter une étiquette",
     "manage": {
@@ -1683,7 +1687,10 @@
         "packagingDefaultPackLabel": "Taille de boîte par défaut (unités)",
         "packagingDefaultPackHelper": "Préremplit la quantité lors de l’enregistrement de nouvelles boîtes (1–1000). Laisse vide si aucune ne s’applique.",
         "packagingSuccess": "Conditionnement enregistré",
-        "packagingFailed": "Échec de l’enregistrement"
+        "packagingFailed": "Échec de l’enregistrement",
+        "addManufacturerLabel": "Fabricant",
+        "addDoseStrengthLabel": "Dosage",
+        "addDoseStrengthHint": "Tel qu'imprimé sur le contenant, par ex. 5 mg/0,5 ml."
       },
       "erweitert": {
         "group": {
@@ -2862,9 +2869,9 @@
       "debt": {
         "title": "Dette de sommeil",
         "value": "{hours} h {minutes} min de déficit",
-        "caption": "Déficit cumulé sur les {nights} dernières nuits",
+        "caption": "Solde restant sur les {nights} dernières nuits",
         "clearValue": "À jour",
-        "clearCaption": "Aucun déficit cumulé sur les {nights} dernières nuits",
+        "clearCaption": "Rien en attente sur les {nights} dernières nuits",
         "learning": "Votre sommeil est encore en cours d'analyse — {counted} nuits jusqu'ici, encore {remaining} pour un bilan fiable.",
         "computedInfo": "Il s'agit de l'estimation propre à HealthLog : un solde glissant entre le besoin et le sommeil des dernières nuits, que le sommeil de récupération réduit. Elle peut différer de la dette de sommeil native d'un wearable, qui utilise son propre modèle de besoin."
       },
@@ -4672,7 +4679,9 @@
           "description": "Ajoutez un lieu et une plage de dates : un voyage ou une portion de votre historique passé. La période remplace votre domicile pour les jours qu'elle couvre, afin que la météo corresponde à l'endroit où vous étiez réellement. C'est ainsi que vous corrigez le passé.",
           "none": "Aucune période de localisation pour l'instant.",
           "add": "Ajouter {label}",
-          "remove": "Supprimer la période de localisation"
+          "remove": "Supprimer la période de localisation",
+          "removeConfirmTitle": "Retirer ce voyage ?",
+          "removeConfirmBody": "Les mesures de cette période restent dans ton dossier ; seule l'entrée du voyage disparaît."
         },
         "backfill": {
           "title": "Récupérer les jours passés",
@@ -4953,7 +4962,10 @@
           "surfaced": "Affiché",
           "done": "Terminé",
           "dismissed": "Ignoré"
-        }
+        },
+        "deleteConfirmTitle": "Supprimer ce rappel ?",
+        "deleteConfirmBody": "Il ne se déclenchera plus. Ce que tu as déjà enregistré reste intact.",
+        "deleteConfirmAction": "Supprimer"
       },
       "aboutMe": {
         "title": "À propos de moi",
@@ -5628,8 +5640,16 @@
         "revokeAllDone": "{count} appareil(s) de confiance oublié(s).",
         "unnamed": "Appareil inconnu",
         "current": "Cet appareil",
-        "expires": "De confiance jusqu'au {date}"
-      }
+        "expires": "De confiance jusqu'au {date}",
+        "revokeConfirmTitle": "Ne plus faire confiance à cet appareil ?",
+        "revokeConfirmBody": "Il redemandera ton deuxième facteur à la prochaine connexion depuis cet appareil.",
+        "revokeAllConfirmTitle": "Ne plus faire confiance à aucun appareil ?",
+        "revokeAllConfirmBody": "Chaque appareil redemandera ton deuxième facteur à la prochaine connexion, celui-ci compris."
+      },
+      "revokeSessionConfirmTitle": "Déconnecter cet appareil ?",
+      "revokeSessionConfirmBody": "{device} devra se reconnecter. Ce qui y est enregistré n'est pas affecté.",
+      "signOutEverywhereConfirmTitle": "Déconnecter tous les autres appareils ?",
+      "signOutEverywhereConfirmBody": "Chaque appareil sauf celui-ci devra se reconnecter. Celui-ci reste connecté. Rien de ce que tu as enregistré n'est affecté."
     },
     "privacy": {
       "intro": {
@@ -5733,6 +5753,14 @@
       "title": "Garmin",
       "body": "Garmin n'a pas de connexion directe ici. Connecte-le via Apple Health (iOS) ou Google Health Connect (Android). Les scores propriétaires de Garmin — Body Battery, Training Load, statut VFC, VO₂ max — ne sont partagés par Garmin avec aucune des deux plateformes.",
       "docsLink": "Lire le guide"
+    },
+    "glucoseReference": {
+      "title": "Plage de référence du glucose",
+      "description": "La plage à laquelle vos glycémies sont comparées.",
+      "enable": "Utiliser la plage cible diabète",
+      "explainer": "Désactivé, les valeurs sont comparées à la plage de référence générale non diabétique. Activé, elles sont comparées à la plage cible glycémique plus stricte des ADA Standards of Care, et le Coach fonde ses remarques sur le glucose sur cette plage. Vos propres valeurs cibles personnalisées ci-dessous restent prioritaires.",
+      "disclaimer": "Ceci sélectionne une plage de référence. Ce n'est pas un diagnostic, ce n'est jamais déduit d'une mesure, et l'application n'en tire aucune conséquence clinique. Les cibles qui s'appliquent à vous relèvent de votre médecin.",
+      "error": "Le réglage n'a pas pu être enregistré."
     }
   },
   "admin": {
@@ -7471,7 +7499,7 @@
     "referenceLabel": "Référence",
     "readingsCount": "{count} mesures",
     "deleteConfirmTitle": "Supprimer le résultat d'analyse ?",
-    "deleteConfirmDescription": "Ce résultat d'analyse sera définitivement supprimé.",
+    "deleteConfirmDescription": "Ce résultat d'analyse sera supprimé. Vous pourrez annuler cette action pendant un court instant juste après.",
     "deletedToast": "Résultat supprimé",
     "deleteError": "Impossible de supprimer le résultat",
     "loadError": "Impossible de charger les résultats",
@@ -7950,7 +7978,7 @@
     },
     "deleteConfirm": {
       "title": "Supprimer cet épisode ?",
-      "body": "« {label} » et tous ses relevés quotidiens seront supprimés. Cette action est irréversible."
+      "body": "« {label} » et tous ses relevés quotidiens seront supprimés. Vous pourrez annuler cette action pendant un court instant juste après."
     },
     "vital": {
       "RESTING_HEART_RATE": "Fréquence cardiaque au repos",

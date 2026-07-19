@@ -18,13 +18,14 @@
  * Coach surface like the rest of the memory controls.
  */
 import { useMemo } from "react";
-import { BellRing, Check, Loader2, Trash2, X } from "lucide-react";
+import { BellRing, Check, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateOrRelative } from "@/lib/format";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { ConfirmButton } from "@/components/settings/confirm-button";
 import { useTranslations } from "@/lib/i18n/context";
 import {
   useCoachReminders,
@@ -129,25 +130,21 @@ export function CoachRemindersSection({
               {t("settings.ai.coachReminders.dismiss")}
             </Button>
           )}
-          <Button
-            type="button"
+          <ConfirmButton
+            slot="coach-reminder-delete"
             variant="ghost"
             size="sm"
             className="text-muted-foreground hover:text-destructive min-h-9"
-            disabled={!isAuthenticated || busy}
-            data-testid="settings-coach-reminder-delete"
-            aria-label={t("settings.ai.coachReminders.deleteAria")}
-            onClick={() => remove.mutate(r.id)}
-          >
-            {busy ? (
-              <Loader2
-                className="size-3.5 animate-spin motion-reduce:animate-none"
-                aria-hidden
-              />
-            ) : (
-              <Trash2 className="size-3.5" aria-hidden />
-            )}
-          </Button>
+            disabled={!isAuthenticated}
+            pending={busy}
+            ariaLabel={t("settings.ai.coachReminders.deleteAria")}
+            label=""
+            icon={<Trash2 className="size-3.5" aria-hidden />}
+            title={t("settings.ai.coachReminders.deleteConfirmTitle")}
+            body={t("settings.ai.coachReminders.deleteConfirmBody")}
+            confirmLabel={t("settings.ai.coachReminders.deleteConfirmAction")}
+            onConfirm={() => remove.mutate(r.id)}
+          />
         </div>
       </li>
     );

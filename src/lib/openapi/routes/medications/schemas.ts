@@ -314,6 +314,18 @@ export const medicationInventoryItemResource = z
       ),
     printedExpiry: z.iso.datetime({ offset: true }).nullable(),
     purchasedAt: z.iso.datetime({ offset: true }).nullable(),
+    manufacturer: z
+      .string()
+      .nullable()
+      .describe(
+        "Marketing-authorisation holder / maker as printed on the carton. NULL for a container registered before the field existed, and for plain supply rows that never carried one.",
+      ),
+    doseStrength: z
+      .string()
+      .nullable()
+      .describe(
+        'Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, not split into a number + unit — pens state strength per dose, per ml, or per cartridge. NULL when unknown.',
+      ),
     notes: z.string().nullable(),
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),

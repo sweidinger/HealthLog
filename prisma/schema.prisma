@@ -2922,6 +2922,18 @@ model MedicationInventoryItem {
   /// The carton-printed expiry date the user enters at creation.
   printedExpiry  DateTime?                @map("printed_expiry")
   purchasedAt    DateTime?                @map("purchased_at")
+  /// Marketing-authorisation holder / maker printed on the carton. Free
+  /// text: the field is a label the user reads back, not a lookup key, and
+  /// there is no authority list a self-hoster could be held to. Nullable
+  /// because every pre-existing row predates it and plain supply rows
+  /// (blisters, bottles) have no use for it.
+  manufacturer   String?
+  /// Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text
+  /// and deliberately NOT parsed into a number + unit: pens state strength
+  /// per dose, per ml, or per cartridge depending on the product, and a
+  /// forced numeric split would lose which of the three it was. Nullable
+  /// for the same reason as `manufacturer`.
+  doseStrength   String?                  @map("dose_strength")
   /// Free-text note, application-layer max 200 chars.
   notes          String?
   /// v1.25 — AES-256-GCM ciphertext for `notes`. The plaintext column

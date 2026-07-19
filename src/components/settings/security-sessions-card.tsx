@@ -13,8 +13,8 @@ import { useId, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Loader2, MonitorSmartphone } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings/settings-card";
+import { ConfirmButton } from "@/components/settings/confirm-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -168,16 +168,19 @@ export function SecuritySessionsCard({
                   )}
                 </div>
                 {!s.isCurrent && (
-                  <Button
-                    type="button"
-                    variant="outline"
+                  <ConfirmButton
+                    slot="revoke-session"
                     size="sm"
                     className="min-h-9 shrink-0"
-                    onClick={() => revokeOne.mutate(s.id)}
-                    disabled={revokeOne.isPending}
-                  >
-                    {t("settings.security.revokeSession")}
-                  </Button>
+                    label={t("settings.security.revokeSession")}
+                    title={t("settings.security.revokeSessionConfirmTitle")}
+                    body={t("settings.security.revokeSessionConfirmBody", {
+                      device: s.device,
+                    })}
+                    confirmLabel={t("settings.security.revokeSession")}
+                    onConfirm={() => revokeOne.mutate(s.id)}
+                    pending={revokeOne.isPending}
+                  />
                 )}
               </li>
             ))}
@@ -186,18 +189,16 @@ export function SecuritySessionsCard({
 
         {hasOthers && (
           <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
+            <ConfirmButton
+              slot="sign-out-everywhere"
               className="min-h-11 sm:min-h-9"
-              onClick={() => revokeOthers.mutate()}
-              disabled={revokeOthers.isPending}
-            >
-              {revokeOthers.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              )}
-              {t("settings.security.signOutEverywhere")}
-            </Button>
+              label={t("settings.security.signOutEverywhere")}
+              title={t("settings.security.signOutEverywhereConfirmTitle")}
+              body={t("settings.security.signOutEverywhereConfirmBody")}
+              confirmLabel={t("settings.security.signOutEverywhere")}
+              onConfirm={() => revokeOthers.mutate()}
+              pending={revokeOthers.isPending}
+            />
           </div>
         )}
 

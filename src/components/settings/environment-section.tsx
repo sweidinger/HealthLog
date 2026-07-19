@@ -27,6 +27,7 @@ import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
+import { ConfirmButton } from "@/components/settings/confirm-button";
 import { useTranslations } from "@/lib/i18n/context";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
@@ -325,19 +326,26 @@ export function EnvironmentSection() {
                   <span className="text-sm">
                     {tr.label} · {tr.startDate} – {tr.endDate}
                   </span>
-                  <Button
-                    type="button"
+                  <ConfirmButton
+                    slot="travel-remove"
                     size="icon"
                     variant="ghost"
                     className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-                    aria-label={t(
+                    ariaLabel={t("settings.sections.environment.travel.remove")}
+                    label=""
+                    icon={<Trash2 className="size-4" aria-hidden />}
+                    pending={removeTravel.isPending}
+                    title={t(
+                      "settings.sections.environment.travel.removeConfirmTitle",
+                    )}
+                    body={t(
+                      "settings.sections.environment.travel.removeConfirmBody",
+                    )}
+                    confirmLabel={t(
                       "settings.sections.environment.travel.remove",
                     )}
-                    disabled={removeTravel.isPending}
-                    onClick={() => removeTravel.mutate(tr.id)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                    onConfirm={() => removeTravel.mutate(tr.id)}
+                  />
                 </li>
               ))}
             </ul>

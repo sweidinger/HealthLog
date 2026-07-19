@@ -12,8 +12,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, ShieldCheck } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings/settings-card";
+import { ConfirmButton } from "@/components/settings/confirm-button";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -130,16 +130,19 @@ export function TrustedDevicesCard({
                     })}
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
+                <ConfirmButton
+                  slot="revoke-trusted-device"
                   size="sm"
                   className="min-h-9 shrink-0"
-                  onClick={() => revokeOne.mutate(d.id)}
-                  disabled={revokeOne.isPending}
-                >
-                  {t("settings.security.trustedDevices.revoke")}
-                </Button>
+                  label={t("settings.security.trustedDevices.revoke")}
+                  title={t(
+                    "settings.security.trustedDevices.revokeConfirmTitle",
+                  )}
+                  body={t("settings.security.trustedDevices.revokeConfirmBody")}
+                  confirmLabel={t("settings.security.trustedDevices.revoke")}
+                  onConfirm={() => revokeOne.mutate(d.id)}
+                  pending={revokeOne.isPending}
+                />
               </li>
             ))}
           </ul>
@@ -147,18 +150,18 @@ export function TrustedDevicesCard({
 
         {devices.length > 0 && (
           <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
+            <ConfirmButton
+              slot="revoke-all-trusted-devices"
               className="min-h-11 sm:min-h-9"
-              onClick={() => revokeAll.mutate()}
-              disabled={revokeAll.isPending}
-            >
-              {revokeAll.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+              label={t("settings.security.trustedDevices.revokeAll")}
+              title={t(
+                "settings.security.trustedDevices.revokeAllConfirmTitle",
               )}
-              {t("settings.security.trustedDevices.revokeAll")}
-            </Button>
+              body={t("settings.security.trustedDevices.revokeAllConfirmBody")}
+              confirmLabel={t("settings.security.trustedDevices.revokeAll")}
+              onConfirm={() => revokeAll.mutate()}
+              pending={revokeAll.isPending}
+            />
           </div>
         )}
 

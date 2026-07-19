@@ -2,6 +2,62 @@
 
 ## [Unreleased]
 
+## [1.30.35] — 2026-07-19
+
+- **The metric texts you see without an AI provider now speak your
+  language.** They shipped in German and English only; French, Spanish,
+  Italian and Polish fell through to English. These are what nine metric
+  cards render whenever no provider is reachable — no key configured, an
+  outage, a spent budget — so for those readers this text was the app's
+  voice, in the wrong language. Written per language rather than
+  translated: where a sentence could not be formed naturally, that
+  language got its own sentence.
+- **The lab-marker card leads with what a value means**, like every other
+  card already did. It was the last one still instructed to state the
+  number first.
+- **The response length for a metric assessment is set in one place**
+  again, instead of one card carrying its own inline pair.
+- **The fallback texts open on something honest** rather than on an
+  instruction, and the lab-marker card no longer shows the multi-metric
+  overview tip on a single value.
+
+No migrations. No breaking changes.
+
+## [1.30.34] — 2026-07-19
+
+- **Rearranging your dashboard no longer wipes the comparison baseline.**
+  A layout save from a client that does not know about that setting — the
+  app never sends it — silently reset it to "none". Every field of the
+  layout now has to declare whether an absent value means "clear it" or
+  "leave it alone", so the next field added cannot repeat this.
+- **Four clinical widgets stopped disappearing from a saved layout.**
+  Pain, grip strength, waist and waist-to-height were dropped by the save
+  as unknown, so a placed widget was lost every time.
+- **Mood and BMI reach the app's home screen.** Both existed in the
+  record but were absent from the summary the app reads, so those two
+  tiles could not be shown while every other one worked.
+- **A pen carries its manufacturer and printed strength.** Without them,
+  containers entered on the web could not be shown in the app's pen list.
+- **Destructive controls ask first.** Signing every other device out,
+  revoking a session, and revoking a trusted device fired on a single
+  tap. A sweep found two more with neither a confirmation nor an undo: a
+  Coach reminder and a travel entry. Deleting a document still does not
+  ask — it can be undone, which covers the mis-tap.
+- **Delete confirmations stop overclaiming.** Four of them promised the
+  deletion could not be undone while the same screen offered an undo.
+  Warnings that are wrong make the ones that are right easier to ignore.
+- **The sleep-debt figure is described correctly again.** The calculation
+  changed to a running balance that credits surplus in v1.19.0; the label
+  still said "cumulative shortfall". The wrong description had spread to
+  the Coach, which was reasoning about the number on the old definition,
+  and to the published API description.
+- **The glucose reference band can be chosen on the web.** The setting
+  already worked and already fed the Coach — nothing on the web set it.
+  It selects a reference range; it is not a diagnosis and is never
+  inferred from a reading.
+
+One migration (0256), additive. No breaking changes.
+
 ## [1.30.33] — 2026-07-19
 
 Security release. It ships on its own because it changes how a browser

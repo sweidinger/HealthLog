@@ -241,17 +241,45 @@ export function checkLocaleIntegrity(input: {
 
 // ── deterministic fallback tone ─────────────────────────────────────────────
 
-/** Praise that the numbers did not earn. */
+/**
+ * Praise that the numbers did not earn.
+ *
+ * Six locales, because the deterministic fallbacks now carry a written body in
+ * each: a rule that only knows English and German praise would grade four
+ * locales as clean no matter what they said. Vocabulary only — the rule shape
+ * is language-independent.
+ */
 const FALSE_CHEER =
-  /\b(great job|well done|amazing|fantastic|excellent|awesome|congratulations|keep it up|don't worry)\b|\b(super gemacht|toll gemacht|großartig|fantastisch|hervorragend|weiter so|keine sorge)\b/i;
+  /\b(great job|well done|amazing|fantastic|excellent|awesome|congratulations|keep it up|don't worry)\b|\b(super gemacht|toll gemacht|großartig|fantastisch|hervorragend|weiter so|keine sorge)\b|\b(bravo|félicitations|continue comme ça|génial|formidable|ne t['’]inquiète pas)\b|\b(enhorabuena|felicidades|sigue así|genial|estupendo|no te preocupes)\b|\b(complimenti|continua così|ottimo lavoro|fantastico|eccellente|non preoccuparti)\b|\b(gratulacje|brawo|tak trzymaj|świetnie|wspaniale|nie martw się)\b/i;
 
-/** Verdict vocabulary a non-diagnostic surface may never use. */
+/**
+ * Verdict vocabulary a non-diagnostic surface may never use.
+ *
+ * Note what is deliberately NOT here: the plain noun for "verdict" in each
+ * language (verdict / veredicto / verdetto / wyrok / Urteil). Several floors
+ * use it in the negated form that carries the whole non-diagnostic stance — "a
+ * reference range is a coarse anchor, not a verdict" — so banning the noun
+ * would flag the sentence that states the rule. The ban targets diagnosis,
+ * pathology, attribution of a condition to the reader, and treatment
+ * direction, which is what a non-diagnostic surface actually may not do.
+ */
 const CLINICAL_VERDICT =
-  /\b(diagnos\w*|abnormal|patholog\w*|you (?:have|suffer from)|risk score|clinically significant)\b|\b(Diagnose|krankhaft|pathologisch|du (?:hast|leidest)|behandlungsbedürftig)\b/i;
+  /\b(diagnos\w*|abnormal|patholog\w*|you (?:have|suffer from)|risk score|clinically significant)\b|\b(Diagnose|krankhaft|pathologisch|du (?:hast|leidest)|behandlungsbedürftig)\b|\b(diagnostiqu\w*|pathologique|tu souffres de|nécessite un traitement)\b|\b(diagnóstic\w*|patológic\w*|sufres de|requiere (?:un )?tratamiento)\b|\b(diagnosi|diagnostic\w*|patologic\w*|soffri di|richiede (?:un )?trattamento)\b|\b(diagnoz\w*|patologiczn\w*|cierpisz na|wymaga leczenia)\b/i;
 
-/** The value-led opener §10 bans: "Your <metric> is <number>…". */
+/**
+ * The value-led opener §10 bans: "Your <metric> is <number>…".
+ *
+ * Rewritten from the de/en-only shape, which assumed the copula sits directly
+ * against the figure. That is true for "Your BMI is 24" and false for almost
+ * everything else the surfaces actually render — German "liegt aktuell bei
+ * 24", French "est à 24", Spanish "está en 24", Polish "wynosi obecnie 24".
+ * The old pattern therefore under-matched German, its own second locale, and
+ * would have missed all four new ones. The shape is now: possessive determiner,
+ * up to three words of metric name, the copula, then up to two positional
+ * fillers before the figure.
+ */
 const VALUE_LED_OPENER =
-  /^(Your|Dein|Deine|Ihr|Ihre)\s+\S+(\s+\S+)?\s+(is|ist|liegt)\s+\d/i;
+  /^(?:Your|Dein(?:e)?|Ihr(?:e)?|Ta|Ton|Tes|Tu|Tus|La tua|Le tue|Il tuo|I tuoi|Twój|Twoja|Twoje)\b(?:\s+\S+){0,3}\s+(?:is|ist|liegt|est|está|è|wynosi)\b(?:\s+(?:at|bei|à|a|en|aktuell|obecnie|right now)){0,2}\s+\d/i;
 
 /**
  * The OTHER way a deterministic line stops leading with meaning: it opens on a
@@ -263,9 +291,14 @@ const VALUE_LED_OPENER =
  * failure: the surface tells the reader what to do before it says anything
  * about what it can and cannot see. A pointer is fine LATER in the line; it
  * may not be the opening move.
+ *
+ * Extended to the four locales whose bodies used to be English. Romance and
+ * Polish imperatives are a closed enough set here because the pointers these
+ * floors could regress into are drawn from the same small verb family the
+ * de/en list already names — measure, weigh, track, compare, read.
  */
 const IMPERATIVE_OPENER =
-  /^(Measure|Track|Evaluate|Monitor|Check|Watch|Log|React|Use|Keep|Pay|Consider|Make sure)\b|^(Miss|Bewerte|Beobachte|Achte|Nutze|Halte|Reagiere|Prüfe|Vergleiche|Erfasse)\b/;
+  /^(Measure|Track|Evaluate|Monitor|Check|Watch|Log|React|Use|Keep|Pay|Consider|Make sure)\b|^(Miss|Bewerte|Beobachte|Achte|Nutze|Halte|Reagiere|Prüfe|Vergleiche|Erfasse)\b|^(Mesure|Suis|Évalue|Surveille|Vérifie|Note|Utilise|Garde|Compare|Pèse|Prends|Lis)\b|^(Mide|Evalúa|Vigila|Comprueba|Registra|Usa|Mantén|Compara|Pésate|Toma|Lee)\b|^(Misura|Valuta|Monitora|Controlla|Registra|Usa|Mantieni|Confronta|Pesati|Prendi|Leggi)\b|^(Mierz|Oceń|Obserwuj|Sprawdź|Zapisuj|Używaj|Utrzymuj|Porównaj|Waż|Czytaj)\b/;
 
 function firstSentence(text: string): string {
   const m = /^[^.!?]*[.!?]/.exec(text.trim());
