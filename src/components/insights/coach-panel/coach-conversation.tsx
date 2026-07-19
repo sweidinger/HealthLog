@@ -1216,6 +1216,12 @@ export function CoachConversation({
               // seed so a pending attachment can't leak across a thread switch.
               setPendingAttachmentIds([]);
               dispatchGuided({ type: "RESET" });
+              // Drop the finished stream's trailing state, as `handleNewChat`
+              // already does. Without it the previous thread's last assistant
+              // or error bubble renders appended to the newly selected thread
+              // — `streamingActive` stays true because that messageId is
+              // absent from the new thread's messages — until the next send.
+              send.reset();
             }}
           />
         }

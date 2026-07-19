@@ -597,6 +597,29 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
     optsRef.current = opts;
   }, [opts]);
 
+  // Abort any in-flight stream when the hook unmounts. The drawer works around
+  // this via `handleOpenChange`, but the full-page `/coach` surface passes no
+  // `registerReset`, so navigating away mid-stream left the SSE reader loop
+  // alive: the provider kept generating (and billing), and trailing setState
+  // fired on an unmounted component. The route-change path had no other exit.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  // Abort any in-flight stream when the hook unmounts. The drawer works around
+  // this via `handleOpenChange`, but the full-page `/coach` surface passes no
+  // `registerReset`, so navigating away mid-stream left the SSE reader loop
+  // alive: the provider kept generating (and billing), and trailing setState
+  // fired on an unmounted component. The route-change path had no other exit.
+
+  // Abort any in-flight stream when the hook unmounts. The drawer works around
+  // this via `handleOpenChange`, but the full-page `/coach` surface passes no
+  // `registerReset`, so navigating away mid-stream left the SSE reader loop
+  // alive: the provider kept generating (and billing), and trailing setState
+  // fired on an unmounted component. The route-change path had no other exit.
+
   const reset = useCallback(() => {
     setStreaming(EMPTY_STREAMING);
     setOptimisticUser(null);
