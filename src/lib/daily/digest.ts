@@ -20,6 +20,7 @@
  * populate the same two fields the DTO already carries, so no consumer changes.
  */
 import type { DailyBriefing, DailyBriefingSignal } from "@/lib/ai/schema";
+import type { ArrivalKind } from "@/lib/arrivals/types";
 import type { MedsTodayBlock } from "@/lib/dashboard/meds-today";
 import type { ModuleKey } from "@/lib/modules/registry";
 import type { ServerTranslator } from "@/lib/i18n/server-translator";
@@ -151,6 +152,32 @@ export interface DailyDigestCoachPlan {
   planText: string | null;
 }
 
+/**
+ * A day's arrival marker, as the IO seam read it off `ArrivalReaction`.
+ *
+ * One row per (user, kind, local date) — the spine's unique claim. The builder
+ * picks the NEWEST of them for the "just in" chip and takes its reaction line;
+ * it never sees more than the day's own rows, and it never reads a row it did
+ * not ask for.
+ */
+export interface DailyDigestArrival {
+  kind: ArrivalKind;
+  /** Timestamp of the newest sample that triggered this arrival. */
+  occurredAt: Date;
+  /** Decrypted reaction line, or null when none was ever generated. */
+  line: string | null;
+}
+
+/**
+ * How long an arrival stays NEWS.
+ *
+ * Past this the record is simply current — the reading is still today's, but
+ * announcing it is no longer telling the user anything they don't know. The
+ * chip disappears on its own; the reaction LINE does not (see below), because
+ * the sentence is the day's read, not a notification.
+ */
+export const JUST_IN_WINDOW_MS = 3 * 60 * 60 * 1000;
+
 /** The fully-resolved, IO-free input the composer folds into a digest. */
 export interface DailyDigestInput {
   now: Date;
@@ -203,6 +230,12 @@ export interface DailyDigestInput {
    * never rendered with its actions suppressed.
    */
   dismissedItemKeys: ReadonlySet<string>;
+  /**
+   * Today's arrival markers (`ArrivalReaction` rows for `todayLocalDate`), in
+   * any order. Optional so a consumer that predates the arrival spine stays
+   * valid; the builder treats a missing value as "nothing landed today".
+   */
+  arrivals?: readonly DailyDigestArrival[];
 }
 
 export interface DailyDigest {
@@ -226,6 +259,26 @@ export interface DailyDigest {
   line: string;
   /** Bounded 0–3 rail items, never padded. */
   worthALook: PriorityItem[];
+  /**
+   * The day's newest arrival while it is still news (< `JUST_IN_WINDOW_MS`
+   * old), else null. Drives the hero's calm "just in" chip.
+   *
+   * `at` crosses the wire as an ISO-8601 string and is formatted CLIENT-side —
+   * a server-formatted local time would differ from the client's render and
+   * produce a hydration mismatch (React #418).
+   */
+  justIn: { kind: ArrivalKind; at: string } | null;
+  /**
+   * The generated reaction line for the day's newest arrival, or null.
+   *
+   * Deliberately NOT gated on the just-in window: the chip is the "this just
+   * landed" moment and expires, while the sentence is the day's read and
+   * stands for the rest of the local day. Null whenever no line was generated
+   * — no provider, no consent, budget exhausted, or the generation failed —
+   * in which case the surface falls back to the deterministic lead. The
+   * sentence is garnish; its absence degrades nothing.
+   */
+  reactionLine: string | null;
 }
 
 /** First sentence of a paragraph, trimmed; null when empty. */
@@ -647,6 +700,33 @@ export function buildDailyDigest(
   const topSignal = input.briefing?.signalsOfDay?.[0] ?? null;
   const briefingLead = firstSentence(input.briefing?.paragraph);
 
+  // The day's newest arrival drives both reaction fields, but on two different
+  // clocks: the chip expires with the news, the sentence stands for the day.
+  // Reducing rather than sorting keeps the composer allocation-free and total
+  // over an empty list.
+  const newestArrival = (
+    input.arrivals ?? []
+  ).reduce<DailyDigestArrival | null>(
+    (newest, candidate) =>
+      newest === null || candidate.occurredAt > newest.occurredAt
+        ? candidate
+        : newest,
+    null,
+  );
+  const arrivalAgeMs = newestArrival
+    ? input.now.getTime() - newestArrival.occurredAt.getTime()
+    : null;
+  const justIn =
+    newestArrival && arrivalAgeMs !== null && arrivalAgeMs < JUST_IN_WINDOW_MS
+      ? {
+          kind: newestArrival.kind,
+          at: newestArrival.occurredAt.toISOString(),
+        }
+      : null;
+  // An empty or whitespace-only line is treated as absent rather than shipped
+  // as a blank lead — a degraded generation must fall through to the floor.
+  const reactionLine = newestArrival?.line?.trim() || null;
+
   // Priority order: a due or overdue dose is the most time-sensitive daily
   // action, a broken sync next, then the calm coach check-in, a preventive
   // check-up least urgent. Bounded to 3 — a check-in the cap crowds out
@@ -717,5 +797,7 @@ export function buildDailyDigest(
     briefingLead,
     line: composeLine(briefingLead, topSignal, input.score, t),
     worthALook: visible.slice(0, MAX_WORTH_A_LOOK),
+    justIn,
+    reactionLine,
   };
 }

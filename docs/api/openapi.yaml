@@ -31397,6 +31397,37 @@ components:
           items:
             $ref: "#/components/schemas/DailyPriorityItem"
           description: Bounded 0–3 rail items, never padded.
+        justIn:
+          anyOf:
+            - type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - sleep_night
+                    - workout
+                    - weight
+                    - blood_pressure
+                    - labs_panel
+                  description: Closed arrival kind that landed.
+                at:
+                  type: string
+                  description: ISO-8601 instant of the newest sample. NEVER pre-formatted server-side — the client formats it in its own
+                    locale and timezone.
+              required:
+                - kind
+                - at
+              additionalProperties: false
+            - type: "null"
+          description: The day's newest data arrival while it is still news (under three hours old), else null. Additive since
+            v1.31.0.
+        reactionLine:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: One-sentence generated reaction to that arrival, standing for the rest of the local day. Null whenever no
+            line was generated (no provider, no consent, budget exhausted, or generation failed) — consumers fall back
+            to `briefingLead` / `line`. Additive since v1.31.0.
       required:
         - generatedAt
         - phase
@@ -31406,6 +31437,8 @@ components:
         - briefingLead
         - line
         - worthALook
+        - justIn
+        - reactionLine
       additionalProperties: false
       description: The one data spine of the daily-value system — composed from already-cached data, never a fresh AI call.
         Consumed by the Today surface, the daily push, and a future iOS widget.

@@ -36,6 +36,7 @@ import { annotate } from "@/lib/logging/context";
 import { withBackgroundEvent } from "@/lib/logging/background";
 
 import { DATA_ARRIVAL_QUEUE } from "@/lib/arrivals/emit-shared";
+import { enqueueReactionLine } from "@/lib/arrivals/reaction-line-shared";
 import { isArrivalKind, type DataArrival } from "@/lib/arrivals/types";
 
 import { getWorkerPrisma, workerLog } from "./reminder/shared";
@@ -142,9 +143,16 @@ export async function runDataArrival(
   }
 
   if (claimed) {
-    // DISPATCH POINT — the day's single reaction line consumes this.
-    // Gated on `claimed` precisely BECAUSE the unique row is the throttle:
-    // there is no code path to a second generation for this kind today.
+    // The day's single reaction line. Gated on `claimed` precisely BECAUSE the
+    // unique row is the throttle: this is the only pass that can have won the
+    // claim, so there is no code path to a second generation for this kind
+    // today. The enqueue helper is provider-free by construction (see its
+    // docblock and the module-graph guard) — this worker still spends nothing.
+    await enqueueReactionLine({
+      userId: arrival.userId,
+      kind: arrival.kind,
+      localDate: arrival.localDate,
+    });
     actions.push("line_pending");
   }
 

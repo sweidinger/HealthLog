@@ -63,6 +63,8 @@ const DIGEST: DailyDigest = {
   briefingLead: "Blood pressure is holding steady.",
   line: "Blood pressure is holding steady.",
   worthALook: [],
+  justIn: null,
+  reactionLine: null,
 };
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;

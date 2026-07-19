@@ -11,6 +11,7 @@
 import { z } from "zod/v4";
 import type { ZodOpenApiObject } from "zod-openapi";
 
+import { ARRIVAL_KINDS } from "@/lib/arrivals/types";
 import { PRIORITY_ITEM_KINDS } from "@/lib/daily/priority-item";
 import { dismissPriorityItemSchema } from "@/lib/validations/daily";
 import { dataEnvelope, moduleDisabledResponse, stdResponses } from "./shared";
@@ -95,6 +96,27 @@ const dailyDigestResponse = z
     worthALook: z
       .array(priorityItemSchema)
       .describe("Bounded 0–3 rail items, never padded."),
+    justIn: z
+      .object({
+        kind: z
+          .enum([...ARRIVAL_KINDS])
+          .describe("Closed arrival kind that landed."),
+        at: z
+          .string()
+          .describe(
+            "ISO-8601 instant of the newest sample. NEVER pre-formatted server-side — the client formats it in its own locale and timezone.",
+          ),
+      })
+      .nullable()
+      .describe(
+        "The day's newest data arrival while it is still news (under three hours old), else null. Additive since v1.31.0.",
+      ),
+    reactionLine: z
+      .string()
+      .nullable()
+      .describe(
+        "One-sentence generated reaction to that arrival, standing for the rest of the local day. Null whenever no line was generated (no provider, no consent, budget exhausted, or generation failed) — consumers fall back to `briefingLead` / `line`. Additive since v1.31.0.",
+      ),
   })
   .meta({
     id: "DailyDigest",
