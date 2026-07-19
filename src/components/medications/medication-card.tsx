@@ -13,10 +13,8 @@ import { formatDateTime, formatTime } from "@/lib/format";
 import { getDateTimeFormat } from "@/lib/intl/formatter-cache";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
 import { formatDose } from "@/lib/medications/format-dose";
-import {
-  reduceCurrentWindowStatus,
-  toZonedDate,
-} from "@/lib/medications/window-status";
+import { reduceCurrentWindowStatus } from "@/lib/medications/window-status";
+import { localDayIndex, wallClockInTz } from "@/lib/tz/wall-clock";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
 import {
   estimateDailyDoseCount,
@@ -242,7 +240,8 @@ export function MedicationCard({
       a.windowStart.localeCompare(b.windowStart) ||
       a.windowEnd.localeCompare(b.windowEnd),
   );
-  const nowBerlin = toZonedDate(new Date(), userTz);
+  const now = new Date();
+  const nowParts = wallClockInTz(now, userTz);
   // v1.8.4 — the next-due instant comes from the server (`nextDueAt`,
   // computed by the canonical recurrence engine anchored on the last
   // intake). The day label below derives from it; the window-range /
@@ -261,7 +260,7 @@ export function MedicationCard({
 
   const currentWindowStatus = reduceCurrentWindowStatus({
     schedules: sortedSchedules,
-    nowBerlin,
+    now,
     lateMinutes,
     missedMinutes,
     active: medication.active,
@@ -418,26 +417,26 @@ export function MedicationCard({
           // Format day label relative to today
           let dayLabel = "";
           if (nextAt) {
-            const nextDate = toZonedDate(new Date(nextAt), userTz);
-            const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
-            const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
-            const tomorrow = new Date(nowBerlin);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
+            // Both clocks are read in the PROFILE timezone, and the day
+            // distance is a calendar-day difference — not an hour count —
+            // so a 23 h / 25 h transition day cannot round "tomorrow" into
+            // "today". `dateWithWeekdaySmart` receives the RAW instant: the
+            // formatter applies `userTz` itself, and feeding it a
+            // zone-shifted Date applied the offset a second time, which
+            // rendered the wrong calendar day for anyone whose browser zone
+            // differed from their profile zone.
+            const nextInstant = new Date(nextAt);
+            const nextParts = wallClockInTz(nextInstant, userTz);
+            const dayDelta = localDayIndex(nextParts) - localDayIndex(nowParts);
 
-            const diffDays = Math.round(
-              (nextDate.getTime() - nowBerlin.getTime()) /
-                (24 * 60 * 60 * 1000),
-            );
-
-            if (nextStr === todayStr) {
+            if (dayDelta === 0) {
               dayLabel = t("medications.today");
-            } else if (nextStr === tomorrowStr) {
+            } else if (dayDelta === 1) {
               dayLabel = t("medications.tomorrow");
-            } else if (diffDays <= 5) {
-              dayLabel = weekdayLabel(nextDate.getDay());
+            } else if (dayDelta <= 5) {
+              dayLabel = weekdayLabel(nextParts.weekday);
             } else {
-              dayLabel = fmt.dateWithWeekdaySmart(nextDate);
+              dayLabel = fmt.dateWithWeekdaySmart(nextInstant);
             }
           }
 

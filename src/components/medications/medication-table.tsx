@@ -28,10 +28,8 @@ import { useWeekdayLabel } from "@/components/medications/card-parts/medication-
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import { useMedicationIntake } from "@/components/medications/use-medication-intake";
-import {
-  reduceCurrentWindowStatus,
-  toZonedDate,
-} from "@/lib/medications/window-status";
+import { reduceCurrentWindowStatus } from "@/lib/medications/window-status";
+import { localDayIndex, wallClockInTz } from "@/lib/tz/wall-clock";
 import { formatTime } from "@/lib/format";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -420,7 +418,7 @@ function MedicationTableRowItem({
       a.windowEnd.localeCompare(b.windowEnd),
   );
   const now = new Date();
-  const nowZoned = toZonedDate(now, userTz);
+  const nowParts = wallClockInTz(now, userTz);
   const nextDueMs = medication.nextDueAt
     ? new Date(medication.nextDueAt).getTime()
     : NaN;
@@ -431,7 +429,7 @@ function MedicationTableRowItem({
   // next dose is tomorrow can never paint an overdue pill today.
   const currentWindowStatus = reduceCurrentWindowStatus({
     schedules: sortedSchedules,
-    nowBerlin: nowZoned,
+    now,
     lateMinutes,
     missedMinutes,
     active: medication.active,
@@ -535,23 +533,22 @@ function MedicationTableRowItem({
         </span>
       );
     } else if (nextAt) {
-      const nextDate = toZonedDate(new Date(nextAt), userTz);
-      const todayStr = `${nowZoned.getFullYear()}-${nowZoned.getMonth()}-${nowZoned.getDate()}`;
-      const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
-      const tomorrow = new Date(nowZoned);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
-      const diffDays = Math.round(
-        (nextDate.getTime() - nowZoned.getTime()) / (24 * 60 * 60 * 1000),
-      );
+      // Same contract as the card: both clocks read in the PROFILE
+      // timezone, a calendar-day distance rather than an hour count, and
+      // the RAW instant handed to `dateWithWeekdaySmart` — the formatter
+      // applies `userTz` itself, so passing a zone-shifted Date converted
+      // twice and could render the wrong calendar day.
+      const nextInstant = new Date(nextAt);
+      const nextParts = wallClockInTz(nextInstant, userTz);
+      const dayDelta = localDayIndex(nextParts) - localDayIndex(nowParts);
       const dayLabel =
-        nextStr === todayStr
+        dayDelta === 0
           ? t("medications.today")
-          : nextStr === tomorrowStr
+          : dayDelta === 1
             ? t("medications.tomorrow")
-            : diffDays <= 5
-              ? weekdayLabel(nextDate.getDay())
-              : fmt.dateWithWeekdaySmart(nextDate);
+            : dayDelta <= 5
+              ? weekdayLabel(nextParts.weekday)
+              : fmt.dateWithWeekdaySmart(nextInstant);
       nextCell = (
         <span>
           {dayLabel}, {formatTime(new Date(nextAt).toISOString())}

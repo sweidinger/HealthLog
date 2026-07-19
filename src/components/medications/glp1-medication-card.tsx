@@ -27,10 +27,7 @@ import { getDayOfWeekInTz } from "@/lib/tz/local-day";
 import { type InjectionSiteKey } from "@/lib/medications/injection-sites";
 import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
-import {
-  reduceCurrentWindowStatus,
-  toZonedDate,
-} from "@/lib/medications/window-status";
+import { reduceCurrentWindowStatus } from "@/lib/medications/window-status";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
 import {
   estimateDailyDoseCount,
@@ -325,12 +322,11 @@ export function Glp1MedicationCard({
       a.windowStart.localeCompare(b.windowStart) ||
       a.windowEnd.localeCompare(b.windowEnd),
   );
-  const nowBerlin = toZonedDate(now, userTz);
   const lateMinutes = thresholds?.lateMinutes ?? 120;
   const missedMinutes = thresholds?.missedMinutes ?? 240;
   const currentWindowStatus = reduceCurrentWindowStatus({
     schedules: sortedSchedules,
-    nowBerlin,
+    now,
     lateMinutes,
     missedMinutes,
     active: medication.active,

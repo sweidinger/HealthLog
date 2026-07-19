@@ -133,6 +133,22 @@ export function zonedWallClockToUtc(
   return guess;
 }
 
+/**
+ * The local calendar day as a day index, for day-distance arithmetic
+ * between two wall clocks in the SAME zone.
+ *
+ * Built from the wall-clock fields through `Date.UTC`, so the difference
+ * of two indices is a pure calendar-day count: no host offset and no
+ * 23 h/25 h DST-length term can enter it. Subtracting two instants and
+ * dividing by 86 400 000 does admit both, which is how a "tomorrow" label
+ * could land on a transition day.
+ */
+export function localDayIndex(parts: WallClockParts): number {
+  return Math.floor(
+    Date.UTC(parts.year, parts.month - 1, parts.day) / 86_400_000,
+  );
+}
+
 export function wallClockInTz(
   date: Date,
   tz: string | undefined,

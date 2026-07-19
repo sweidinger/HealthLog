@@ -13,16 +13,24 @@
  */
 import { describe, expect, it } from "vitest";
 
-import {
-  reduceCurrentWindowStatus,
-  toBerlinDate,
-  toZonedDate,
-} from "../window-status";
+import { reduceCurrentWindowStatus } from "../window-status";
+import { zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 
-/** Build a local wall-clock Date (what the cards pass as `nowBerlin`). */
-function localClock(hours: number, minutes = 0): Date {
-  // Wednesday, June 10 2026 — weekday-agnostic fixtures (no daysOfWeek).
-  return new Date(2026, 5, 10, hours, minutes, 0, 0);
+/**
+ * The real UTC instant at which an observer in `tz` reads `hh:mm` on
+ * Wednesday, June 10 2026 (weekday-agnostic fixtures carry no daysOfWeek).
+ *
+ * The fixtures used to build a HOST-local `Date` and hand it over as a
+ * pre-shifted wall clock, which meant they asserted nothing about the
+ * zone: the same literal meant a different instant on every developer
+ * machine, and swapping the helper's zone left the suite green. Naming the
+ * zone here makes each expectation say which clock it means.
+ */
+function instantAt(hours: number, minutes = 0, tz = "Europe/Berlin"): Date {
+  return zonedWallClockToUtc(
+    { year: 2026, month: 6, day: 10, hour: hours, minute: minutes },
+    tz,
+  );
 }
 
 const BASE = {
@@ -33,21 +41,6 @@ const BASE = {
   todayEventCount: 0,
 };
 
-describe("toZonedDate", () => {
-  it("shifts an instant into the requested timezone's wall clock", () => {
-    const instant = new Date("2026-06-10T12:00:00Z");
-    expect(toZonedDate(instant, "Europe/Berlin").getHours()).toBe(14); // CEST
-    expect(toZonedDate(instant, "America/New_York").getHours()).toBe(8); // EDT
-  });
-
-  it("toBerlinDate stays the Berlin alias for legacy call sites", () => {
-    const instant = new Date("2026-06-10T12:00:00Z");
-    expect(toBerlinDate(instant).getTime()).toBe(
-      toZonedDate(instant, "Europe/Berlin").getTime(),
-    );
-  });
-});
-
 describe("reduceCurrentWindowStatus — timezone threading", () => {
   it("compares lastTakenAt in the supplied timezone, not hardcoded Berlin", () => {
     // 08:30 local in New York = 12:30 UTC. With tz=America/New_York the
@@ -57,12 +50,14 @@ describe("reduceCurrentWindowStatus — timezone threading", () => {
     const schedules = [
       { windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null },
     ];
-    const nowLocal = localClock(8, 45);
-
+    // One intake instant, two zones. 12:30Z is 08:30 in New York (inside
+    // the band → the pill is suppressed) and 14:30 in Berlin (outside it →
+    // the pill shows). Each `now` is 08:45 on its OWN clock, so the only
+    // thing that differs between the two calls is the zone.
     const withUserTz = reduceCurrentWindowStatus({
       ...BASE,
       schedules,
-      nowBerlin: nowLocal,
+      now: instantAt(8, 45, "America/New_York"),
       lastTakenAt: "2026-06-10T12:30:00Z",
       todayEventCount: 1,
       tz: "America/New_York",
@@ -72,7 +67,7 @@ describe("reduceCurrentWindowStatus — timezone threading", () => {
     const withDefaultTz = reduceCurrentWindowStatus({
       ...BASE,
       schedules,
-      nowBerlin: nowLocal,
+      now: instantAt(8, 45, "Europe/Berlin"),
       lastTakenAt: "2026-06-10T12:30:00Z",
       todayEventCount: 1,
     });
@@ -89,7 +84,7 @@ describe("reduceCurrentWindowStatus — degenerate point window", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: pointSchedule,
-      nowBerlin: localClock(15, 0),
+      now: instantAt(15, 0),
     });
     // 15:00 is hours past the widened 07:00–09:00 point window and past
     // the late + missed thresholds → no pill at all.
@@ -100,7 +95,7 @@ describe("reduceCurrentWindowStatus — degenerate point window", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: pointSchedule,
-      nowBerlin: localClock(8, 30),
+      now: instantAt(8, 30),
     });
     expect(res.status).toBe("in_window");
   });
@@ -109,7 +104,7 @@ describe("reduceCurrentWindowStatus — degenerate point window", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: pointSchedule,
-      nowBerlin: localClock(10, 0),
+      now: instantAt(10, 0),
     });
     // Window end 09:00 + 60 min past → late tier.
     expect(res.status).toBe("late");
@@ -122,7 +117,7 @@ describe("reduceCurrentWindowStatus — degenerate point window", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: overnight,
-      nowBerlin: localClock(23, 30),
+      now: instantAt(23, 30),
     });
     expect(res.status).toBe("in_window");
   });
@@ -145,7 +140,7 @@ describe("reduceCurrentWindowStatus — timesOfDay-aware overdue coverage", () =
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: twoDoseSchedule,
-      nowBerlin: localClock(21, 30),
+      now: instantAt(21, 30),
       todayEventCount: 1,
     });
     // 21:30 — both bands have passed (ends 09:00 + 21:00); one event
@@ -164,7 +159,7 @@ describe("reduceCurrentWindowStatus — timesOfDay-aware overdue coverage", () =
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: twoDoseSchedule,
-      nowBerlin: localClock(21, 30),
+      now: instantAt(21, 30),
       todayEventCount: 2,
     });
     expect(res.status).toBeNull();
@@ -175,7 +170,7 @@ describe("reduceCurrentWindowStatus — timesOfDay-aware overdue coverage", () =
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: twoDoseSchedule,
-      nowBerlin: localClock(20, 30),
+      now: instantAt(20, 30),
     });
     expect(res.status).toBe("in_window");
     expect(res.window?.timeOfDay).toBe("20:00");
@@ -188,7 +183,7 @@ describe("reduceCurrentWindowStatus — timesOfDay-aware overdue coverage", () =
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: legacy,
-      nowBerlin: localClock(21, 0),
+      now: instantAt(21, 0),
       todayEventCount: 1,
     });
     expect(res.status).toBeNull();
@@ -212,7 +207,7 @@ describe("reduceCurrentWindowStatus — stale window never beats timesOfDay (v1.
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: staleSchedule,
-      nowBerlin: localClock(7, 0),
+      now: instantAt(7, 0),
     });
     expect(res.status).toBeNull();
   });
@@ -221,7 +216,7 @@ describe("reduceCurrentWindowStatus — stale window never beats timesOfDay (v1.
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: staleSchedule,
-      nowBerlin: localClock(9, 15),
+      now: instantAt(9, 15),
     });
     expect(res.status).toBe("in_window");
     expect(res.window).toEqual({
@@ -235,7 +230,7 @@ describe("reduceCurrentWindowStatus — stale window never beats timesOfDay (v1.
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: staleSchedule,
-      nowBerlin: localClock(11, 0),
+      now: instantAt(11, 0),
     });
     expect(res.status).toBe("late");
     expect(res.window?.timeOfDay).toBe("09:00");
@@ -254,7 +249,7 @@ describe("reduceCurrentWindowStatus — stale window never beats timesOfDay (v1.
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: withExplicit,
-      nowBerlin: localClock(11, 0),
+      now: instantAt(11, 0),
     });
     expect(res.status).toBe("in_window");
     expect(res.window).toEqual({
@@ -281,7 +276,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     },
   ];
   // June 11 2026, 07:00 Berlin (CEST) — "tomorrow" relative to the
-  // localClock fixtures (June 10).
+  // instantAt fixtures (June 10).
   const dueTomorrow = new Date("2026-06-11T05:00:00Z");
   // June 10 2026, 08:00 Berlin — "today's" dose anchor.
   const dueToday = new Date("2026-06-10T06:00:00Z");
@@ -292,7 +287,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     const ungated = reduceCurrentWindowStatus({
       ...BASE,
       schedules: rolling,
-      nowBerlin: localClock(13, 0),
+      now: instantAt(13, 0),
     });
     expect(ungated.status).toBe("very_late");
 
@@ -302,7 +297,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     const gated = reduceCurrentWindowStatus({
       ...BASE,
       schedules: rolling,
-      nowBerlin: localClock(13, 0),
+      now: instantAt(13, 0),
       nextDue: { at: dueTomorrow, overdue: false },
     });
     expect(gated.status).toBeNull();
@@ -311,7 +306,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     const lateTier = reduceCurrentWindowStatus({
       ...BASE,
       schedules: rolling,
-      nowBerlin: localClock(10, 0),
+      now: instantAt(10, 0),
       nextDue: { at: dueTomorrow, overdue: false },
     });
     expect(lateTier.status).toBeNull();
@@ -321,7 +316,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     const late = reduceCurrentWindowStatus({
       ...BASE,
       schedules: rolling,
-      nowBerlin: localClock(10, 0),
+      now: instantAt(10, 0),
       nextDue: { at: dueToday, overdue: true },
     });
     expect(late.status).toBe("late");
@@ -329,7 +324,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     const veryLate = reduceCurrentWindowStatus({
       ...BASE,
       schedules: rolling,
-      nowBerlin: localClock(12, 30),
+      now: instantAt(12, 30),
       nextDue: { at: dueToday, overdue: true },
     });
     expect(veryLate.status).toBe("very_late");
@@ -340,7 +335,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     const notYetDue = reduceCurrentWindowStatus({
       ...BASE,
       schedules: rolling,
-      nowBerlin: localClock(8, 30),
+      now: instantAt(8, 30),
       nextDue: { at: dueTomorrow, overdue: false },
     });
     expect(notYetDue.status).toBeNull();
@@ -349,7 +344,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     const dueNow = reduceCurrentWindowStatus({
       ...BASE,
       schedules: rolling,
-      nowBerlin: localClock(8, 30),
+      now: instantAt(8, 30),
       nextDue: { at: dueToday, overdue: false },
     });
     expect(dueNow.status).toBe("in_window");
@@ -359,7 +354,7 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: rolling,
-      nowBerlin: localClock(8, 30),
+      now: instantAt(8, 30),
       nextDue: null,
     });
     expect(res.status).toBeNull();
@@ -388,7 +383,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: [weeklyWedSchedule],
-      nowBerlin: localClock(9, 15),
+      now: instantAt(9, 15),
       lastTakenAt: MONDAY_TAKE,
       todayEventCount: 0,
     });
@@ -401,7 +396,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: [weeklyWedSchedule],
-      nowBerlin: localClock(9, 15),
+      now: instantAt(9, 15),
       lastTakenAt: "2026-06-03T07:05:00.000Z",
       todayEventCount: 0,
     });
@@ -420,7 +415,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
           timesOfDay: ["09:00"],
         },
       ],
-      nowBerlin: localClock(9, 15),
+      now: instantAt(9, 15),
       lastTakenAt: "2026-06-09T07:05:00.000Z", // yesterday — normal daily take
       todayEventCount: 0,
     });
@@ -432,7 +427,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: [weeklyWedSchedule],
-      nowBerlin: localClock(11, 30), // past the band + inside lateMinutes
+      now: instantAt(11, 30), // past the band + inside lateMinutes
       lastTakenAt: MONDAY_TAKE,
       todayEventCount: 0,
     });
@@ -448,7 +443,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: [weeklyWedSchedule],
-      nowBerlin: localClock(9, 15), // interpreted as Auckland wall clock
+      now: instantAt(9, 15, "Pacific/Auckland"), // 09:15 on Auckland's clock
       lastTakenAt: "2026-06-08T13:00:00.000Z",
       todayEventCount: 0,
       tz: "Pacific/Auckland",

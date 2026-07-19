@@ -25,7 +25,6 @@ import {
 } from "@/lib/query-keys";
 import {
   reduceCurrentWindowStatus,
-  toZonedDate,
   type ScheduleWindowInput,
 } from "@/lib/medications/window-status";
 import { useAuth } from "@/hooks/use-auth";
@@ -142,7 +141,6 @@ export function pickDefaultMedicationId(
   if (actives.length === 0) return null;
   if (actives.length === 1) return actives[0].id;
 
-  const nowLocal = toZonedDate(now, tz);
   const due = actives.find((m) => {
     // v1.16.9 — the same server display-due gate the cards apply: a
     // future (non-overdue) next-due suppresses the overdue tiers and a
@@ -150,7 +148,7 @@ export function pickDefaultMedicationId(
     const nextDueMs = m.nextDueAt ? new Date(m.nextDueAt).getTime() : NaN;
     const status = reduceCurrentWindowStatus({
       schedules: m.schedules,
-      nowBerlin: nowLocal,
+      now,
       lateMinutes: thresholds.lateMinutes,
       missedMinutes: thresholds.missedMinutes,
       active: true,

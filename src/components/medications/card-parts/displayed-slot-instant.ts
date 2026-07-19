@@ -54,10 +54,10 @@ export interface ResolveDisplayedSlotInstantInput {
   /** Wall-clock reference (injected for testability). */
   now: Date;
   /**
-   * IANA timezone the card's day boundary is reasoned in. The cards model
-   * the user's day in Europe/Berlin (see `toBerlinDate`), so this defaults
-   * to that; passing the user's actual zone keeps the slot on the right
-   * calendar day across the rare cross-midnight edge.
+   * IANA timezone the card's day boundary is reasoned in. Berlin is the
+   * last-resort fallback the card surfaces share; passing the user's
+   * actual zone keeps the slot on the right calendar day across the rare
+   * cross-midnight edge.
    */
   timeZone?: string;
 }
