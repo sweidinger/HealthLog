@@ -236,6 +236,21 @@ describe("tone harness — deterministic fallbacks", () => {
     },
   ];
 
+  /**
+   * "No assessment is available" in each locale's own words. Keyed per locale
+   * rather than `de ? … : /No assessment/`, which is the same de/en binary that
+   * let four locales render English bodies unnoticed — under it, a French floor
+   * passed this assertion precisely BECAUSE it was still English.
+   */
+  const NO_READ_SENTINEL: Record<Locale, RegExp> = {
+    de: /keine Einschätzung vor/,
+    en: /No assessment/,
+    fr: /Aucune évaluation/,
+    es: /no hay ninguna valoración/,
+    it: /non è disponibile alcuna valutazione/,
+    pl: /nie ma (?:tu )?żadnej oceny/,
+  };
+
   describe.each(FLOORS)("$name floor", ({ build }) => {
     it.each(locales)("%s opens on the read, not on an order", (locale) => {
       const text = build(locale);
@@ -244,10 +259,32 @@ describe("tone harness — deterministic fallbacks", () => {
 
       // The floor states plainly that no assessment is available — it must not
       // dress the absence up as one.
-      expect(text).toMatch(
-        locale === "de" ? /keine Einschätzung vor/ : /No assessment/,
-      );
+      expect(text).toMatch(NO_READ_SENTINEL[locale]);
     });
+  });
+
+  /**
+   * The regression this whole pass exists to close: `getLocalizedText` used to
+   * return `locale === "de" ? de : en`, so fr/es/it/pl rendered the ENGLISH
+   * body on nine metric surfaces. Every tone rule above passed on that text —
+   * it was in voice, it just was not the reader's language.
+   *
+   * Byte-identity against English is therefore the assertion that actually
+   * pins it. It holds for both the no-signal floors and the signal-grounded
+   * composer, because the composer has its own per-locale sentence templates
+   * (the value sentence and the verdict lead), not only per-locale nouns.
+   */
+  describe.each(RIDERS)("%s renders its own body", (locale) => {
+    it.each(FLOORS)("$name floor is not the English text", ({ build }) => {
+      expect(build(locale)).not.toEqual(build("en"));
+    });
+
+    it.each(GROUNDED)(
+      "$name grounded line is not the English text",
+      ({ build }) => {
+        expect(build(locale)).not.toEqual(build("en"));
+      },
+    );
   });
 });
 
