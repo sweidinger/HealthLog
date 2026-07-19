@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.30.21] — 2026-07-19
+
+Dose reminders land on the right hour across a clock change.
+
+- **A reminder on a clock-change day now fires at the time you set.** The conversion from your local time to a real instant read the timezone offset at the moment the scheduler happened to run, not at the time the dose was actually due. On the autumn change in a timezone that observes one, a 20:00 dose could resolve to 19:00 when the scheduler ticked before the change. Two days a year, and only in timezones that change their clocks — but a dose reminder should never be an hour off. Nothing stored changed; the same schedule now produces the correct instant.
+- **A duplicate pending dose was possible on those same days.** The reminder projector, the worker and the intake write derived the instant separately and could disagree on the change day, which broke the matching that keeps them on one row.
+- **The next-dose day label could show the wrong day** when your device timezone differs from the one in your profile, because the offset was applied twice. The two copies of that label — in the card and in the table — are now one.
+- The tests could not have caught any of this: they used times with no timezone attached, so the day boundary could not be distinguished from a UTC one, and the suite ran only in one host timezone. They now state their timezone explicitly, cover both clock changes, and the suite is pinned to match the build.
+
+No breaking changes.
+
 ## [1.30.20] — 2026-07-19
 
 - **A restore now refuses when the backup file names a different account than the backup record.** The restore target was read from inside the encrypted file rather than from the record the operator selected, so a file claiming a different account would have been written into that account instead — while the audit entry recorded the one the operator picked. Both values were already available at that point; they are now compared, and a mismatch is refused and recorded with both.
