@@ -1,7 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { generateInsight } from "../generate-insight";
-import { MockAIProvider } from "../mock-client";
-import { singleUserTurn } from "../types";
+import { describe, it, expect, vi } from "vitest";
 import {
   detectsNormativeClaim,
   computeCitationCoverage,
@@ -234,99 +231,5 @@ describe("computeCitationCoverage()", () => {
     expect(result.normativeRecommendations).toBe(2);
     expect(result.citedNormativeRecommendations).toBe(1);
     expect(result.uncitedNormativeRecommendationIds).toEqual(["uncited-1"]);
-  });
-});
-
-describe("generateInsight() — citation-coverage annotation", () => {
-  beforeEach(() => {
-    annotateMock.mockReset();
-  });
-
-  /**
-   * v1.4.16 phase B5d — `applyConfidenceOverride()` also calls
-   * `annotate()` (action: "confidence.override.applied"), so the
-   * citation-coverage assertions filter by meta-key rather than by
-   * call count.
-   */
-  function findCoverageCall(calls: Array<unknown[]>): Record<string, unknown> {
-    for (const call of calls) {
-      const arg = call[0] as { meta?: Record<string, unknown> } | undefined;
-      const meta = arg?.meta;
-      if (meta && "ai_total_recommendations" in meta) {
-        return meta;
-      }
-    }
-    throw new Error("citation-coverage annotate() call not found");
-  }
-
-  it("emits an annotate() call with the coverage breakdown on success", async () => {
-    const provider = new MockAIProvider({
-      responses: JSON.stringify({
-        summary: "x",
-        recommendations: [
-          {
-            id: "rec-cited",
-            text: "Aim for a target below 140/90",
-            severity: "important",
-            metricSource: baseMetricSource,
-            rationale: baseRationale,
-            referenceId: knownRefId,
-          },
-        ],
-        citations: [baseCitation],
-        warnings: [],
-      }),
-    });
-    await generateInsight(
-      provider,
-      singleUserTurn({ system: "system", user: "user" }),
-    );
-    const meta = findCoverageCall(annotateMock.mock.calls);
-    expect(meta).toMatchObject({
-      ai_total_recommendations: 1,
-      ai_normative_recommendations: 1,
-      ai_cited_normative_recommendations: 1,
-      ai_uncited_normative_recommendation_ids: [],
-    });
-  });
-
-  it("annotation flags the uncited normative rec", async () => {
-    const provider = new MockAIProvider({
-      responses: JSON.stringify({
-        summary: "x",
-        recommendations: [
-          {
-            id: "rec-naked",
-            text: "Your BP should stay below 140/90",
-            severity: "important",
-            metricSource: baseMetricSource,
-            rationale: baseRationale,
-          },
-        ],
-        citations: [baseCitation],
-        warnings: [],
-      }),
-    });
-    await generateInsight(
-      provider,
-      singleUserTurn({ system: "system", user: "user" }),
-    );
-    const meta = findCoverageCall(annotateMock.mock.calls);
-    expect(meta).toMatchObject({
-      ai_normative_recommendations: 1,
-      ai_cited_normative_recommendations: 0,
-      ai_uncited_normative_recommendation_ids: ["rec-naked"],
-    });
-  });
-
-  it("does NOT annotate when generation throws (only on success)", async () => {
-    // Provider returns invalid JSON twice → InsightSchemaError surfaces.
-    const provider = new MockAIProvider({
-      responses: ["not json", "still not json"],
-    });
-    await expect(
-      generateInsight(provider, singleUserTurn({ system: "s", user: "u" })),
-    ).rejects.toThrow();
-    expect(annotateMock).not.toHaveBeenCalled();
   });
 });

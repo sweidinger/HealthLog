@@ -9,8 +9,9 @@
  * Behaviour:
  *   1. requireAuth() — cookie session OR bearer token (iOS app).
  *   2. Validate body with `coachChatRequestSchema`.
- *   3. enforceBudget() — 429 with `coach.budget.exceeded` when the
- *      user has already burned the day's token cap.
+ *   3. reserveBudget(resolveDailyCap(chain)) — 429 with
+ *      `coach.budget.exceeded` when the day's token cap for the
+ *      credential that would pay for the call is already burned.
  *   4. detectRefusal() — pattern-based prompt-injection +
  *      off-topic guard. Refusal emits a single `token` frame with
  *      the localised refusal copy and a `done` frame; never hits a

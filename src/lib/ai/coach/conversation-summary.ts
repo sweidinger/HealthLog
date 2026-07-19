@@ -15,7 +15,7 @@
  *  - `annotate` carries counts + ids only, never the summary content.
  *
  * Background generation is intentionally UNBILLED — like the period-narrative
- * warm, it does not call `recordSpend`. The operator's per-user daily token
+ * warm, it books no spend of its own. The operator's per-user daily token
  * ceiling is the cost backstop; the interactive reply meter is not charged for
  * background memory upkeep.
  *

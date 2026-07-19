@@ -93,8 +93,12 @@ vi.mock("@/lib/ai/coach/coach-memory-shared", () => ({
 vi.mock("@/lib/ai/coach/facts", () => ({ storeDeterministicFacts: vi.fn() }));
 vi.mock("@/lib/ai/coach/budget", () => ({
   buildDateKey: vi.fn(),
-  enforceBudget: vi.fn(),
-  recordSpend: vi.fn(),
+  reserveBudget: vi.fn(async () => ({
+    allowed: true,
+    reserved: 0,
+    totalAfter: 0,
+  })),
+  reconcileSpend: vi.fn(),
   resolveDailyCap: vi.fn(() => 200_000),
 }));
 vi.mock("@/lib/ai/coach/refusal", () => ({ detectRefusal: vi.fn() }));

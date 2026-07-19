@@ -15,7 +15,6 @@
  * the user's timezone.
  */
 import { prisma } from "@/lib/db";
-import { HttpError } from "@/lib/api-handler";
 import type { ProviderChainType } from "@/lib/ai/provider-chain";
 
 /**
@@ -80,37 +79,6 @@ export function resolveDailyCap(
  */
 export function buildDateKey(at: Date = new Date()): string {
   return at.toISOString().slice(0, 10);
-}
-
-/**
- * Read the current day's token spend for `userId`. Returns 0 when no
- * row exists yet (first request of the day).
- */
-export async function getDailyTokenSpend(
-  userId: string,
-  dateKey: string = buildDateKey(),
-): Promise<number> {
-  const row = await prisma.coachUsage.findUnique({
-    where: { userId_dateKey: { userId, dateKey } },
-    select: { totalTokens: true },
-  });
-  return row?.totalTokens ?? 0;
-}
-
-/**
- * Throw 429 when the user has already burned the day's budget. Called
- * BEFORE the provider chain runs — the route emits a refusal SSE
- * frame instead of hitting any upstream LLM.
- */
-export async function enforceBudget(
-  userId: string,
-  dateKey: string = buildDateKey(),
-  cap: number = OPERATOR_COST_CAP,
-): Promise<void> {
-  const spent = await getDailyTokenSpend(userId, dateKey);
-  if (spent >= cap) {
-    throw new HttpError(429, "coach.budget.exceeded");
-  }
 }
 
 /**
@@ -240,37 +208,15 @@ async function refundReservation(
   `;
 }
 
-export interface RecordSpendParams {
-  userId: string;
-  tokens: number;
-  dateKey?: string;
-}
-
 /**
- * Bump the day's `totalTokens` and `messageCount` after a successful
- * assistant reply. Upsert keeps the first request of the day cheap;
- * subsequent calls land on the unique-index path.
- *
- * Negative or non-finite token figures are clamped to zero so a
- * provider that returns `tokensUsed: NaN` cannot poison the ledger.
+ * The `enforceBudget` (read-then-write check) + `recordSpend` (post-hoc bump)
+ * pair that preceded the reservation model is deliberately GONE, not
+ * deprecated. It carried two defects that recurred every time a new surface
+ * copied it: a TOCTOU window between the read and the write, and a `cap`
+ * parameter that defaulted to `OPERATOR_COST_CAP`, so any caller that omitted
+ * it rationed a self-hoster's own key by the operator's ceiling. Removing the
+ * functions means a future surface cannot reintroduce either defect by
+ * reaching for the older, simpler-looking helper —
+ * `reserveBudget` / `reconcileSpend` with an explicit `resolveDailyCap(chain)`
+ * is the only path left.
  */
-export async function recordSpend(params: RecordSpendParams): Promise<void> {
-  const dateKey = params.dateKey ?? buildDateKey();
-  const tokens =
-    Number.isFinite(params.tokens) && params.tokens > 0
-      ? Math.floor(params.tokens)
-      : 0;
-  await prisma.coachUsage.upsert({
-    where: { userId_dateKey: { userId: params.userId, dateKey } },
-    create: {
-      userId: params.userId,
-      dateKey,
-      totalTokens: tokens,
-      messageCount: 1,
-    },
-    update: {
-      totalTokens: { increment: tokens },
-      messageCount: { increment: 1 },
-    },
-  });
-}

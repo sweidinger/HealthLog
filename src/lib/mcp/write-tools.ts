@@ -2,13 +2,14 @@
  * Transport-agnostic MCP write-tool registry — the confirmed write surface.
  *
  * Registered ONLY for a `health:write`-scoped session (`ctx.canWrite`); a
- * read-only session never sees these tools advertised. Each tool wraps an
- * in-process write core (`src/lib/mcp/writes.ts`) that mirrors the proven
- * Telegram capture helpers, pinned to the `MCP` provenance.
+ * read-only session never sees these tools advertised, AND every run body
+ * re-asserts the scope in its own call path (see `withWriteScope`). Each tool
+ * wraps an in-process write core (`src/lib/mcp/writes.ts`) that mirrors the
+ * proven Telegram capture helpers, pinned to the `MCP` provenance.
  *
- * PROTOCOL-LEVEL CONFIRM GATE. The remote `/mcp` wire is stateless
- * (`enableJsonResponse: true`, no SSE) so server→client elicitation is
- * impossible. Instead every write tool takes an explicit `confirm` flag:
+ * TWO-STEP CONFIRM CONVENTION — and what it is NOT. The remote `/mcp` wire is
+ * stateless (`enableJsonResponse: true`, no SSE) so server→client elicitation
+ * is impossible. Instead every write tool takes an explicit `confirm` flag:
  *
  *   - `confirm:false` (default) → NOTHING is written. The tool returns the
  *     exact normalized record it WOULD write plus `requiresConfirmation:true`
@@ -17,6 +18,22 @@
  *   - `confirm:true` → the write executes. The `(userId, …, externalId)`
  *     idempotency derived from `idempotencyKey` makes a retried call a no-op
  *     (`alreadyLogged:true`) rather than a duplicate.
+ *
+ * `confirm` is a CLIENT-ASSERTED BOOLEAN. Nothing binds it to a prior preview
+ * and nothing proves a human saw the value: a caller may send `confirm:true`
+ * on the first call and the write lands. Binding the flag to a server-issued
+ * preview token was considered and rejected — it would prove only that a
+ * preview call happened, which any client can trivially do, so it buys no
+ * human-in-the-loop while adding a round trip and server state the stateless
+ * transport does not want. The honest description is a CONVENTION that gives a
+ * cooperating host a natural confirmation point (and a place to hang its own
+ * human-in-the-loop, keyed off `readOnlyHint:false`), not a gate that
+ * constrains an uncooperative one.
+ *
+ * What actually bounds the blast radius is the surface itself, below: writes
+ * are append-only, idempotent, single self-reported readings, scope-gated
+ * twice, rate-limited per credential, and audience-bound to `/mcp`. That is
+ * the real control. `confirm` is ergonomics on top of it.
  *
  * DELIBERATE SAFETY BOUNDARY — what is NOT here and must NOT be added without
  * a security review:
@@ -113,7 +130,38 @@ async function writeBudgetOk(binding: string): Promise<boolean> {
   return rl.allowed;
 }
 
-export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
+/**
+ * DEFENCE IN DEPTH — re-assert the write scope inside the call path.
+ *
+ * The primary enforcement is structural: `createMcpServer` registers these
+ * tools only when `ctx.canWrite`, so a read-only session's write handler
+ * closure does not exist and the tool is not even advertised. That property is
+ * real, but it lives entirely in the registration decision — a refactor that
+ * registered the write tools unconditionally and meant to refuse at call time
+ * would open the write surface with the registration test still green.
+ *
+ * So every run body is wrapped here rather than each tool remembering to check.
+ * A new write tool added to the array inherits the guard by construction; there
+ * is no version of this file where a write handler runs without the scope
+ * having been checked in its own call path.
+ */
+function withWriteScope(tool: McpToolDefinition): McpToolDefinition {
+  return {
+    ...tool,
+    async run(ctx, args) {
+      if (!ctx.canWrite) {
+        annotate({
+          action: { name: "mcp.tool.write" },
+          meta: { tool: tool.name, status: "scope_refused" },
+        });
+        return { written: false, error: "insufficient_scope" };
+      }
+      return tool.run(ctx, args);
+    },
+  };
+}
+
+const WRITE_TOOL_DEFINITIONS: McpToolDefinition[] = [
   {
     name: "log_measurement",
     title: "Log a measurement",
@@ -375,6 +423,9 @@ export const MCP_WRITE_TOOLS: McpToolDefinition[] = [
     },
   },
 ];
+
+export const MCP_WRITE_TOOLS: McpToolDefinition[] =
+  WRITE_TOOL_DEFINITIONS.map(withWriteScope);
 
 /** Stable list of the registered write-tool names. */
 export const MCP_WRITE_TOOL_NAMES: readonly string[] = MCP_WRITE_TOOLS.map(

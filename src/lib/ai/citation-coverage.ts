@@ -1,12 +1,20 @@
 /**
  * Reachability note. This module was written for `generateInsight()`, whose
- * only caller is `runWithFallback()` — and `runWithFallback()` has no
- * production caller left (every live surface routes through
- * `runRawCompletionWithFallback` instead). The coverage annotation therefore
- * never executed in production: an audit surface that implied enforcement it
- * did not perform. Rather than delete working, tested logic, the input type is
- * widened to the structural shape both payloads share and the comprehensive
- * post-parse step now calls it, so the admin quality dashboard sees real data.
+ * only caller was `runWithFallback()` — and that had no production caller,
+ * because every live surface routes through `runRawCompletionWithFallback`.
+ * The coverage annotation therefore never executed: an audit surface that
+ * implied enforcement it did not perform.
+ *
+ * v1.30.24 kept the logic and widened the input type to the structural shape
+ * both payloads share, so the comprehensive post-parse step could call it and
+ * the admin quality dashboard could see real data. The dead wrapper and chain
+ * runner around it have since been removed outright, so this module now has
+ * exactly one caller and it is a live one.
+ *
+ * Observational by design: an uncited normative recommendation is an
+ * annotation, never a parse failure. It is a METRIC, not a gate — the citation
+ * ENFORCEMENT that once sat beside it is gone rather than dormant, so nothing
+ * here should be read as withholding output.
  */
 
 /**

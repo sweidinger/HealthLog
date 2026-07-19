@@ -5,10 +5,7 @@ import {
   OUT_OF_SCOPE_REFUSAL_EN,
   OUT_OF_SCOPE_REFUSAL_DE,
 } from "../prompts/insight-generator";
-import { aiInsightResponseSchema, findUncitedRecommendations } from "../schema";
-import { generateInsight } from "../generate-insight";
-import { MockAIProvider } from "../mock-client";
-import { singleUserTurn } from "../types";
+import { aiInsightResponseSchema } from "../schema";
 
 /**
  * Phase C1 — scope-hardened system prompt assertions.
@@ -136,28 +133,5 @@ describe("out-of-scope refusal payloads", () => {
   it("German refusal payload validates against the strict schema", () => {
     const result = aiInsightResponseSchema.safeParse(OUT_OF_SCOPE_REFUSAL_DE);
     expect(result.success).toBe(true);
-  });
-
-  it("refusal payload has no orphan citations (trivially)", () => {
-    const parsed = aiInsightResponseSchema.parse(OUT_OF_SCOPE_REFUSAL_EN);
-    expect(findUncitedRecommendations(parsed)).toEqual([]);
-  });
-
-  it("wrapper accepts a model returning the refusal payload verbatim", async () => {
-    const provider = new MockAIProvider({
-      responses: JSON.stringify(OUT_OF_SCOPE_REFUSAL_EN),
-    });
-    const outcome = await generateInsight(
-      provider,
-      singleUserTurn({
-        system: getStrictInsightsSystemPrompt("en"),
-        // Deliberately out-of-scope user prompt — model is instructed to
-        // return the refusal rather than fabricate health metrics.
-        user: "What's the weather in Berlin tomorrow and how do I write Python?",
-      }),
-    );
-    expect(outcome.attempts).toBe(1);
-    expect(outcome.parsed.recommendations).toEqual([]);
-    expect(outcome.parsed.summary).toContain("only summarise");
   });
 });
