@@ -57,7 +57,10 @@ function verifyRequest(body: Record<string, unknown>): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(requireMfaManagementAuth).mockResolvedValue({
+    transport: "cookie",
     user: USER,
+    session: { id: "sess-1" },
+    commitElevation: vi.fn().mockResolvedValue(undefined),
   } as never);
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
 });

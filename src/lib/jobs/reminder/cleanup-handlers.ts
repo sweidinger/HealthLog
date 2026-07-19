@@ -205,6 +205,10 @@ export async function handleIdempotencyCleanup(
  * but table space. It lives here rather than fire-and-forget on the mint request
  * because a cross-tenant unbounded DELETE has no business competing with a
  * user's request for a pool connection.
+ *
+ * The delete lives here rather than in `@/lib/auth/step-up` because it has to
+ * run on the WORKER Prisma client; a second copy of the predicate in the auth
+ * module would be dead code with a licence to drift.
  */
 export async function handleStepUpElevationCleanup(
   jobs: Job<StepUpElevationCleanupPayload>[],
