@@ -68,6 +68,13 @@ export interface IntradayPulseResult {
   resolution: IntradayResolution;
 }
 
+/**
+ * How old the newest RESTING_HEART_RATE row may be before the baseline stops
+ * trusting the resting rows alone and pulls the PULSE history in as well. Two
+ * days tolerates a single missed night without widening the read.
+ */
+const RESTING_STALE_AFTER_MS = 2 * 24 * 60 * 60 * 1000;
+
 /** Median (p50), or null on an empty series. */
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
@@ -103,9 +110,21 @@ async function resolveBaseline(
     select: { value: true, measuredAt: true },
   });
 
-  // Only reach for the heavier PULSE-history read when resting rows are thin.
+  // Only reach for the heavier PULSE-history read when the resting rows
+  // cannot carry the baseline on their own: too few of them, OR the newest
+  // one is already stale. Staleness matters because the retention fold mints
+  // derived resting rows only for the days it has ALREADY folded, so a proxy
+  // account accumulates plenty of resting rows for OLD days while the RECENT
+  // days still hold nothing but raw PULSE. Gating on the row count alone
+  // pinned the baseline to the fold horizon and never advanced it past it.
+  // A genuinely native account reports a resting row daily, never trips the
+  // staleness arm, and pays for no extra read.
+  const newestRestingAt = restingRows[0]?.measuredAt ?? null;
+  const restingIsStale =
+    newestRestingAt === null ||
+    Date.now() - newestRestingAt.getTime() > RESTING_STALE_AFTER_MS;
   const pulseHistory =
-    restingRows.length >= MIN_BASELINE_DAYS
+    restingRows.length >= MIN_BASELINE_DAYS && !restingIsStale
       ? []
       : await prisma.measurement.findMany({
           where: { userId, type: "PULSE", deletedAt: null },

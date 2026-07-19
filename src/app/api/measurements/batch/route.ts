@@ -480,10 +480,45 @@ async function postBatch(request: NextRequest): Promise<Response> {
       return false;
     }
 
+    // Intra-batch `stats:` supersession. Two entries carrying the same
+    // (type, source, externalId) `stats:` key inside ONE batch both miss
+    // `existingSet` — neither is in the DB yet — so the overwrite branch
+    // never runs, both land in `toInsert`, and
+    // `createMany({ skipDuplicates: true })` keeps whichever row the unique
+    // index saw first. The OLDER snapshot of a per-day cumulative total (or
+    // of a still-filling ten-minute heart-rate bucket) therefore won and the
+    // newer, larger figure was dropped silently: both entries reported
+    // `inserted`, the counters still summed, and the client checkpointed
+    // past both. `stats:` rows carry overwrite semantics by contract — a
+    // re-post replaces value / unit / measuredAt — so within one batch the
+    // LAST entry for a key is the authoritative one. Resolve it here and
+    // mark the superseded earlier entries `duplicate`, the same status the
+    // client already checkpoints past for a composite-key duplicate.
+    const lastStatsIndexByKey = new Map<string, number>();
+    for (const p of prepared) {
+      if (!isStatsExternalId(p.row.externalId as string)) continue;
+      lastStatsIndexByKey.set(
+        `${p.row.type}::${p.row.source}::${p.row.externalId}`,
+        p.index,
+      );
+    }
+
     const toInsert: Prisma.MeasurementCreateManyInput[] = [];
     const toOverwrite: Prepared[] = [];
     for (const p of prepared) {
       const key = `${p.row.type}::${p.row.source}::${p.row.externalId}`;
+      if (
+        isStatsExternalId(p.row.externalId as string) &&
+        lastStatsIndexByKey.get(key) !== p.index
+      ) {
+        results[p.index] = {
+          index: p.index,
+          status: "duplicate",
+          reason: "superseded_in_batch",
+        };
+        duplicateCount += 1;
+        continue;
+      }
       if (existingSet.has(key)) {
         // v1.5.0 issue #213 — per-day cumulative `stats:*` rows are
         // intentionally overwritten on a re-post so today's tile reflects

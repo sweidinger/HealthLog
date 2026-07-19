@@ -423,12 +423,15 @@ export async function runDenseIntradayRetention(
   };
 
   // iOS#34 — per-user memo of whether the user has ANY native
-  // `RESTING_HEART_RATE` row. The read-path resolver
-  // (`resolveRestingPulseSeries`) is all-or-nothing: a single native
-  // resting row makes it ignore the PULSE proxy entirely. So the derived
-  // resting row is minted ONLY for proxy users (zero native rows) — minting
-  // alongside native rows would double-count. Memoised so the per-day fold
-  // does not re-query, and cleared per user at the start of the walk.
+  // `RESTING_HEART_RATE` row. The derived resting row is minted ONLY for
+  // proxy users (zero native rows): a native account already reports the
+  // clean signal for those days, so a derived row would add nothing and
+  // would let a fold artefact outrank a device reading. The read-path
+  // resolver (`resolveRestingPulseSeries`) merges resting and proxy PER DAY
+  // and prefers a resting row wherever one exists, so the mint's job is
+  // narrow — preserve the day's figure before the fold tombstones the raw
+  // readings it was derived from. Memoised so the per-day fold does not
+  // re-query, and cleared per user at the start of the walk.
   const nativeRestingByUser = new Map<string, boolean>();
   async function userHasNativeResting(userId: string): Promise<boolean> {
     const cached = nativeRestingByUser.get(userId);
