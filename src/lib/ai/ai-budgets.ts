@@ -89,6 +89,23 @@ export const AI_BUDGETS = {
   status: { temperature: 0.3, maxTokens: 250 },
 
   /**
+   * Archetype-driven per-metric assessment — the generic metric card
+   * (`metric-status.ts`) and the per-biomarker card (`biomarker-status.ts`).
+   * Same `{ "summary": "..." }` output contract as `status`, but these two
+   * surfaces compose a longer prompt (interpretation block, opener hint,
+   * previous-assessment context) and were pinned at temperature 0.45 to buy
+   * cadence variety while the snapshot keeps the facts fixed.
+   *
+   * Both call sites carried those numbers inline — 0.45 / 1000 — so the
+   * registry claimed to be the single source of truth while the two widest
+   * assessment surfaces quietly ran at 4x the nominal ceiling. This entry
+   * makes that shape explicit and auditable. 700 tokens is still generous
+   * headroom over the 30-60-word contract; the old 1000 was never sized to
+   * anything.
+   */
+  statusArchetype: { temperature: 0.45, maxTokens: 700 },
+
+  /**
    * Batched per-metric status assessment (v1.18.7 HIGH-1) — ONE call that
    * returns a `{ perMetric: { bp, weight, pulse, bmi, mood, compliance,
    * general } }` envelope, each value a single 30-60-word assessment in the

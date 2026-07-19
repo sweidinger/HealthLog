@@ -47,6 +47,7 @@ import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import { lookupNormalRange } from "@/lib/insights/derived/norms";
 import { buildMetricSignal } from "@/lib/insights/metric-signal";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/base-system";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
 import type { Locale } from "@/lib/i18n/config";
 import {
@@ -513,9 +514,11 @@ export async function generateMetricStatus(args: {
     // v1.12.1 (D1) — the phrasing task benefits from a touch more sampling
     // entropy while the FACTS stay pinned by the snapshot + the
     // forbidden-phrase guards. 0.3 was conservative for a 2-4 sentence prose
-    // task; 0.45 varies cadence without loosening grounding.
-    temperature: 0.45,
-    maxTokens: 1000,
+    // task; 0.45 varies cadence without loosening grounding. The pair used to
+    // sit inline here, bypassing the registry that documents every surface's
+    // ceiling; it now reads from `AI_BUDGETS.statusArchetype`.
+    temperature: AI_BUDGETS.statusArchetype.temperature,
+    maxTokens: AI_BUDGETS.statusArchetype.maxTokens,
   });
 
   if (outcome.kind === "none") {

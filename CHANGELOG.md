@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.30.35] — 2026-07-19
+
+- **The metric texts you see without an AI provider now speak your
+  language.** They shipped in German and English only; French, Spanish,
+  Italian and Polish fell through to English. These are what nine metric
+  cards render whenever no provider is reachable — no key configured, an
+  outage, a spent budget — so for those readers this text was the app's
+  voice, in the wrong language. Written per language rather than
+  translated: where a sentence could not be formed naturally, that
+  language got its own sentence.
+- **The lab-marker card leads with what a value means**, like every other
+  card already did. It was the last one still instructed to state the
+  number first.
+- **The response length for a metric assessment is set in one place**
+  again, instead of one card carrying its own inline pair.
+- **The fallback texts open on something honest** rather than on an
+  instruction, and the lab-marker card no longer shows the multi-metric
+  overview tip on a single value.
+
+No migrations. No breaking changes.
+
 ## [1.30.34] — 2026-07-19
 
 - **Rearranging your dashboard no longer wipes the comparison baseline.**
