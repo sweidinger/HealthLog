@@ -127,7 +127,7 @@ describe("captureReminderFromSentinel", () => {
     };
   }
 
-  it("writes an active reminder field-by-field with source sentinel", async () => {
+  it("writes a proposed reminder field-by-field with source sentinel", async () => {
     const d = db(0);
     const id = await captureReminderFromSentinel({
       userId: "u1",
@@ -157,7 +157,12 @@ describe("captureReminderFromSentinel", () => {
     ];
     const data = createArgs[0].data;
     expect(data.userId).toBe("u1");
-    expect(data.status).toBe("active");
+    // v1.30.25 — a sentinel capture is a MODEL-driven write, so it lands as
+    // `proposed` and waits for the user's confirm, exactly like an extracted
+    // plan. `active` here would let a reminder induced by document-sourced
+    // prompt text fire and re-enter the snapshot without the user ever
+    // agreeing to it.
+    expect(data.status).toBe("proposed");
     expect(data.source).toBe("sentinel");
     expect(data.sourceConversationId).toBe("c1");
     expect(data.metric).toBe("SLEEP");

@@ -28,6 +28,7 @@ import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
 import { readDayMeanSeries } from "@/lib/insights/derived/baseline";
 import { buildScheduleAnchoredComplianceBuckets } from "@/lib/analytics/schedule-anchored-compliance";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import {
   inferMedTargetClass,
   MED_TARGET_MAP,
@@ -36,6 +37,9 @@ import {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAD_TO_SIGMA = 1.4826;
+
+/** Max chars of the free-text medication label that may enter the prompt. */
+const MED_LABEL_MAX_CHARS = 60;
 
 /** Recent window over which adherence + the vital drift are read. */
 const ADHERENCE_WINDOW_DAYS = 14;
@@ -166,7 +170,14 @@ export async function buildAdherenceStoryline(
   });
   const candidates = meds
     .map((m) => ({
-      label: m.name,
+      // v1.30.25 — `Medication.name` is free text (typed by the user, or
+      // transcribed by a model from an uploaded document via the inbound
+      // medication-statement path) and this label reaches the Coach prompt
+      // through `snapshot.adherenceStoryline`. It is the same column the
+      // GLP-1 block already sanitises for exactly this reason. Classification
+      // still reads the RAW name so sanitisation cannot change which
+      // treatment class a medication is matched to.
+      label: sanitizeForPrompt(m.name, MED_LABEL_MAX_CHARS),
       cls: inferMedTargetClass(m.name, m.treatmentClass),
     }))
     .filter((c): c is { label: string; cls: MedTargetClass } => c.cls !== null);

@@ -9,13 +9,22 @@
  * and never instructions, and `fenceSelfReport` scrubs embedded marker
  * strings so the content cannot forge a fence boundary.
  *
- * Dependency-free on purpose: both the Coach system prompt and the
- * briefing block builder (`about-me.ts`, which pulls `@/lib/db`) import
- * from here, so the fence never drags the Prisma client into a module
- * graph that only needs prompt text.
+ * v1.30.25 — the marker pair and the wrapping primitive now live in the
+ * shared `data-fence` module alongside the SNAPSHOT and document-text
+ * fences. Scrubbing is against EVERY known marker, not just this pair, so
+ * self-report prose cannot forge the boundary of a neighbouring block.
+ * Re-exported from here so the existing import sites keep working.
  */
-export const SELF_REPORT_FENCE_START = "<<<SELF_REPORT_START>>>";
-export const SELF_REPORT_FENCE_END = "<<<SELF_REPORT_END>>>";
+export {
+  SELF_REPORT_FENCE_START,
+  SELF_REPORT_FENCE_END,
+} from "@/lib/ai/coach/data-fence";
+
+import {
+  SELF_REPORT_FENCE_START,
+  SELF_REPORT_FENCE_END,
+  fenceBlock,
+} from "@/lib/ai/coach/data-fence";
 
 /**
  * Wrap the self-report text in the data-fence markers. Embedded marker
@@ -24,8 +33,5 @@ export const SELF_REPORT_FENCE_END = "<<<SELF_REPORT_END>>>";
  * instruction position.
  */
 export function fenceSelfReport(text: string): string {
-  const scrubbed = text
-    .replaceAll(SELF_REPORT_FENCE_START, "")
-    .replaceAll(SELF_REPORT_FENCE_END, "");
-  return `${SELF_REPORT_FENCE_START}\n${scrubbed}\n${SELF_REPORT_FENCE_END}`;
+  return fenceBlock(SELF_REPORT_FENCE_START, SELF_REPORT_FENCE_END, text);
 }

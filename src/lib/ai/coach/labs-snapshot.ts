@@ -18,11 +18,18 @@
  *
  * Qualitative readings (`value` null, `valueText` "negativ" / …) are included
  * with a neutral `"unknown"` range status — there is nothing to compare against
- * the bounds, so no in/out verdict is fabricated. The free-text `valueText` is
- * the one user-controlled string here, so it is sanitised (control chars +
- * newlines collapsed, length bounded) before it can reach the prompt, mirroring
- * the illness block's label handling. The encrypted `noteEncrypted` column is
- * never selected — the decrypted note must not reach the prompt.
+ * the bounds, so no in/out verdict is fabricated. The encrypted `noteEncrypted`
+ * column is never selected — the decrypted note must not reach the prompt.
+ *
+ * v1.30.25 — every free-text string in this block is sanitised, not just
+ * `valueText`. The header used to claim `valueText` was "the one
+ * user-controlled string here"; that was wrong. `analyte`, `panel` and `unit`
+ * are equally attacker-reachable and, unlike `valueText`, they are not even
+ * self-scoped: a lab row committed from an uploaded document carries whatever
+ * name a model transcribed out of that PDF, stored verbatim as
+ * `Biomarker.name` by `resolveOrMintBiomarker`. The document is the untrusted
+ * party, not the user. These fields feed BOTH the snapshot prompt and the
+ * `labs_read` tool result, so sanitisation lives here at the shared source.
  *
  * `userId` is narrowed from the authenticated session by the caller and feeds
  * the Prisma `where` field-by-field; it is never an input. Unlike the illness
@@ -32,6 +39,7 @@
  */
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
 import { resolveLabFields } from "@/lib/labs/serialise";
+import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import { prisma } from "@/lib/db";
 
 /** Only readings within this many months enter the prompt. */
@@ -42,6 +50,12 @@ const MAX_BIOMARKERS = 24;
 
 /** Max chars of the user-supplied qualitative `valueText` that may enter the prompt. */
 const MAX_VALUE_TEXT_CHARS = 60;
+
+/** Max chars of the document-sourced analyte / panel name that may enter the prompt. */
+const MAX_ANALYTE_CHARS = 80;
+
+/** Max chars of the document-sourced unit that may enter the prompt. */
+const MAX_UNIT_CHARS = 24;
 
 /**
  * Cap + strip the user-supplied qualitative result text before it enters the
@@ -148,11 +162,22 @@ export async function buildLabsSnapshotBlock(
     seen.add(key);
 
     recent.push({
-      analyte: resolved.analyte,
-      panel: resolved.panel,
+      // v1.30.25 — analyte / panel / unit are NOT server-authored. A lab row
+      // committed from an uploaded document carries the name a model
+      // transcribed out of that PDF (`resolveOrMintBiomarker` stores it
+      // verbatim as `Biomarker.name`), so a hostile document chooses this
+      // string. It reaches BOTH the snapshot prompt and the `labs_read` tool
+      // result, so it is sanitised HERE at the shared source rather than at
+      // either consumer. `sanitizeForPrompt` strips control chars and the
+      // instruction-shaped patterns; the fence around the block carries the
+      // data/instruction contract.
+      analyte: sanitizeForPrompt(resolved.analyte, MAX_ANALYTE_CHARS),
+      panel: resolved.panel
+        ? sanitizeForPrompt(resolved.panel, MAX_ANALYTE_CHARS)
+        : null,
       value: row.value,
       valueText: row.valueText ? sanitizeValueText(row.valueText) : null,
-      unit: resolved.unit,
+      unit: sanitizeForPrompt(resolved.unit, MAX_UNIT_CHARS),
       referenceLow: resolved.referenceLow,
       referenceHigh: resolved.referenceHigh,
       // A qualitative row has nothing to compare against the bounds → neutral
