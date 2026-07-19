@@ -7,7 +7,7 @@ vi.mock("@/lib/api-handler", async () => {
     );
   return {
     ...actual,
-    requireFreshMfa: vi.fn(),
+    requireMfaManagementAuth: vi.fn(),
   };
 });
 
@@ -39,7 +39,7 @@ vi.mock("@/lib/auth/mfa/verify-factor", () => ({
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
 import { POST } from "../route";
-import { requireFreshMfa } from "@/lib/api-handler";
+import { requireMfaManagementAuth } from "@/lib/api-handler";
 import { prisma } from "@/lib/db";
 import { destroyOtherSessions } from "@/lib/auth/session";
 import { verifyMfaFactor } from "@/lib/auth/mfa/verify-factor";
@@ -54,7 +54,7 @@ function req() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(requireFreshMfa).mockResolvedValue({
+  vi.mocked(requireMfaManagementAuth).mockResolvedValue({
     user: { id: "u1" },
     session: { id: "sess-current" },
   } as never);

@@ -129,10 +129,17 @@ async function mintElevation(
   return { status: res.status, body: (await res.json()) as never };
 }
 
+/**
+ * Some handlers in the set declare no request parameter (`apiHandler(async () =>
+ * …)`), so their wrapped type takes none. The runtime always passes one; this
+ * keeps the call sites honest without loosening the handlers themselves.
+ */
+type RouteFn = (request: NextRequest) => Promise<Response>;
+
 /** GET /api/auth/me/mfa — the cheapest route in the elevation-accepting set. */
 async function callMfaStatus(): Promise<Response> {
   const { GET } = await import("@/app/api/auth/me/mfa/route");
-  return await GET(req("/api/auth/me/mfa"));
+  return await (GET as unknown as RouteFn)(req("/api/auth/me/mfa"));
 }
 
 async function auditReasons(action: string): Promise<string[]> {
@@ -338,7 +345,7 @@ describe("E5 — an elevation does not satisfy requireAdmin", () => {
     useElevation(elevation);
 
     const { GET } = await import("@/app/api/admin/users/route");
-    const res = await GET(req("/api/admin/users"));
+    const res = await (GET as unknown as RouteFn)(req("/api/admin/users"));
 
     // Cookie-only, and the elevation is not a cookie. The account being a
     // genuine admin is what makes this test worth having: the refusal is the
