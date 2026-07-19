@@ -6,6 +6,7 @@ import type { MedsTodayBlock } from "@/lib/dashboard/meds-today";
 import {
   buildDailyDigest,
   COACH_CHECKIN_RESURFACE_DAYS,
+  DOSE_DUE_LOOKAHEAD_MS,
   MAX_WORTH_A_LOOK,
   type DailyDigestCoachPlan,
   type DailyDigestInput,
@@ -211,8 +212,8 @@ describe("buildDailyDigest — worth-a-look rail item builders", () => {
     expect(dose).toBeDefined();
     expect(dose?.status).toBe("warning");
     expect(dose?.moduleKey).toBe("medications");
-    expect(dose?.title).toBe("Medication due");
-    expect(dose?.body).toBe("Ramipril is due today.");
+    expect(dose?.title).toBe("Medication overdue");
+    expect(dose?.body).toBe("Ramipril is past due.");
     expect(dose?.actions).toHaveLength(1);
     expect(dose?.actions[0].intent).toBe("dose.log");
     // Deep-links straight to the overdue medication's card, not the bare
@@ -249,9 +250,117 @@ describe("buildDailyDigest — worth-a-look rail item builders", () => {
     expect(d.worthALook.some((i) => i.kind === "dose_window")).toBe(false);
   });
 
-  it("does NOT emit a dose-window item when nothing is overdue", () => {
+  it("does NOT emit a dose-window item when nothing is due at all", () => {
     const d = buildDailyDigest(
       input({ medsToday: meds({ nextDueOverdue: false }) }),
+      t,
+    );
+    expect(d.worthALook.some((i) => i.kind === "dose_window")).toBe(false);
+  });
+
+  it("emits a calm due item for a takeable dose that is not yet overdue", () => {
+    const d = buildDailyDigest(
+      input({
+        medsToday: meds({
+          activeCount: 1,
+          scheduledToday: 1,
+          nextDueAt: new Date(NOW.getTime() + 30 * 60_000).toISOString(),
+          nextDueOverdue: false,
+          nextDueMedicationName: "Ramipril",
+          nextDueMedicationId: "med-1",
+        }),
+      }),
+      t,
+    );
+    const dose = d.worthALook.find((i) => i.kind === "dose_window");
+    expect(dose).toBeDefined();
+    // Reads as informational, NOT as the overdue warning.
+    expect(dose?.status).toBe("info");
+    expect(dose?.title).toBe(t("daily.item.doseWindow.title"));
+    expect(dose?.body).toBe(
+      t("daily.item.doseWindow.bodyNamed", { name: "Ramipril" }),
+    );
+    expect(dose?.actions[0]?.href).toBe("/medications?highlight=med-1");
+  });
+
+  it("reads an overdue dose differently from a merely due one", () => {
+    const due = buildDailyDigest(
+      input({
+        medsToday: meds({
+          nextDueAt: new Date(NOW.getTime() + 30 * 60_000).toISOString(),
+          nextDueOverdue: false,
+          nextDueMedicationName: "Ramipril",
+        }),
+      }),
+      t,
+    ).worthALook.find((i) => i.kind === "dose_window");
+    const overdue = buildDailyDigest(
+      input({
+        medsToday: meds({
+          nextDueAt: new Date(NOW.getTime() - 30 * 60_000).toISOString(),
+          nextDueOverdue: true,
+          nextDueMedicationName: "Ramipril",
+        }),
+      }),
+      t,
+    ).worthALook.find((i) => i.kind === "dose_window");
+
+    expect(overdue?.status).toBe("warning");
+    expect(overdue?.title).toBe(t("daily.item.doseWindow.overdueTitle"));
+    expect(overdue?.body).toBe(
+      t("daily.item.doseWindow.overdueBodyNamed", { name: "Ramipril" }),
+    );
+    // The two faces must not collapse into the same copy.
+    expect(overdue?.title).not.toBe(due?.title);
+    expect(overdue?.body).not.toBe(due?.body);
+    expect(overdue?.status).not.toBe(due?.status);
+  });
+
+  it("does NOT manufacture a dose item on a day whose doses are all taken", () => {
+    // Every scheduled dose resolved; the next display-due slot is tomorrow.
+    const d = buildDailyDigest(
+      input({
+        medsToday: meds({
+          activeCount: 2,
+          scheduledToday: 2,
+          takenToday: 2,
+          nextDueAt: new Date(NOW.getTime() + 22 * 60 * 60_000).toISOString(),
+          nextDueOverdue: false,
+          nextDueMedicationName: "Ramipril",
+        }),
+      }),
+      t,
+    );
+    expect(d.worthALook.some((i) => i.kind === "dose_window")).toBe(false);
+  });
+
+  it("keeps a dose beyond the takeable lead off the rail", () => {
+    const d = buildDailyDigest(
+      input({
+        medsToday: meds({
+          nextDueAt: new Date(
+            NOW.getTime() + DOSE_DUE_LOOKAHEAD_MS + 60_000,
+          ).toISOString(),
+          nextDueOverdue: false,
+          nextDueMedicationName: "Ramipril",
+        }),
+      }),
+      t,
+    );
+    expect(d.worthALook.some((i) => i.kind === "dose_window")).toBe(false);
+  });
+
+  it("renders neither face for a cached block whose anchor has since passed", () => {
+    // `MedsTodayBlock` contract: a past `nextDueAt` with `nextDueOverdue:
+    // false` means the anchor passed AFTER the block was built.
+    const d = buildDailyDigest(
+      input({
+        medsToday: meds({
+          nextDueAt: new Date(NOW.getTime() - 5 * 60_000).toISOString(),
+          nextDueOverdue: false,
+          nextDueMedicationName: "Ramipril",
+        }),
+      }),
       t,
     );
     expect(d.worthALook.some((i) => i.kind === "dose_window")).toBe(false);
