@@ -15,6 +15,9 @@
  * apply: the field sanitiser at the data source, and the fence around the
  * block. The model's contract must be unreachable from a data field.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
@@ -212,5 +215,33 @@ describe("fence escape — a data field cannot close its container", () => {
     // read the user's actual figures out of the block.
     const json = JSON.stringify({ labs: { recent: [{ value: 140 }] } });
     expect(fenceHealthData(json)).toContain(json);
+  });
+});
+
+/**
+ * Call-site guards. The helpers above are well covered, but a helper nobody
+ * calls protects nothing — and removing the call is a one-line change that
+ * every behavioural test above would survive. These assert the two prompt
+ * assemblies actually route through the fence.
+ */
+describe("fence call sites", () => {
+  it("the Coach chat route fences the SNAPSHOT payload", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/app/api/insights/chat/route.ts"),
+      "utf-8",
+    );
+    expect(source).toContain("fenceHealthData(");
+    // The raw payload must never be spliced in alongside the fenced one.
+    expect(source).not.toMatch(/SNAPSHOT\n\$\{snapshot\.snapshotJson/);
+  });
+
+  it("the document extractor fences the OCR text", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/lib/documents/extract.ts"),
+      "utf-8",
+    );
+    expect(source).toContain("fenceDocumentText(");
+    // The pre-v1.30.25 raw splice: a label, not a boundary.
+    expect(source).not.toContain("OCR TEXT:\\n${args.ocrText}");
   });
 });
