@@ -282,6 +282,27 @@ async function readDoctorVisit(
   ctx: McpAuthContext,
   window: string,
 ): Promise<unknown> {
+  // v1.30.22 — gate the whole-record aggregate on its own module key. Both
+  // the fixed resource and the `{window}` template funnel through here, so
+  // this is the one door for the MCP side.
+  //
+  // REFUSE rather than return `{ present: false }`: unlike the per-domain
+  // reads, this resource IS the whole record, so there is no honest partial
+  // payload — mirroring the 403 `/api/export/health-record` answers for the
+  // same state. Thrown, which the MCP transport surfaces as a JSON-RPC error
+  // on the read, so the assistant learns the resource is unavailable instead
+  // of receiving an empty summary it might narrate as "nothing on file".
+  if (!(await isModuleEnabled(ctx.userId, "doctorReport"))) {
+    annotate({
+      action: { name: "mcp.resource.read" },
+      meta: { resource: "doctor-visit-report", refused: "module_disabled" },
+    });
+    throw new Error(
+      'The "doctorReport" module is turned off for this account, so the ' +
+        "doctor-visit summary is not available.",
+    );
+  }
+
   const days = WINDOW_DAYS[window] ?? 90;
   const end = new Date();
   const start = new Date(end.getTime() - days * MS_PER_DAY);

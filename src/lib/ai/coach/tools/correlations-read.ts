@@ -25,6 +25,7 @@
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
+import { isModuleEnabled } from "@/lib/modules/gate";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
@@ -151,6 +152,29 @@ function humanise(key: string): string {
 export async function readCoachCorrelations(
   userId: string,
 ): Promise<CoachCorrelationsResult> {
+  // v1.30.22 — the `insights` gate lives HERE, at the read, not at each
+  // caller. This reader is reached from four places (the Coach
+  // `get_correlations` tool, the MCP `get_correlation` rich read, the
+  // per-metric "Coach read" strip, and the Coach snapshot); only the REST
+  // sibling `/api/insights/correlations` gated, so every other caller
+  // defeated both the user's `insights` toggle and the operator availability
+  // switch ANDed above it. Gating the reader closes all four at once and
+  // means a future caller cannot reintroduce the gap by forgetting.
+  //
+  // OMIT rather than refuse: this is a per-domain read whose whole contract
+  // is already `{ present: false }` for honest absence, and every caller
+  // treats a miss as "no pattern to narrate". A throw here would break a
+  // Coach turn for a user who simply turned a module off. The distinct
+  // `module_disabled` reason keeps it honest — the assistant is told the
+  // domain is off, not that no correlation exists.
+  //
+  // Deliberately OUTSIDE the try/catch: the fail-soft below turns any throw
+  // into `{ present: false }`, so a gate placed inside would still close the
+  // leak but would silently swallow a real gate failure. Out here, a broken
+  // gate is loud.
+  if (!(await isModuleEnabled(userId, "insights"))) {
+    return { present: false, reason: "module_disabled" };
+  }
   try {
     const profile = await loadBaselineProfile(prisma, userId);
     const userRow = await prisma.user.findUnique({

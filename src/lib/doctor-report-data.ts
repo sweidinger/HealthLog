@@ -95,6 +95,32 @@ export async function collectDoctorReportData(
   // key and stay unconditional. Injectable for tests.
   const moduleMap = options.moduleMap ?? (await resolveModuleMap(userId));
 
+  // v1.30.22 — fail-closed backstop on the aggregate's OWN module key,
+  // mirroring `loadFhirContext`.
+  //
+  // Everything below gates the per-domain SECTIONS (mood / sleep / glucose /
+  // cycle / labs / recovery / workouts) but nothing ever gated `doctorReport`
+  // itself — the key that decides whether the whole-record aggregate may be
+  // assembled at all. That left it entirely to callers to remember, and the
+  // MCP surface did not: `healthlog://report/doctor-visit`, its `{window}`
+  // template, and the `doctor_visit_summary` prompt all assembled the full
+  // record for an account with the module off, on the one wire that egresses
+  // to a third-party assistant.
+  //
+  // REFUSE, not omit — the opposite of the per-domain reads. This is the
+  // whole-record aggregate, so there is no honest partial answer to return;
+  // `/api/export/health-record` already answers 403 for exactly this state
+  // and this is the same payload. It throws rather than returning an envelope
+  // because reaching here means a caller is missing its gate: a bug to
+  // surface, not a flow to serve. Callers that can degrade gracefully gate
+  // themselves BEFORE calling (see the MCP resources and the clinician share).
+  if (moduleMap.doctorReport === false) {
+    throw new Error(
+      'collectDoctorReportData called with the "doctorReport" module ' +
+        "disabled — the calling surface is missing its module gate",
+    );
+  }
+
   const sections: DoctorReportPrefs = {
     ...DEFAULT_DOCTOR_REPORT_PREFS,
     ...(options.sections ?? {}),
