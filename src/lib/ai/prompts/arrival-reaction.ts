@@ -85,12 +85,45 @@ export interface ArrivalReactionPromptInput {
    * only to say what the block already establishes.
    */
   evidence: string;
+  /**
+   * Rotating opener-archetype hint (`openerArchetypeHint`, seeded
+   * `${userId}:reaction:${kind}:${localDate}` at the call site) — the same
+   * per-user, per-day rotation every other assessment surface uses so this
+   * line does not open on the same shape every time. This sits ALONGSIDE the
+   * fixed meaning-first instruction below, not in place of it — the rotation
+   * varies the angle, the instruction is the invariant every surface owes.
+   */
+  openerHint?: string;
 }
+
+/**
+ * The fixed, always-present meaning-first instruction, phrased exactly the
+ * way every other assessment surface's user prompt phrases it. The system
+ * prompt's `REACTION_CONTRACT` states the same rule in its own words for the
+ * model to follow; this line exists so the INSTRUCTION SHAPE itself matches
+ * the family's shared contract, in the same prompt the harness inspects for
+ * it. Two locale bodies only — fr/es/it/pl ride the English one, exactly
+ * like the system prompt's own `instructionLocale` split.
+ */
+const OPENING_INSTRUCTION_EN =
+  "Open with what just landed MEANS in plain words — the overall read, not the number — then bring the figure in right after as support.";
+const OPENING_INSTRUCTION_DE =
+  "Beginne mit dem, was gerade eingetroffen ist, in klaren Worten — nicht der Zahl — und bring sie danach als Beleg.";
 
 export function getArrivalReactionUserPrompt(
   input: ArrivalReactionPromptInput,
+  locale: Locale,
 ): string {
-  return `WHAT JUST LANDED: ${KIND_SUBJECT[input.kind]}.
+  const openingInstruction =
+    instructionLocale(locale) === "en"
+      ? OPENING_INSTRUCTION_EN
+      : OPENING_INSTRUCTION_DE;
+  const openerLine =
+    input.openerHint && input.openerHint.trim().length > 0
+      ? `\nOPENER HINT: ${input.openerHint}`
+      : "";
+
+  return `WHAT JUST LANDED: ${KIND_SUBJECT[input.kind]}. ${openingInstruction}${openerLine}
 
 EVIDENCE BLOCK — everything below is already computed from this person's own record. Use only what is here; if it does not support a verdict, say so.
 ${input.evidence}

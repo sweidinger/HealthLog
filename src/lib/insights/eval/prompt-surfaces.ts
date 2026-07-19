@@ -16,6 +16,10 @@
 import type { Locale } from "@/lib/i18n/config";
 
 import {
+  getArrivalReactionSystemPrompt,
+  getArrivalReactionUserPrompt,
+} from "@/lib/ai/prompts/arrival-reaction";
+import {
   getBiomarkerSystemPrompt,
   getBiomarkerUserPrompt,
 } from "@/lib/ai/prompts/biomarker";
@@ -181,5 +185,18 @@ export const ASSESSMENT_SURFACES: readonly AssessmentSurface[] = [
     name: "workout-insight",
     system: getWorkoutInsightSystemPrompt,
     user: (l) => getWorkoutInsightUserPrompt(SNAPSHOT, TODAY, l, OPENER_HINT),
+  },
+  {
+    // The one-sentence Today-hero reaction to a salient arrival. Smallest
+    // surface in the registry, and the one whose own module docblock warns
+    // most explicitly against the two-locale collapse — grading it here is
+    // what makes that warning enforced rather than just written down.
+    name: "arrival-reaction",
+    system: getArrivalReactionSystemPrompt,
+    user: (l) =>
+      getArrivalReactionUserPrompt(
+        { kind: "sleep_night", evidence: SNAPSHOT, openerHint: OPENER_HINT },
+        l,
+      ),
   },
 ];

@@ -49,6 +49,7 @@ import { singleUserTurn } from "@/lib/ai/types";
 import { screenCoachReply } from "@/lib/ai/coach/outbound-guard";
 import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
+import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
 import { loadDailyDigest } from "@/lib/daily/load-digest";
 import {
   getArrivalReactionSystemPrompt,
@@ -231,10 +232,17 @@ export async function runReactionLine(
     const result = await chain[0].instance.generateCompletion(
       singleUserTurn({
         system: getArrivalReactionSystemPrompt(locale),
-        user: getArrivalReactionUserPrompt({
-          kind: job.kind,
-          evidence: buildEvidence(digest),
-        }),
+        user: getArrivalReactionUserPrompt(
+          {
+            kind: job.kind,
+            evidence: buildEvidence(digest),
+            openerHint: openerArchetypeHint(
+              `${job.userId}:reaction:${job.kind}:${job.localDate}`,
+              locale,
+            ),
+          },
+          locale,
+        ),
         temperature: budget.temperature,
         maxTokens,
         timeoutMs: REACTION_LINE_TIMEOUT_MS,
