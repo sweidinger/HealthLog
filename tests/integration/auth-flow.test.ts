@@ -139,7 +139,7 @@ describe("session lifecycle (real Postgres)", () => {
    * client can assert the shape but not that the column and constraint
    * actually exist on a migrated database.
    */
-  describe("session cookie secret (migration 0254)", () => {
+  describe("session cookie secret (migration 0255)", () => {
     it("issues a secret cookie and stores only its hash", async () => {
       const { createSession } = await import("@/lib/auth/session");
       const { hashToken } = await import("@/lib/auth/hmac");
