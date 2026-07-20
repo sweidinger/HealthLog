@@ -33,6 +33,12 @@ vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
 
+const { encryptNoteMock } = vi.hoisted(() => ({ encryptNoteMock: vi.fn() }));
+
+vi.mock("@/lib/crypto/note-cipher", () => ({
+  encryptNote: encryptNoteMock,
+}));
+
 vi.mock("@/lib/arrivals/measurement-emit", () => ({
   emitInsertedMeasurementArrivals: vi.fn(),
 }));
@@ -65,12 +71,17 @@ import { prisma } from "@/lib/db";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
 import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
+import { Prisma } from "@/generated/prisma/client";
+import { auditLog } from "@/lib/auth/audit";
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurement.findUnique).mockResolvedValue(null);
   vi.mocked(emitInsertedMeasurementArrivals).mockResolvedValue(undefined);
   vi.mocked(maybeEnqueueMorningRefresh).mockResolvedValue(undefined);
+  encryptNoteMock.mockImplementation((note: string | null) =>
+    note === null ? null : `encrypted:${note}`,
+  );
 });
 
 interface ApiErrorEnvelope {
@@ -234,7 +245,10 @@ describe("POST /api/import — measurement rollup hook (v1.4.39.1)", () => {
       resetAt: new Date(Date.now() + 1000),
     } as never);
     vi.mocked(prisma.measurement.create).mockRejectedValue(
-      new Error("P2002 duplicate"),
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "test",
+      }),
     );
 
     const response = await POST(
@@ -390,10 +404,10 @@ describe("POST /api/import — arrival wiring", () => {
   });
 
   it("does not emit or refresh an existing external-id update", async () => {
-    vi.mocked(prisma.measurement.findUnique).mockResolvedValue({
-      id: "existing",
-    } as never);
-    vi.mocked(prisma.measurement.upsert).mockResolvedValue({
+    vi.mocked(prisma.measurement.createManyAndReturn).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.measurement.update).mockResolvedValue({
       id: "existing",
       type: "SLEEP_DURATION",
       measuredAt: new Date("2026-05-14T06:00:00.000Z"),
@@ -571,5 +585,258 @@ describe("POST /api/import — measurement externalId dedup (v1.17.1)", () => {
     expect(response.status).toBeLessThan(400);
     expect(vi.mocked(prisma.measurement.create)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(prisma.measurement.upsert)).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/import — write failure classification", () => {
+  beforeEach(() => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      resetAt: new Date(Date.now() + 1000),
+    } as never);
+  });
+
+  function request(body: Record<string, unknown>): NextRequest {
+    return new NextRequest("http://localhost/api/import", {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  function measurement(value = 80): Record<string, unknown> {
+    return {
+      type: "WEIGHT",
+      value,
+      unit: "kg",
+      measuredAt: "2026-05-01T08:00:00.000Z",
+    };
+  }
+
+  function moodEntry(): Record<string, unknown> {
+    return {
+      date: "2026-05-01",
+      mood: "GUT",
+      score: 4,
+      loggedAt: "2026-05-01T12:00:00.000Z",
+    };
+  }
+
+  function expectRetryableFailure(
+    body: unknown,
+    stats: { measurements: number; moodEntries: number; skipped: number },
+  ): void {
+    expect(body).toEqual({
+      data: null,
+      error: "Import write failed",
+      meta: {
+        errorCode: "import.write_failed",
+        retryable: true,
+        stats,
+      },
+    });
+  }
+
+  it("counts an authentic P2002 measurement error as a duplicate", async () => {
+    vi.mocked(prisma.measurement.create).mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "test",
+        meta: {
+          target: ["userId", "type", "measuredAt", "source", "sleepStage"],
+        },
+      }),
+    );
+
+    const response = await POST(request({ measurements: [measurement()] }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      data: { measurements: 0, moodEntries: 0, skipped: 1 },
+      error: null,
+    });
+  });
+
+  it("counts an authentic P2002 mood error as a duplicate", async () => {
+    vi.mocked(prisma.moodEntry.create).mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "test",
+        meta: {
+          target: ["userId", "date", "moodLoggedAt"],
+        },
+      }),
+    );
+
+    const response = await POST(request({ moodEntries: [moodEntry()] }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      data: { measurements: 0, moodEntries: 0, skipped: 1 },
+      error: null,
+    });
+  });
+
+  it("skips an external-id insert race lost on timestamp", async () => {
+    vi.mocked(prisma.measurement.createManyAndReturn).mockResolvedValueOnce(
+      [] as never,
+    );
+    vi.mocked(prisma.measurement.update).mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Record to update not found", {
+        code: "P2025",
+        clientVersion: "test",
+      }),
+    );
+
+    const response = await POST(
+      request({
+        measurements: [{ ...measurement(), externalId: "new-source-id" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      data: { measurements: 0, moodEntries: 0, skipped: 1 },
+      error: null,
+    });
+  });
+
+  it("returns retryable counts on database timeout", async () => {
+    vi.mocked(prisma.measurement.create)
+      .mockResolvedValueOnce({
+        id: "measurement-1",
+        type: "WEIGHT",
+        measuredAt: new Date("2026-05-01T08:00:00.000Z"),
+      } as never)
+      .mockRejectedValueOnce(
+        new Prisma.PrismaClientInitializationError(
+          "Operations timed out",
+          "test",
+          "P1008",
+        ),
+      );
+
+    const response = await POST(
+      request({ measurements: [measurement(80), measurement(81)] }),
+    );
+
+    expect(response.status).toBe(503);
+    expectRetryableFailure(await response.json(), {
+      measurements: 1,
+      moodEntries: 0,
+      skipped: 0,
+    });
+  });
+
+  it("returns retryable counts on connection loss", async () => {
+    vi.mocked(prisma.measurement.create).mockResolvedValueOnce({
+      id: "measurement-1",
+      type: "WEIGHT",
+      measuredAt: new Date("2026-05-01T08:00:00.000Z"),
+    } as never);
+    vi.mocked(prisma.moodEntry.create).mockRejectedValueOnce(
+      new Prisma.PrismaClientInitializationError(
+        "Can't reach database server",
+        "test",
+        "P1001",
+      ),
+    );
+
+    const response = await POST(
+      request({
+        measurements: [measurement()],
+        moodEntries: [moodEntry()],
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expectRetryableFailure(await response.json(), {
+      measurements: 1,
+      moodEntries: 0,
+      skipped: 0,
+    });
+  });
+
+  it("returns a retryable failure when note encryption fails", async () => {
+    encryptNoteMock.mockImplementationOnce(() => {
+      throw new Error("Encryption key unavailable");
+    });
+
+    const response = await POST(
+      request({
+        measurements: [{ ...measurement(), notes: "private note" }],
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expectRetryableFailure(await response.json(), {
+      measurements: 0,
+      moodEntries: 0,
+      skipped: 0,
+    });
+  });
+
+  it("returns a retryable failure for a generic mood write error", async () => {
+    vi.mocked(prisma.moodEntry.create).mockRejectedValueOnce(
+      new Error("write failed"),
+    );
+
+    const response = await POST(request({ moodEntries: [moodEntry()] }));
+
+    expect(response.status).toBe(503);
+    expectRetryableFailure(await response.json(), {
+      measurements: 0,
+      moodEntries: 0,
+      skipped: 0,
+    });
+  });
+
+  it("audits rows committed before a later write failure", async () => {
+    vi.mocked(prisma.measurement.create)
+      .mockResolvedValueOnce({
+        id: "measurement-1",
+        type: "WEIGHT",
+        measuredAt: new Date("2026-05-01T08:00:00.000Z"),
+      } as never)
+      .mockRejectedValueOnce(new Error("write failed"));
+
+    const response = await POST(
+      request({ measurements: [measurement(80), measurement(81)] }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(auditLog).toHaveBeenCalledWith("import.upload", {
+      userId: "u-1",
+      ipAddress: null,
+      details: { measurements: 1, moodEntries: 0, skipped: 0 },
+    });
+  });
+
+  it("keeps the classified failure when its audit also fails", async () => {
+    vi.mocked(prisma.measurement.create).mockRejectedValueOnce(
+      new Prisma.PrismaClientInitializationError(
+        "Can't reach database server",
+        "test",
+        "P1001",
+      ),
+    );
+    vi.mocked(auditLog).mockRejectedValueOnce(
+      new Prisma.PrismaClientInitializationError(
+        "Can't reach database server",
+        "test",
+        "P1001",
+      ),
+    );
+
+    const response = await POST(request({ measurements: [measurement()] }));
+
+    expect(response.status).toBe(503);
+    expectRetryableFailure(await response.json(), {
+      measurements: 0,
+      moodEntries: 0,
+      skipped: 0,
+    });
+    expect(auditLog).toHaveBeenCalledTimes(1);
   });
 });

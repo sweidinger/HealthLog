@@ -27,6 +27,7 @@ import {
 import type { MeasurementType } from "@/generated/prisma/client";
 import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
 import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
+import { isP2002, isP2025 } from "@/lib/prisma-errors";
 
 // Derived from canonical enum so round-trip export → import covers every
 // type. Previous hardcoded subset silently dropped 4 of 11 types
@@ -113,6 +114,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const userId = user.id;
   const data = parsed.data;
   const stats = { measurements: 0, moodEntries: 0, skipped: 0 };
+  let writeFailed = false;
 
   // Import measurements
   // v1.4.39.1 — track each (type, measuredAt) we wrote so we can re-
@@ -164,24 +166,32 @@ export const POST = apiHandler(async (request: NextRequest) => {
             // A pre-existing row or a raced insert owns the key. Preserve
             // idempotent re-import semantics without classifying this update
             // as an arrival.
-            await prisma.measurement.update({
-              where: {
-                userId_type_source_externalId: {
-                  userId,
-                  type: m.type,
-                  source: "IMPORT",
-                  externalId: m.externalId,
+            try {
+              await prisma.measurement.update({
+                where: {
+                  userId_type_source_externalId: {
+                    userId,
+                    type: m.type,
+                    source: "IMPORT",
+                    externalId: m.externalId,
+                  },
                 },
-              },
-              data: {
-                value: m.value,
-                unit: m.unit,
-                measuredAt,
-                notes: null,
-                notesEncrypted,
-                glucoseContext: m.glucoseContext ?? null,
-              },
-            });
+                data: {
+                  value: m.value,
+                  unit: m.unit,
+                  measuredAt,
+                  notes: null,
+                  notesEncrypted,
+                  glucoseContext: m.glucoseContext ?? null,
+                },
+              });
+            } catch (err) {
+              if (isP2025(err)) {
+                stats.skipped++;
+                continue;
+              }
+              throw err;
+            }
           }
         } else {
           const inserted = await prisma.measurement.create({
@@ -205,9 +215,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
           measuredAt,
         });
         stats.measurements++;
-      } catch {
-        // Unique constraint violation — skip duplicate
-        stats.skipped++;
+      } catch (err) {
+        if (isP2002(err)) {
+          stats.skipped++;
+          continue;
+        }
+        writeFailed = true;
+        break;
       }
     }
   }
@@ -225,7 +239,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   ).catch(() => {});
 
   // Import mood entries
-  if (data.moodEntries?.length) {
+  if (!writeFailed && data.moodEntries?.length) {
     for (const e of data.moodEntries) {
       try {
         const loggedAt = e.loggedAt ?? new Date();
@@ -274,9 +288,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
           });
         }
         stats.moodEntries++;
-      } catch {
-        // Unique constraint violation — skip duplicate
-        stats.skipped++;
+      } catch (err) {
+        if (isP2002(err)) {
+          stats.skipped++;
+          continue;
+        }
+        writeFailed = true;
+        break;
       }
     }
   }
@@ -322,13 +340,26 @@ export const POST = apiHandler(async (request: NextRequest) => {
     }
   }
 
-  await auditLog("import.upload", {
-    userId,
-    ipAddress: getClientIp(request),
-    details: stats,
-  });
-
   annotate({ meta: { import_stats: stats } });
+
+  try {
+    await auditLog("import.upload", {
+      userId,
+      ipAddress: getClientIp(request),
+      details: stats,
+    });
+  } catch (err) {
+    if (!writeFailed) throw err;
+    annotate({ meta: { import_audit_failed: true } });
+  }
+
+  if (writeFailed) {
+    return apiError("Import write failed", 503, {
+      errorCode: "import.write_failed",
+      retryable: true,
+      stats,
+    });
+  }
 
   return apiSuccess(stats);
 });
