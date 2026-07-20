@@ -530,6 +530,92 @@ describe("syncUserRecovery — durable cursor ordering", () => {
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
   });
 
+  it("keeps earlier chunks durable and resumes without duplicate rows after a later chunk fails", async () => {
+    const records = Array.from({ length: 21 }, (_, index) => ({
+      ...recovery,
+      cycle_id: index + 1,
+      sleep_id: `sleep-${index.toString().padStart(2, "0")}`,
+    }));
+    fetchRecoveriesMock.mockResolvedValue(records);
+
+    type StoredRow = {
+      id: string;
+      type: string;
+      measuredAt: Date;
+      externalId: string;
+    };
+    type TransactionState = { rows: Map<string, StoredRow> };
+
+    let committedRows = new Map<string, StoredRow>();
+    let committedInsertCount = 0;
+    let failLaterChunk = true;
+
+    prismaMock.$transaction.mockImplementation(
+      async (run: (tx: TransactionState) => unknown) => {
+        const stagedRows = new Map(committedRows);
+        const result = await run({ rows: stagedRows });
+        committedInsertCount += [...stagedRows.keys()].filter(
+          (key) => !committedRows.has(key),
+        ).length;
+        committedRows = stagedRows;
+        return result;
+      },
+    );
+    reconcileMock.mockImplementation(
+      async (
+        tx: TransactionState,
+        input: { type: string; measuredAt: Date; externalId: string },
+      ) => {
+        if (failLaterChunk && input.externalId === "sleep-20:recovery") {
+          return {
+            status: "failed",
+            reason: "db_error",
+            error: new Error("injected later-chunk failure"),
+          };
+        }
+
+        const existing = tx.rows.get(input.externalId);
+        const row = {
+          id: existing?.id ?? `row:${input.externalId}`,
+          type: input.type,
+          measuredAt: input.measuredAt,
+          externalId: input.externalId,
+        };
+        tx.rows.set(input.externalId, row);
+        return { status: existing ? "updated" : "inserted", row };
+      },
+    );
+
+    await expect(syncUserRecovery("user1")).rejects.toThrow();
+
+    expect(committedRows.size).toBeGreaterThan(0);
+    expect(committedRows.size).toBeLessThan(105);
+    expect(prismaMock.$transaction.mock.calls.length).toBeGreaterThan(1);
+    expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
+
+    failLaterChunk = false;
+    await expect(syncUserRecovery("user1")).resolves.toBe(105);
+
+    const expectedExternalIds = records.flatMap(({ sleep_id }) =>
+      ["recovery", "hrv_rmssd", "rhr", "spo2", "skin_temp"].map(
+        (fieldTag) => `${sleep_id}:${fieldTag}`,
+      ),
+    );
+    const emittedExternalIds = emitArrivalMock.mock.calls.flatMap((call) =>
+      (
+        call[1] as Array<{
+          externalId: string;
+        }>
+      ).map((row) => row.externalId),
+    );
+
+    expect(committedRows).toHaveLength(105);
+    expect(committedInsertCount).toBe(105);
+    expect([...committedRows.keys()]).toEqual(expectedExternalIds);
+    expect(emittedExternalIds).toEqual(expectedExternalIds);
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
+  });
+
   it("advances after success and replay updates identities without new arrivals", async () => {
     expect(await syncUserRecovery("user1")).toBe(5);
     expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);

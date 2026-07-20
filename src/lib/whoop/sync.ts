@@ -323,10 +323,12 @@ export interface WhoopMeasurementUpsert {
   sleepStage?: "CORE" | "DEEP" | "REM" | "AWAKE" | "IN_BED" | null;
 }
 
+const WHOOP_MEASUREMENT_TRANSACTION_CHUNK_SIZE = 100;
+
 /**
- * Upsert a batch of mapped WHOOP readings for one user and fold the rollup
- * tier + invalidate status-insight caches once at the end (mirrors the
- * Withings sync tail). The shared reconciler protects both external and
+ * Upsert mapped WHOOP readings for one user in bounded transactions, then fold
+ * the rollup tier + invalidate status-insight caches once at the end (mirrors
+ * the Withings sync tail). The shared reconciler protects both external and
  * natural identity; an exact WHOOP re-score overwrites in place. Returns the
  * count of rows written.
  *
@@ -344,56 +346,67 @@ export async function upsertWhoopMeasurements(
 
   let imported = 0;
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
-  const insertedRows: Array<
-    InsertedMeasurementArrivalRow & { externalId: string | null }
-  > = [];
 
-  const verdicts = await prisma.$transaction(
-    async (tx) => {
-      const outcomes = [];
-      for (const r of readings) {
-        const verdict = await reconcileExternalMeasurement(
-          tx,
-          {
-            userId,
-            type: r.type as MeasurementType,
-            source: "WHOOP",
-            value: r.value,
-            unit: r.unit,
-            measuredAt: r.measuredAt,
-            externalId: r.externalId,
-            sleepStage: r.sleepStage ?? null,
-          },
-          { exactExternalMatch: "update" },
-        );
-        if (verdict.status === "failed") {
-          throw new MeasurementReconciliationError(verdict);
+  for (
+    let chunkStart = 0;
+    chunkStart < readings.length;
+    chunkStart += WHOOP_MEASUREMENT_TRANSACTION_CHUNK_SIZE
+  ) {
+    const chunkEnd = Math.min(
+      chunkStart + WHOOP_MEASUREMENT_TRANSACTION_CHUNK_SIZE,
+      readings.length,
+    );
+    const verdicts = await prisma.$transaction(
+      async (tx) => {
+        const outcomes = [];
+        for (let index = chunkStart; index < chunkEnd; index++) {
+          const reading = readings[index]!;
+          const verdict = await reconcileExternalMeasurement(
+            tx,
+            {
+              userId,
+              type: reading.type as MeasurementType,
+              source: "WHOOP",
+              value: reading.value,
+              unit: reading.unit,
+              measuredAt: reading.measuredAt,
+              externalId: reading.externalId,
+              sleepStage: reading.sleepStage ?? null,
+            },
+            { exactExternalMatch: "update" },
+          );
+          if (verdict.status === "failed") {
+            throw new MeasurementReconciliationError(verdict);
+          }
+          outcomes.push(verdict);
         }
-        outcomes.push(verdict);
+        return outcomes;
+      },
+      { maxWait: 10_000, timeout: 60_000 },
+    );
+
+    const insertedRows: Array<
+      InsertedMeasurementArrivalRow & { externalId: string | null }
+    > = [];
+    for (let index = chunkStart; index < chunkEnd; index++) {
+      const reading = readings[index]!;
+      const verdict = verdicts[index - chunkStart]!;
+      for (const dirty of verdict.dirtyIdentities ?? []) {
+        touched.push(dirty);
       }
-      return outcomes;
-    },
-    { maxWait: 10_000, timeout: 60_000 },
-  );
+      const type = reading.type as MeasurementType;
+      imported++;
+      touched.push({ type, measuredAt: reading.measuredAt });
+      if (verdict.status === "inserted") {
+        insertedRows.push(verdict.row);
+      }
+    }
 
-  for (let index = 0; index < readings.length; index++) {
-    const reading = readings[index]!;
-    const verdict = verdicts[index]!;
-    for (const dirty of verdict.dirtyIdentities ?? []) {
-      touched.push(dirty);
-    }
-    const type = reading.type as MeasurementType;
-    imported++;
-    touched.push({ type, measuredAt: reading.measuredAt });
-    if (verdict.status === "inserted") {
-      insertedRows.push(verdict.row);
-    }
+    opts.onInserted?.(insertedRows);
+    void emitInsertedMeasurementArrivals(userId, insertedRows, "whoop").catch(
+      () => {},
+    );
   }
-
-  opts.onInserted?.(insertedRows);
-  void emitInsertedMeasurementArrivals(userId, insertedRows, "whoop").catch(
-    () => {},
-  );
   try {
     const keys = collapseToTypeDayKeys(touched);
     for (const k of keys) {
