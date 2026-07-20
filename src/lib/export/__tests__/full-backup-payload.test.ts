@@ -46,9 +46,7 @@ function makePrisma() {
           externalId: "moodlog-42",
           moodLoggedAt: new Date("2026-07-19T08:00:00.000Z"),
           deletedAt,
-          tagLinks: [
-            { rating: 4, moodTag: { key: "sleep_quality" } },
-          ],
+          tagLinks: [{ rating: 4, moodTag: { key: "sleep_quality" } }],
         },
       ]),
     },
@@ -94,10 +92,14 @@ describe("buildFullBackupPayload disaster-recovery mode", () => {
     installSectionMocks();
     const prisma = makePrisma();
 
-    const { payload } = await buildFullBackupPayload(prisma as never, "user-1", {
-      purpose: "disaster-recovery",
-      exportedAt: new Date("2026-07-20T00:00:00.000Z"),
-    });
+    const { payload } = await buildFullBackupPayload(
+      prisma as never,
+      "user-1",
+      {
+        purpose: "disaster-recovery",
+        exportedAt: new Date("2026-07-20T00:00:00.000Z"),
+      },
+    );
 
     expect(mocks.findMeasurementsPaged).toHaveBeenCalledWith(
       prisma,

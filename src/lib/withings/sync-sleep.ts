@@ -412,48 +412,51 @@ export async function syncUserSleep(
   // and are excluded (their `no-id` prefix would span every id-less night in
   // history, not just this fetch).
   const freshBySession = new Map<number, string[]>();
-  await prisma.$transaction(async (tx) => {
-    for (const segment of segments) {
-      const stage = mapWithingsSleepState(segment.state);
-      if (!stage) continue;
+  await prisma.$transaction(
+    async (tx) => {
+      for (const segment of segments) {
+        const stage = mapWithingsSleepState(segment.state);
+        if (!stage) continue;
 
-      const measuredAt = new Date(segment.enddate * 1000);
-      const durationSec = Math.max(0, segment.enddate - segment.startdate);
-      const minutes = Math.round(durationSec / 60);
-      const externalId = `withings:sleep:${userId}:${segment.id ?? "no-id"}:${segment.startdate}`;
-      if (typeof segment.id === "number") {
-        const fresh = freshBySession.get(segment.id) ?? [];
-        fresh.push(externalId);
-        freshBySession.set(segment.id, fresh);
-      }
+        const measuredAt = new Date(segment.enddate * 1000);
+        const durationSec = Math.max(0, segment.enddate - segment.startdate);
+        const minutes = Math.round(durationSec / 60);
+        const externalId = `withings:sleep:${userId}:${segment.id ?? "no-id"}:${segment.startdate}`;
+        if (typeof segment.id === "number") {
+          const fresh = freshBySession.get(segment.id) ?? [];
+          fresh.push(externalId);
+          freshBySession.set(segment.id, fresh);
+        }
 
-      const verdict = await reconcileExternalMeasurement(
-        tx,
-        {
-          userId,
-          type: SLEEP_TYPE,
-          value: minutes,
-          unit: getUnitForType(SLEEP_TYPE),
-          measuredAt,
-          source: "WITHINGS",
-          sleepStage: stage,
-          externalId,
-        },
-        { exactExternalMatch: "update" },
-      );
-      if (verdict.status === "failed") {
-        throw new MeasurementReconciliationError(verdict);
+        const verdict = await reconcileExternalMeasurement(
+          tx,
+          {
+            userId,
+            type: SLEEP_TYPE,
+            value: minutes,
+            unit: getUnitForType(SLEEP_TYPE),
+            measuredAt,
+            source: "WITHINGS",
+            sleepStage: stage,
+            externalId,
+          },
+          { exactExternalMatch: "update" },
+        );
+        if (verdict.status === "failed") {
+          throw new MeasurementReconciliationError(verdict);
+        }
+        for (const dirty of verdict.dirtyIdentities ?? []) {
+          touched.push(dirty);
+        }
+        if (verdict.status === "inserted") {
+          insertedSleepMeasuredAts.push(measuredAt);
+        }
+        touched.push({ type: SLEEP_TYPE, measuredAt });
+        imported++;
       }
-      for (const dirty of verdict.dirtyIdentities ?? []) {
-        touched.push(dirty);
-      }
-      if (verdict.status === "inserted") {
-        insertedSleepMeasuredAts.push(measuredAt);
-      }
-      touched.push({ type: SLEEP_TYPE, measuredAt });
-      imported++;
-    }
-  }, { timeout: 60_000 });
+    },
+    { timeout: 60_000 },
+  );
 
   // Session-scoped sweep (mirrors Google Health's replace-by-window): for each
   // session this fetch re-produced, soft-delete any live WITHINGS
@@ -486,35 +489,38 @@ export async function syncUserSleep(
     );
   }
 
-  await prisma.$transaction(async (tx) => {
-    for (const summary of summaries) {
-      const measuredAt = new Date(summary.enddate * 1000);
-      const sessionId = summary.id ?? "no-id";
-      for (const vital of mapWithingsSleepSummary(summary.data)) {
-        const verdict = await reconcileExternalMeasurement(
-          tx,
-          {
-            userId,
-            type: vital.type,
-            value: vital.value,
-            unit: getUnitForType(vital.type),
-            measuredAt,
-            source: "WITHINGS",
-            externalId: `withings:sleep:${userId}:${sessionId}:${vital.fieldTag}`,
-          },
-          { exactExternalMatch: "update" },
-        );
-        if (verdict.status === "failed") {
-          throw new MeasurementReconciliationError(verdict);
+  await prisma.$transaction(
+    async (tx) => {
+      for (const summary of summaries) {
+        const measuredAt = new Date(summary.enddate * 1000);
+        const sessionId = summary.id ?? "no-id";
+        for (const vital of mapWithingsSleepSummary(summary.data)) {
+          const verdict = await reconcileExternalMeasurement(
+            tx,
+            {
+              userId,
+              type: vital.type,
+              value: vital.value,
+              unit: getUnitForType(vital.type),
+              measuredAt,
+              source: "WITHINGS",
+              externalId: `withings:sleep:${userId}:${sessionId}:${vital.fieldTag}`,
+            },
+            { exactExternalMatch: "update" },
+          );
+          if (verdict.status === "failed") {
+            throw new MeasurementReconciliationError(verdict);
+          }
+          for (const dirty of verdict.dirtyIdentities ?? []) {
+            touched.push(dirty);
+          }
+          touched.push({ type: vital.type, measuredAt });
+          imported++;
         }
-        for (const dirty of verdict.dirtyIdentities ?? []) {
-          touched.push(dirty);
-        }
-        touched.push({ type: vital.type, measuredAt });
-        imported++;
       }
-    }
-  }, { timeout: 60_000 });
+    },
+    { timeout: 60_000 },
+  );
 
   // v1.4.39.1 — refresh the persistent rollup table for every distinct
   // (type, day) the sync touched. Sleep segments collapse heavily —

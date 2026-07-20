@@ -13,7 +13,6 @@ const txClient = vi.hoisted(() => ({
   },
 }));
 
-
 vi.mock("@/lib/db", () => ({
   prisma: {
     moodEntry: {
@@ -222,9 +221,7 @@ describe("PUT /api/mood-entries/[id] — split tag replacement", () => {
       error: null;
     };
     expect(body.data.tagKeys).toEqual(["happy"]);
-    expect(body.data.ratedFactors).toEqual([
-      { key: "factor_work", rating: 4 },
-    ]);
+    expect(body.data.ratedFactors).toEqual([{ key: "factor_work", rating: 4 }]);
     expect(body.error).toBeNull();
   });
 
@@ -254,9 +251,7 @@ describe("PUT /api/mood-entries/[id] — split tag replacement", () => {
       };
     };
     expect(body.data.tagKeys).toEqual(["happy"]);
-    expect(body.data.ratedFactors).toEqual([
-      { key: "factor_work", rating: 5 },
-    ]);
+    expect(body.data.ratedFactors).toEqual([{ key: "factor_work", rating: 5 }]);
   });
 
   it("returns 422 when a factor score is outside its catalog scale", async () => {
@@ -333,18 +328,18 @@ describe("PUT /api/mood-entries/[id] — split tag replacement", () => {
     });
   });
 
-  it.each([
-    { ratedFactors: null },
-    { ratedFactors: [] },
-  ])("clears RATED links for an explicit $ratedFactors", async (payload) => {
-    const res = await PUT(putReq(payload), ROUTE_CTX);
+  it.each([{ ratedFactors: null }, { ratedFactors: [] }])(
+    "clears RATED links for an explicit $ratedFactors",
+    async (payload) => {
+      const res = await PUT(putReq(payload), ROUTE_CTX);
 
-    expect(res.status).toBe(200);
-    expect(replaceRatedFactorLinks).toHaveBeenCalledWith(
-      "me1",
-      "user-1",
-      [],
-      txClient,
-    );
-  });
+      expect(res.status).toBe(200);
+      expect(replaceRatedFactorLinks).toHaveBeenCalledWith(
+        "me1",
+        "user-1",
+        [],
+        txClient,
+      );
+    },
+  );
 });

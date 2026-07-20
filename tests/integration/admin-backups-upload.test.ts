@@ -239,34 +239,43 @@ describe("POST /api/admin/backups/upload", () => {
   });
 
   it.each([
-    ["measurement type", (payload: UploadPayloadFixture) => {
-      payload.measurements[0]!.type = "NOT_A_MEASUREMENT";
-    }],
-    ["measurement source", (payload: UploadPayloadFixture) => {
-      payload.measurements[0]!.source = "NOT_A_SOURCE";
-    }],
-  ])("rejects an invalid %s with 422 and zero backup writes", async (_label, mutate) => {
-    const prisma = getPrismaClient();
-    const admin = await seedAdminSession();
-    const payload = buildPayload(admin.id);
-    mutate(payload);
-    const file = new File([JSON.stringify(payload)], "invalid-enum.json", {
-      type: "application/json",
-    });
+    [
+      "measurement type",
+      (payload: UploadPayloadFixture) => {
+        payload.measurements[0]!.type = "NOT_A_MEASUREMENT";
+      },
+    ],
+    [
+      "measurement source",
+      (payload: UploadPayloadFixture) => {
+        payload.measurements[0]!.source = "NOT_A_SOURCE";
+      },
+    ],
+  ])(
+    "rejects an invalid %s with 422 and zero backup writes",
+    async (_label, mutate) => {
+      const prisma = getPrismaClient();
+      const admin = await seedAdminSession();
+      const payload = buildPayload(admin.id);
+      mutate(payload);
+      const file = new File([JSON.stringify(payload)], "invalid-enum.json", {
+        type: "application/json",
+      });
 
-    const { POST } = await import("@/app/api/admin/backups/upload/route");
-    const res = await POST(
-      buildMultipart(file) as unknown as Parameters<typeof POST>[0],
-    );
+      const { POST } = await import("@/app/api/admin/backups/upload/route");
+      const res = await POST(
+        buildMultipart(file) as unknown as Parameters<typeof POST>[0],
+      );
 
-    expect(res.status).toBe(422);
-    expect(await res.json()).toMatchObject({
-      data: null,
-      error: "Backup payload failed schema validation",
-      meta: { issues: expect.any(Array) },
-    });
-    expect(await prisma.dataBackup.count()).toBe(0);
-  });
+      expect(res.status).toBe(422);
+      expect(await res.json()).toMatchObject({
+        data: null,
+        error: "Backup payload failed schema validation",
+        meta: { issues: expect.any(Array) },
+      });
+      expect(await prisma.dataBackup.count()).toBe(0);
+    },
+  );
 
   it("rejects an incompatible schemaVersion with 422", async () => {
     const prisma = getPrismaClient();

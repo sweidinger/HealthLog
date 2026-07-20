@@ -77,7 +77,9 @@ vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
       });
       return { status: "updated", row: { ...exact, ...input } };
     }
-    const [inserted] = await tx.measurement.createManyAndReturn({ data: input });
+    const [inserted] = await tx.measurement.createManyAndReturn({
+      data: input,
+    });
     if (inserted) return { status: "inserted", row: inserted };
     if (options.exactExternalMatch === "update") {
       await tx.measurement.updateMany({ where: {}, data: input });

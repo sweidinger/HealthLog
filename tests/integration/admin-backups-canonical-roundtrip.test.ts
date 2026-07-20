@@ -12,7 +12,6 @@ process.env.BACKUP_S3_ACCESS_KEY = "test-access";
 process.env.BACKUP_S3_SECRET_KEY = "test-secret";
 process.env.BACKUP_ENCRYPTION_KEY = OFFHOST_ENCRYPTION_KEY;
 
-
 import { encrypt, encryptBytes } from "@/lib/crypto";
 import { encryptToBytes, decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import {
@@ -337,15 +336,10 @@ describe("canonical disaster-recovery backup round-trip", () => {
       failed: 0,
       totalUsers: 1,
     });
-    const offhostObject = s3.objects.get(
-      `2026-07-02/user-${ownerId}.json.enc`,
-    );
+    const offhostObject = s3.objects.get(`2026-07-02/user-${ownerId}.json.enc`);
     expect(offhostObject).toBeDefined();
     const payload = parseBackupPayload(
-      decryptBackup(
-        offhostObject!,
-        Buffer.from(OFFHOST_ENCRYPTION_KEY, "hex"),
-      ),
+      decryptBackup(offhostObject!, Buffer.from(OFFHOST_ENCRYPTION_KEY, "hex")),
     );
     expect(payload).toMatchObject({
       schemaVersion: "1",
@@ -379,14 +373,26 @@ describe("canonical disaster-recovery backup round-trip", () => {
 
     expect((await restore()).status).toBe(200);
 
-    expect(await prisma.labResult.count({ where: { userId: ownerId } })).toBe(1);
-    expect(await prisma.biomarker.count({ where: { userId: ownerId } })).toBe(1);
-    expect(await prisma.illnessEpisode.count({ where: { userId: ownerId } })).toBe(1);
-    expect(await prisma.illnessDayLog.count({ where: { userId: ownerId } })).toBe(1);
+    expect(await prisma.labResult.count({ where: { userId: ownerId } })).toBe(
+      1,
+    );
+    expect(await prisma.biomarker.count({ where: { userId: ownerId } })).toBe(
+      1,
+    );
+    expect(
+      await prisma.illnessEpisode.count({ where: { userId: ownerId } }),
+    ).toBe(1);
+    expect(
+      await prisma.illnessDayLog.count({ where: { userId: ownerId } }),
+    ).toBe(1);
     expect(await prisma.allergy.count({ where: { userId: ownerId } })).toBe(1);
-    expect(await prisma.familyHistoryEntry.count({ where: { userId: ownerId } })).toBe(1);
+    expect(
+      await prisma.familyHistoryEntry.count({ where: { userId: ownerId } }),
+    ).toBe(1);
     expect(await prisma.workout.count({ where: { userId: ownerId } })).toBe(1);
-    expect(await prisma.inboundDocument.count({ where: { userId: ownerId } })).toBe(1);
+    expect(
+      await prisma.inboundDocument.count({ where: { userId: ownerId } }),
+    ).toBe(1);
     expect(
       await prisma.measurement.findUniqueOrThrow({
         where: { id: measurement.id },
@@ -466,7 +472,9 @@ describe("canonical disaster-recovery backup round-trip", () => {
       where: { id: illnessDay.id },
       include: { symptomLinks: true },
     });
-    expect(decryptFromBytes(restoredIllnessDay.noteEncrypted!)).toBe("Rest day");
+    expect(decryptFromBytes(restoredIllnessDay.noteEncrypted!)).toBe(
+      "Rest day",
+    );
     expect(restoredIllnessDay.symptomLinks).toEqual([
       expect.objectContaining({ symptomId: symptom.id, severity: 2 }),
     ]);
@@ -625,55 +633,57 @@ describe("canonical disaster-recovery backup round-trip", () => {
         payload.schemaVersion = "999";
       },
     },
-  ])("rejects $label with 422 before writes or invalidation", async ({ mutate }) => {
-    const prisma = getPrismaClient();
-    const admin = await seedAdminSession();
-    const existing = await prisma.measurement.create({
-      data: {
-        id: "pre-validation-measurement",
+  ])(
+    "rejects $label with 422 before writes or invalidation",
+    async ({ mutate }) => {
+      const prisma = getPrismaClient();
+      const admin = await seedAdminSession();
+      const existing = await prisma.measurement.create({
+        data: {
+          id: "pre-validation-measurement",
+          userId: admin.id,
+          type: "WEIGHT",
+          value: 91,
+          unit: "kg",
+          source: "MANUAL",
+          measuredAt: new Date("2026-07-03T06:00:00.000Z"),
+        },
+      });
+      const payload: Record<string, unknown> = {
+        schemaVersion: "1",
+        exportedAt: "2026-07-03T08:00:00.000Z",
         userId: admin.id,
-        type: "WEIGHT",
-        value: 91,
-        unit: "kg",
-        source: "MANUAL",
-        measuredAt: new Date("2026-07-03T06:00:00.000Z"),
-      },
-    });
-    const payload: Record<string, unknown> = {
-      schemaVersion: "1",
-      exportedAt: "2026-07-03T08:00:00.000Z",
-      userId: admin.id,
-      measurements: [],
-      moodEntries: [],
-    };
-    mutate(payload);
-    const backup = await prisma.dataBackup.create({
-      data: {
-        userId: admin.id,
-        type: `INVALID_BOUNDARY_${String(payload.schemaVersion)}`,
-        data: encrypt(JSON.stringify(payload)),
-      },
-    });
+        measurements: [],
+        moodEntries: [],
+      };
+      mutate(payload);
+      const backup = await prisma.dataBackup.create({
+        data: {
+          userId: admin.id,
+          type: `INVALID_BOUNDARY_${String(payload.schemaVersion)}`,
+          data: encrypt(JSON.stringify(payload)),
+        },
+      });
 
-    const response = await POST(
-      makeRequest(backup.id) as unknown as Parameters<typeof POST>[0],
-      { params: Promise.resolve({ id: backup.id }) },
-    );
+      const response = await POST(
+        makeRequest(backup.id) as unknown as Parameters<typeof POST>[0],
+        { params: Promise.resolve({ id: backup.id }) },
+      );
 
-    expect(response.status).toBe(422);
-    expect(await response.json()).toMatchObject({
-      data: null,
-      error: expect.any(String),
-    });
-    expect(
-      await prisma.measurement.findMany({
-        where: { userId: admin.id },
-        select: { id: true },
-      }),
-    ).toEqual([{ id: existing.id }]);
-    expect(invalidateUserData).not.toHaveBeenCalled();
-  });
-
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({
+        data: null,
+        error: expect.any(String),
+      });
+      expect(
+        await prisma.measurement.findMany({
+          where: { userId: admin.id },
+          select: { id: true },
+        }),
+      ).toEqual([{ id: existing.id }]);
+      expect(invalidateUserData).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects metadata-only documents before mutation or invalidation", async () => {
     const prisma = getPrismaClient();
@@ -784,9 +794,9 @@ describe("canonical disaster-recovery backup round-trip", () => {
         select: { id: true },
       }),
     ).toEqual([{ id: measurement.id }]);
-    expect(
-      await prisma.moodEntry.count({ where: { userId: admin.id } }),
-    ).toBe(0);
+    expect(await prisma.moodEntry.count({ where: { userId: admin.id } })).toBe(
+      0,
+    );
     expect(invalidateUserData).not.toHaveBeenCalled();
   });
 });

@@ -106,17 +106,22 @@ beforeEach(() => {
   transactionMock
     .mockReset()
     .mockImplementation(async (run: (tx: unknown) => unknown) => run({}));
-  reconcileMock.mockReset().mockImplementation(
-    async (_tx: unknown, input: { type: string; measuredAt: Date; externalId: string }) => ({
-      status: "inserted",
-      row: {
-        id: `inserted:${input.externalId}`,
-        type: input.type,
-        measuredAt: input.measuredAt,
-        externalId: input.externalId,
-      },
-    }),
-  );
+  reconcileMock
+    .mockReset()
+    .mockImplementation(
+      async (
+        _tx: unknown,
+        input: { type: string; measuredAt: Date; externalId: string },
+      ) => ({
+        status: "inserted",
+        row: {
+          id: `inserted:${input.externalId}`,
+          type: input.type,
+          measuredAt: input.measuredAt,
+          externalId: input.externalId,
+        },
+      }),
+    );
   createManyAndReturnMock.mockReset().mockImplementation(
     async ({
       data,

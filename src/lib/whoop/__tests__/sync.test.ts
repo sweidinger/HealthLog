@@ -118,7 +118,10 @@ beforeEach(() => {
     async (run: (tx: unknown) => unknown) => run(prismaMock),
   );
   reconcileMock.mockImplementation(
-    async (_tx: unknown, input: { type: string; measuredAt: Date; externalId: string }) => ({
+    async (
+      _tx: unknown,
+      input: { type: string; measuredAt: Date; externalId: string },
+    ) => ({
       status: "inserted",
       row: {
         id: `inserted:${input.externalId}`,
@@ -166,7 +169,6 @@ describe("getValidToken — rotating refresh", () => {
     expect(updateArg.data.refreshToken).toBe("enc(new-refresh)");
     expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(1);
   });
-
 
   it("re-reads token state under an advisory lock and reuses a peer winner", async () => {
     prismaMock.whoopConnection.findUnique
@@ -549,7 +551,10 @@ describe("syncUserRecovery — durable cursor ordering", () => {
     });
     fetchRecoveriesMock.mockResolvedValue([recovery]);
     reconcileMock.mockImplementation(
-      async (_tx: unknown, input: { type: string; measuredAt: Date; externalId: string }) => ({
+      async (
+        _tx: unknown,
+        input: { type: string; measuredAt: Date; externalId: string },
+      ) => ({
         status: "updated",
         row: {
           id: `existing:${input.externalId}`,

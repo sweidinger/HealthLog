@@ -68,7 +68,10 @@ export function classifyStravaFailure(err: unknown): FailureKind {
   return toFailureKind(classifyStravaError(err));
 }
 
-async function recordStravaFailure(userId: string, err: unknown): Promise<void> {
+async function recordStravaFailure(
+  userId: string,
+  err: unknown,
+): Promise<void> {
   await recordSyncFailure({
     userId,
     integration: "strava",

@@ -79,10 +79,7 @@ async function seedProviderUser(provider: "whoop" | "withings") {
   return userId;
 }
 
-async function runContenders(
-  provider: "whoop" | "withings",
-  userId: string,
-) {
+async function runContenders(provider: "whoop" | "withings", userId: string) {
   const getToken =
     provider === "whoop" ? getValidWhoopToken : getValidWithingsToken;
   return Promise.all(
@@ -98,62 +95,73 @@ beforeEach(async () => {
 describe.each([
   ["whoop", whoopRefresh],
   ["withings", withingsRefresh],
-] as const)("%s rotating token refresh serialization (real Postgres)", (provider, refresh) => {
-  it("lets exactly one contender refresh a stale token and shares the winner", async () => {
-    const userId = await seedProviderUser(provider);
-    refresh.mockImplementation(async (refreshToken: string) => {
-      expect(refreshToken).toBe("stale-refresh");
-      return {
-        access_token: "winner-access",
-        refresh_token: "winner-refresh",
-        expires_in: 3600,
-      };
-    });
-
-    const results = await runContenders(provider, userId);
-
-    expect(refresh).toHaveBeenCalledTimes(1);
-    expect(results).toHaveLength(CONTENDERS);
-    expect(results.every((result) => result?.accessToken === "winner-access")).toBe(
-      true,
-    );
-
-    const prisma = getPrismaClient();
-    const row =
-      provider === "whoop"
-        ? await prisma.whoopConnection.findUniqueOrThrow({ where: { userId } })
-        : await prisma.withingsConnection.findUniqueOrThrow({ where: { userId } });
-    expect(decrypt(row.accessToken)).toBe("winner-access");
-    expect(decrypt(row.refreshToken)).toBe("winner-refresh");
-  });
-
-  it("rolls back a failed winner so a later contender can retry", async () => {
-    const userId = await seedProviderUser(provider);
-    refresh
-      .mockRejectedValueOnce(new Error("injected refresh failure"))
-      .mockResolvedValue({
-        access_token: "retry-access",
-        refresh_token: "retry-refresh",
-        expires_in: 3600,
+] as const)(
+  "%s rotating token refresh serialization (real Postgres)",
+  (provider, refresh) => {
+    it("lets exactly one contender refresh a stale token and shares the winner", async () => {
+      const userId = await seedProviderUser(provider);
+      refresh.mockImplementation(async (refreshToken: string) => {
+        expect(refreshToken).toBe("stale-refresh");
+        return {
+          access_token: "winner-access",
+          refresh_token: "winner-refresh",
+          expires_in: 3600,
+        };
       });
 
-    const results = await runContenders(provider, userId);
+      const results = await runContenders(provider, userId);
 
-    expect(refresh).toHaveBeenCalledTimes(2);
-    expect(results.filter((result) => result === null)).toHaveLength(1);
-    expect(
-      results.filter((result) => result?.accessToken === "retry-access"),
-    ).toHaveLength(CONTENDERS - 1);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(results).toHaveLength(CONTENDERS);
+      expect(
+        results.every((result) => result?.accessToken === "winner-access"),
+      ).toBe(true);
 
-    const prisma = getPrismaClient();
-    const row =
-      provider === "whoop"
-        ? await prisma.whoopConnection.findUniqueOrThrow({ where: { userId } })
-        : await prisma.withingsConnection.findUniqueOrThrow({ where: { userId } });
-    expect(decrypt(row.accessToken)).toBe("retry-access");
-    expect(decrypt(row.refreshToken)).toBe("retry-refresh");
-  });
-});
+      const prisma = getPrismaClient();
+      const row =
+        provider === "whoop"
+          ? await prisma.whoopConnection.findUniqueOrThrow({
+              where: { userId },
+            })
+          : await prisma.withingsConnection.findUniqueOrThrow({
+              where: { userId },
+            });
+      expect(decrypt(row.accessToken)).toBe("winner-access");
+      expect(decrypt(row.refreshToken)).toBe("winner-refresh");
+    });
+
+    it("rolls back a failed winner so a later contender can retry", async () => {
+      const userId = await seedProviderUser(provider);
+      refresh
+        .mockRejectedValueOnce(new Error("injected refresh failure"))
+        .mockResolvedValue({
+          access_token: "retry-access",
+          refresh_token: "retry-refresh",
+          expires_in: 3600,
+        });
+
+      const results = await runContenders(provider, userId);
+
+      expect(refresh).toHaveBeenCalledTimes(2);
+      expect(results.filter((result) => result === null)).toHaveLength(1);
+      expect(
+        results.filter((result) => result?.accessToken === "retry-access"),
+      ).toHaveLength(CONTENDERS - 1);
+
+      const prisma = getPrismaClient();
+      const row =
+        provider === "whoop"
+          ? await prisma.whoopConnection.findUniqueOrThrow({
+              where: { userId },
+            })
+          : await prisma.withingsConnection.findUniqueOrThrow({
+              where: { userId },
+            });
+      expect(decrypt(row.accessToken)).toBe("retry-access");
+      expect(decrypt(row.refreshToken)).toBe("retry-refresh");
+    });
+  },
+);
 
 describe("WHOOP recovery cursor durability (real Postgres)", () => {
   const oldCursor = "2026-06-01T00:00:00.000Z";

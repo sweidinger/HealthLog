@@ -210,30 +210,33 @@ export async function upsertPolarMeasurements(
     InsertedMeasurementArrivalRow & { externalId: string | null }
   > = [];
 
-  const verdicts = await prisma.$transaction(async (tx) => {
-    const outcomes = [];
-    for (const r of readings) {
-      const verdict = await reconcileExternalMeasurement(
-        tx,
-        {
-          userId,
-          type: r.type as MeasurementType,
-          source: "POLAR",
-          value: r.value,
-          unit: r.unit,
-          measuredAt: r.measuredAt,
-          externalId: r.externalId,
-          sleepStage: r.sleepStage ?? null,
-        },
-        { exactExternalMatch: "update" },
-      );
-      if (verdict.status === "failed") {
-        throw new MeasurementReconciliationError(verdict);
+  const verdicts = await prisma.$transaction(
+    async (tx) => {
+      const outcomes = [];
+      for (const r of readings) {
+        const verdict = await reconcileExternalMeasurement(
+          tx,
+          {
+            userId,
+            type: r.type as MeasurementType,
+            source: "POLAR",
+            value: r.value,
+            unit: r.unit,
+            measuredAt: r.measuredAt,
+            externalId: r.externalId,
+            sleepStage: r.sleepStage ?? null,
+          },
+          { exactExternalMatch: "update" },
+        );
+        if (verdict.status === "failed") {
+          throw new MeasurementReconciliationError(verdict);
+        }
+        outcomes.push(verdict);
       }
-      outcomes.push(verdict);
-    }
-    return outcomes;
-  }, { timeout: 60_000 });
+      return outcomes;
+    },
+    { timeout: 60_000 },
+  );
 
   for (let index = 0; index < readings.length; index++) {
     const reading = readings[index]!;

@@ -46,7 +46,6 @@ import {
   SecondarySymptom,
 } from "@/generated/prisma/enums";
 
-
 export const BACKUP_SCHEMA_VERSION = "1" as const;
 
 const isoDateTime = z
@@ -351,8 +350,7 @@ const base64BytesSchema = z
   .string()
   .min(1)
   .refine(
-    (value) =>
-      value.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(value),
+    (value) => value.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(value),
     { message: "Expected base64-encoded encrypted bytes" },
   );
 

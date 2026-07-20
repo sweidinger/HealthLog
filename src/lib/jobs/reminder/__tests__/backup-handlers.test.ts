@@ -38,9 +38,9 @@ const documentCiphertext = Buffer.from([1, 2, 3, 4]).toString("base64");
 function buildPrismaMock() {
   return {
     user: {
-      findMany: vi.fn().mockResolvedValue([
-        { id: "user-dr", username: "backup-owner" },
-      ]),
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ id: "user-dr", username: "backup-owner" }]),
     },
     dataBackup: { upsert: mocks.upsert },
   };

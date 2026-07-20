@@ -272,7 +272,6 @@ describe("replaceTagLinks — archived-tag links survive an entry edit", () => {
       skipDuplicates: true,
     });
   });
-
 });
 
 describe("entry-ownership guard", () => {

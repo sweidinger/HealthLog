@@ -234,11 +234,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // the APNs row with the newly presented metadata.
     let canonicalDevice = apnsDevice ?? legacyDevice;
     let duplicateDevice: typeof legacyDevice = null;
-    if (
-      apnsDevice &&
-      legacyDevice &&
-      apnsDevice.id !== legacyDevice.id
-    ) {
+    if (apnsDevice && legacyDevice && apnsDevice.id !== legacyDevice.id) {
       duplicateDevice = legacyDevice;
       await tx.device.deleteMany({
         where: { id: legacyDevice.id, userId: user.id },

@@ -73,7 +73,6 @@ function decodeEncryptedBytes(encoded: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-
 const handler = apiHandler(
   async (
     request: NextRequest,
@@ -231,7 +230,6 @@ const handler = apiHandler(
       },
     });
 
-
     // Portable exports intentionally omit document ciphertext. They remain
     // valid upload/download artifacts, but cannot be used to manufacture an
     // InboundDocument row. A DR restore must fail before any delete rather
@@ -270,553 +268,560 @@ const handler = apiHandler(
 
     let cleared: RestoreResponse["cleared"];
     try {
-      cleared = await prisma.$transaction(async (tx) => {
-        // Delete every serialized owner-scoped partition before rebuilding it
-        // in the same transaction. Child rows either go first for counts or
-        // cascade from their serialized parent.
-        const intake = await tx.medicationIntakeEvent.deleteMany({
-          where: { userId: ownerId },
-        });
-        const meds = await tx.medication.deleteMany({
-          where: { userId: ownerId },
-        });
-        const measurements = await tx.measurement.deleteMany({
-          where: { userId: ownerId },
-        });
-        const moods = await tx.moodEntry.deleteMany({
-          where: { userId: ownerId },
-        });
-        // v1.4.39 W-MOOD — wipe the persisted mood rollup partition
-        // for this owner so the next analytics read doesn't surface
-        // pre-restore daily means. The fold below mints fresh rows
-        // from the restored mood entries.
-        await tx.moodEntryRollup.deleteMany({ where: { userId: ownerId } });
-        // v1.4.39.1 — wipe the persisted measurement rollup partition
-        // for the same reason. Pre-fix the partition kept the previous
-        // owner's daily means even after the underlying measurements
-        // were replaced — the chart's `source=rollup` fast-path could
-        // surface a stale 30-day mean built from rows that no longer
-        // existed. The fold below mints fresh rows from the restored
-        // measurement set.
-        await tx.measurementRollup.deleteMany({ where: { userId: ownerId } });
-        const channels = await tx.notificationChannel.deleteMany({
-          where: { userId: ownerId },
-        });
-        const subs = await tx.pushSubscription.deleteMany({
-          where: { userId: ownerId },
-        });
-        const tgDel = await tx.telegramScheduledDeletion.deleteMany({
-          where: { userId: ownerId },
-        });
-        const documents = await tx.inboundDocument.deleteMany({
-          where: { userId: ownerId },
-        });
-        const workouts = await tx.workout.deleteMany({
-          where: { userId: ownerId },
-        });
-        const familyHistory = await tx.familyHistoryEntry.deleteMany({
-          where: { userId: ownerId },
-        });
-        const allergies = await tx.allergy.deleteMany({
-          where: { userId: ownerId },
-        });
-        const illnessEpisodes = await tx.illnessEpisode.deleteMany({
-          where: { userId: ownerId },
-        });
-        const labResults = await tx.labResult.deleteMany({
-          where: { userId: ownerId },
-        });
-        const biomarkers = await tx.biomarker.deleteMany({
-          where: { userId: ownerId },
-        });
+      cleared = await prisma.$transaction(
+        async (tx) => {
+          // Delete every serialized owner-scoped partition before rebuilding it
+          // in the same transaction. Child rows either go first for counts or
+          // cascade from their serialized parent.
+          const intake = await tx.medicationIntakeEvent.deleteMany({
+            where: { userId: ownerId },
+          });
+          const meds = await tx.medication.deleteMany({
+            where: { userId: ownerId },
+          });
+          const measurements = await tx.measurement.deleteMany({
+            where: { userId: ownerId },
+          });
+          const moods = await tx.moodEntry.deleteMany({
+            where: { userId: ownerId },
+          });
+          // v1.4.39 W-MOOD — wipe the persisted mood rollup partition
+          // for this owner so the next analytics read doesn't surface
+          // pre-restore daily means. The fold below mints fresh rows
+          // from the restored mood entries.
+          await tx.moodEntryRollup.deleteMany({ where: { userId: ownerId } });
+          // v1.4.39.1 — wipe the persisted measurement rollup partition
+          // for the same reason. Pre-fix the partition kept the previous
+          // owner's daily means even after the underlying measurements
+          // were replaced — the chart's `source=rollup` fast-path could
+          // surface a stale 30-day mean built from rows that no longer
+          // existed. The fold below mints fresh rows from the restored
+          // measurement set.
+          await tx.measurementRollup.deleteMany({ where: { userId: ownerId } });
+          const channels = await tx.notificationChannel.deleteMany({
+            where: { userId: ownerId },
+          });
+          const subs = await tx.pushSubscription.deleteMany({
+            where: { userId: ownerId },
+          });
+          const tgDel = await tx.telegramScheduledDeletion.deleteMany({
+            where: { userId: ownerId },
+          });
+          const documents = await tx.inboundDocument.deleteMany({
+            where: { userId: ownerId },
+          });
+          const workouts = await tx.workout.deleteMany({
+            where: { userId: ownerId },
+          });
+          const familyHistory = await tx.familyHistoryEntry.deleteMany({
+            where: { userId: ownerId },
+          });
+          const allergies = await tx.allergy.deleteMany({
+            where: { userId: ownerId },
+          });
+          const illnessEpisodes = await tx.illnessEpisode.deleteMany({
+            where: { userId: ownerId },
+          });
+          const labResults = await tx.labResult.deleteMany({
+            where: { userId: ownerId },
+          });
+          const biomarkers = await tx.biomarker.deleteMany({
+            where: { userId: ownerId },
+          });
 
-        // Stable ids are authoritative for canonical snapshots. Legacy payloads
-        // without ids fall back to the historic natural measurement key.
-        for (const measurement of payload.measurements) {
-          const measuredAt = new Date(measurement.measuredAt);
-          const source = measurement.source ?? "MANUAL";
-          const restoredData = {
-            type: measurement.type,
-            value: measurement.value,
-            unit: measurement.unit,
-            source,
-            measuredAt,
-            notes: null,
-            notesEncrypted: encryptNote(measurement.notes ?? null),
-            deletedAt: measurement.deletedAt
-              ? new Date(measurement.deletedAt)
-              : null,
-          };
-
-          if (measurement.id) {
-            await tx.measurement.upsert({
-              where: { id: measurement.id, userId: ownerId },
-              create: {
-                id: measurement.id,
-                userId: ownerId,
-                ...restoredData,
-              },
-              update: restoredData,
-            });
-            continue;
-          }
-
-          const existing = await tx.measurement.findFirst({
-            where: {
-              userId: ownerId,
+          // Stable ids are authoritative for canonical snapshots. Legacy payloads
+          // without ids fall back to the historic natural measurement key.
+          for (const measurement of payload.measurements) {
+            const measuredAt = new Date(measurement.measuredAt);
+            const source = measurement.source ?? "MANUAL";
+            const restoredData = {
               type: measurement.type,
+              value: measurement.value,
+              unit: measurement.unit,
               source,
               measuredAt,
-            },
-            select: { id: true },
-          });
-          if (existing) {
-            await tx.measurement.update({
-              where: { id: existing.id, userId: ownerId },
-              data: restoredData,
-            });
-          } else {
-            await tx.measurement.create({
-              data: { userId: ownerId, ...restoredData },
-            });
-          }
-        }
-
-        // Medications + schedules — restore one at a time so we can
-        // wire schedules to their parent's freshly-generated id, AND
-        // build a name → id map for the intake events that follow.
-        const medByName = new Map<string, string>();
-        for (const m of payload.medications) {
-          const created = await tx.medication.create({
-            data: {
-              userId: ownerId,
-              name: m.name,
-              dose: m.dose,
-              active: m.active ?? true,
-              schedules: {
-                create: m.schedules.map((s) => ({
-                  windowStart: s.windowStart,
-                  windowEnd: s.windowEnd,
-                  label: s.label ?? null,
-                  dose: s.dose ?? null,
-                })),
-              },
-            },
-          });
-          // First write wins on duplicate names — keeps the round-trip
-          // deterministic against the restore-from-our-own-download case.
-          if (!medByName.has(m.name)) medByName.set(m.name, created.id);
-        }
-
-        // Intake events — only restore the ones whose `medication` name
-        // resolved against a row we just created. Orphans (medications
-        // that were deleted before the snapshot but still referenced by
-        // intake events) are dropped silently — the alternative would
-        // be an FK-violation crash, which is worse than a slightly
-        // smaller history.
-        if (payload.intakeEvents.length > 0) {
-          const rows = payload.intakeEvents
-            .map((e) => {
-              const medId = medByName.get(e.medication);
-              if (!medId) return null;
-              return {
-                userId: ownerId,
-                medicationId: medId,
-                scheduledFor: new Date(e.scheduledFor),
-                takenAt: e.takenAt ? new Date(e.takenAt) : null,
-                skipped: e.skipped ?? false,
-                source: (e.source ?? "WEB") as never,
-              };
-            })
-            .filter((r): r is NonNullable<typeof r> => r !== null);
-          if (rows.length > 0) {
-            await tx.medicationIntakeEvent.createMany({ data: rows });
-          }
-        }
-
-        if (payload.moodEntries.length > 0) {
-          const factorKeys = [
-            ...new Set(
-              payload.moodEntries.flatMap((entry) =>
-                entry.factors.map((factor) => factor.key),
-              ),
-            ),
-          ];
-          const factorRows =
-            factorKeys.length === 0
-              ? []
-              : await tx.moodTag.findMany({
-                  where: {
-                    key: { in: factorKeys },
-                    kind: "RATED",
-                    userId: null,
-                  },
-                  select: { id: true, key: true },
-                });
-          const factorByKey = new Map(
-            factorRows.map((factor) => [factor.key, factor.id]),
-          );
-          if (factorByKey.size !== factorKeys.length) {
-            const missing = factorKeys.filter((key) => !factorByKey.has(key));
-            throw new Error(`Unknown mood factor keys: ${missing.join(", ")}`);
-          }
-
-          for (const entry of payload.moodEntries) {
-            const moodLoggedAt = new Date(entry.loggedAt);
-            const restoredData = {
-              date: entry.date,
-              mood: entry.mood,
-              score: entry.score,
-              tags: entry.tags ?? null,
-              source: entry.source ?? "MOODLOG",
-              externalId: entry.externalId ?? null,
-              moodLoggedAt,
-              deletedAt: entry.deletedAt ? new Date(entry.deletedAt) : null,
+              notes: null,
+              notesEncrypted: encryptNote(measurement.notes ?? null),
+              deletedAt: measurement.deletedAt
+                ? new Date(measurement.deletedAt)
+                : null,
             };
-            const createData = { userId: ownerId, ...restoredData };
-            const restored = entry.id
-              ? await tx.moodEntry.upsert({
-                  where: { id: entry.id, userId: ownerId },
-                  create: { id: entry.id, ...createData },
-                  update: restoredData,
-                })
-              : entry.externalId
-                ? await tx.moodEntry.upsert({
-                    where: {
-                      userId_source_externalId: {
-                        userId: ownerId,
-                        source: restoredData.source,
-                        externalId: entry.externalId,
-                      },
-                    },
-                    create: createData,
-                    update: restoredData,
-                  })
-                : await tx.moodEntry.upsert({
-                    where: {
-                      userId_date_moodLoggedAt: {
-                        userId: ownerId,
-                        date: entry.date,
-                        moodLoggedAt,
-                      },
-                    },
-                    create: createData,
-                    update: restoredData,
-                  });
 
-            await tx.moodEntryTagLink.deleteMany({
-              where: { moodEntryId: restored.id },
+            if (measurement.id) {
+              await tx.measurement.upsert({
+                where: { id: measurement.id, userId: ownerId },
+                create: {
+                  id: measurement.id,
+                  userId: ownerId,
+                  ...restoredData,
+                },
+                update: restoredData,
+              });
+              continue;
+            }
+
+            const existing = await tx.measurement.findFirst({
+              where: {
+                userId: ownerId,
+                type: measurement.type,
+                source,
+                measuredAt,
+              },
+              select: { id: true },
             });
-            if (entry.factors.length > 0) {
-              await tx.moodEntryTagLink.createMany({
-                data: entry.factors.map((factor) => ({
-                  moodEntryId: restored.id,
-                  moodTagId: factorByKey.get(factor.key)!,
-                  rating: factor.rating,
-                })),
+            if (existing) {
+              await tx.measurement.update({
+                where: { id: existing.id, userId: ownerId },
+                data: restoredData,
+              });
+            } else {
+              await tx.measurement.create({
+                data: { userId: ownerId, ...restoredData },
               });
             }
           }
-        }
 
-        // v1.15.0 — cycle tables (profile + observed spans + day-logs +
-        // symptom links). Delete-then-recreate, mirroring the contract
-        // above. `notesEncrypted` is restored as ciphertext verbatim.
-        const cycleCleared = await restoreCycleData(tx, ownerId, payload);
-
-        const biomarkerByName = new Map<string, string>();
-        for (const biomarker of payload.biomarkers) {
-          const created = await tx.biomarker.create({
-            data: {
-              ...(biomarker.id ? { id: biomarker.id } : {}),
-              userId: ownerId,
-              name: biomarker.name,
-              unit: biomarker.unit,
-              lowerBound: biomarker.lowerBound ?? null,
-              upperBound: biomarker.upperBound ?? null,
-              panel: biomarker.panel ?? null,
-              hidden: biomarker.hidden ?? false,
-              contextEncrypted:
-                biomarker.context == null
-                  ? null
-                  : encryptContextToBytes(biomarker.context),
-              ...(biomarker.createdAt
-                ? { createdAt: new Date(biomarker.createdAt) }
-                : {}),
-              ...(biomarker.updatedAt
-                ? { updatedAt: new Date(biomarker.updatedAt) }
-                : {}),
-            },
-          });
-          biomarkerByName.set(biomarker.name, created.id);
-        }
-
-        for (const lab of payload.labResults) {
-          const biomarkerId = lab.biomarkerName
-            ? biomarkerByName.get(lab.biomarkerName)
-            : undefined;
-          if (lab.biomarkerName && !biomarkerId) {
-            throw new Error(
-              `Unknown biomarker reference: ${lab.biomarkerName}`,
-            );
-          }
-          await tx.labResult.create({
-            data: {
-              ...(lab.id ? { id: lab.id } : {}),
-              userId: ownerId,
-              biomarkerId: biomarkerId ?? null,
-              panel: lab.panel ?? null,
-              analyte: lab.analyte,
-              value: lab.value ?? null,
-              valueText: lab.valueText ?? null,
-              unit: lab.unit,
-              referenceLow: lab.referenceLow ?? null,
-              referenceHigh: lab.referenceHigh ?? null,
-              takenAt: new Date(lab.takenAt),
-              source: lab.source,
-              noteEncrypted:
-                lab.note == null ? null : encryptNoteToBytes(lab.note),
-              ...(lab.createdAt
-                ? { createdAt: new Date(lab.createdAt) }
-                : {}),
-              ...(lab.updatedAt
-                ? { updatedAt: new Date(lab.updatedAt) }
-                : {}),
-            },
-          });
-        }
-
-        const episodeIds = new Set(
-          payload.illnessEpisodes.map((episode) => episode.id),
-        );
-        for (const episode of payload.illnessEpisodes) {
-          if (
-            episode.parentConditionId &&
-            !episodeIds.has(episode.parentConditionId)
-          ) {
-            throw new Error(
-              `Unknown illness parent: ${episode.parentConditionId}`,
-            );
-          }
-          await tx.illnessEpisode.create({
-            data: {
-              id: episode.id,
-              userId: ownerId,
-              label: episode.label,
-              type: episode.type as never,
-              lifecycle: episode.lifecycle as never,
-              onsetAt: new Date(episode.onsetAt),
-              resolvedAt: episode.resolvedAt
-                ? new Date(episode.resolvedAt)
-                : null,
-              parentConditionId: null,
-              noteEncrypted:
-                episode.note == null ? null : encryptToBytes(episode.note),
-              ...(episode.createdAt
-                ? { createdAt: new Date(episode.createdAt) }
-                : {}),
-              ...(episode.updatedAt
-                ? { updatedAt: new Date(episode.updatedAt) }
-                : {}),
-            },
-          });
-        }
-        for (const episode of payload.illnessEpisodes) {
-          if (episode.parentConditionId) {
-            await tx.illnessEpisode.update({
-              where: { id: episode.id },
-              data: { parentConditionId: episode.parentConditionId },
-            });
-          }
-        }
-
-        const symptomKeys = [
-          ...new Set(
-            payload.illnessEpisodes.flatMap((episode) =>
-              episode.dayLogs.flatMap((dayLog) =>
-                dayLog.symptoms.map((symptom) => symptom.key),
-              ),
-            ),
-          ),
-        ];
-        const symptomRows =
-          symptomKeys.length === 0
-            ? []
-            : await tx.illnessSymptom.findMany({
-                where: { key: { in: symptomKeys } },
-                select: { id: true, key: true },
-              });
-        const symptomByKey = new Map(
-          symptomRows.map((symptom) => [symptom.key, symptom.id]),
-        );
-        if (symptomByKey.size !== symptomKeys.length) {
-          const missing = symptomKeys.filter((key) => !symptomByKey.has(key));
-          throw new Error(`Unknown illness symptom keys: ${missing.join(", ")}`);
-        }
-        for (const episode of payload.illnessEpisodes) {
-          for (const dayLog of episode.dayLogs) {
-            await tx.illnessDayLog.create({
+          // Medications + schedules — restore one at a time so we can
+          // wire schedules to their parent's freshly-generated id, AND
+          // build a name → id map for the intake events that follow.
+          const medByName = new Map<string, string>();
+          for (const m of payload.medications) {
+            const created = await tx.medication.create({
               data: {
-                ...(dayLog.id ? { id: dayLog.id } : {}),
                 userId: ownerId,
-                episodeId: episode.id,
-                date: dayLog.date,
-                functionalImpact: dayLog.functionalImpact ?? null,
-                feverC: dayLog.feverC ?? null,
-                noteEncrypted:
-                  dayLog.note == null ? null : encryptToBytes(dayLog.note),
-                ...(dayLog.updatedAt
-                  ? { updatedAt: new Date(dayLog.updatedAt) }
-                  : {}),
-                symptomLinks: {
-                  create: dayLog.symptoms.map((symptom) => ({
-                    symptomId: symptomByKey.get(symptom.key)!,
-                    severity: symptom.severity ?? null,
+                name: m.name,
+                dose: m.dose,
+                active: m.active ?? true,
+                schedules: {
+                  create: m.schedules.map((s) => ({
+                    windowStart: s.windowStart,
+                    windowEnd: s.windowEnd,
+                    label: s.label ?? null,
+                    dose: s.dose ?? null,
                   })),
                 },
               },
             });
+            // First write wins on duplicate names — keeps the round-trip
+            // deterministic against the restore-from-our-own-download case.
+            if (!medByName.has(m.name)) medByName.set(m.name, created.id);
           }
-        }
 
-        for (const allergy of payload.allergies) {
-          await tx.allergy.create({
-            data: {
-              id: allergy.id,
-              userId: ownerId,
-              substance: allergy.substance,
-              category: allergy.category as never,
-              type: allergy.type as never,
-              severity: (allergy.severity ?? null) as never,
-              status: allergy.status as never,
-              onsetAt: allergy.onsetAt ? new Date(allergy.onsetAt) : null,
-              reactionEncrypted:
-                allergy.reaction == null
-                  ? null
-                  : encryptToBytes(allergy.reaction),
-              notesEncrypted:
-                allergy.note == null ? null : encryptToBytes(allergy.note),
-              ...(allergy.createdAt
-                ? { createdAt: new Date(allergy.createdAt) }
-                : {}),
-              ...(allergy.updatedAt
-                ? { updatedAt: new Date(allergy.updatedAt) }
-                : {}),
-            },
-          });
-        }
+          // Intake events — only restore the ones whose `medication` name
+          // resolved against a row we just created. Orphans (medications
+          // that were deleted before the snapshot but still referenced by
+          // intake events) are dropped silently — the alternative would
+          // be an FK-violation crash, which is worse than a slightly
+          // smaller history.
+          if (payload.intakeEvents.length > 0) {
+            const rows = payload.intakeEvents
+              .map((e) => {
+                const medId = medByName.get(e.medication);
+                if (!medId) return null;
+                return {
+                  userId: ownerId,
+                  medicationId: medId,
+                  scheduledFor: new Date(e.scheduledFor),
+                  takenAt: e.takenAt ? new Date(e.takenAt) : null,
+                  skipped: e.skipped ?? false,
+                  source: (e.source ?? "WEB") as never,
+                };
+              })
+              .filter((r): r is NonNullable<typeof r> => r !== null);
+            if (rows.length > 0) {
+              await tx.medicationIntakeEvent.createMany({ data: rows });
+            }
+          }
 
-        for (const familyEntry of payload.familyHistory) {
-          await tx.familyHistoryEntry.create({
-            data: {
-              id: familyEntry.id,
-              userId: ownerId,
-              relationship: familyEntry.relationship as never,
-              condition: familyEntry.condition,
-              ageAtOnset: familyEntry.ageAtOnset ?? null,
-              notesEncrypted:
-                familyEntry.note == null
-                  ? null
-                  : encryptToBytes(familyEntry.note),
-              ...(familyEntry.createdAt
-                ? { createdAt: new Date(familyEntry.createdAt) }
-                : {}),
-              ...(familyEntry.updatedAt
-                ? { updatedAt: new Date(familyEntry.updatedAt) }
-                : {}),
-            },
-          });
-        }
-
-        if (payload.workouts.length > 0) {
-          await tx.workout.createMany({
-            data: payload.workouts.map((workout) => ({
-              ...(workout.id ? { id: workout.id } : {}),
-              userId: ownerId,
-              sportType: workout.sportType,
-              startedAt: new Date(workout.startedAt),
-              endedAt: new Date(workout.endedAt),
-              durationSec: workout.durationSec,
-              totalEnergyKcal: workout.totalEnergyKcal ?? null,
-              totalDistanceM: workout.totalDistanceM ?? null,
-              avgHeartRate: workout.avgHeartRate ?? null,
-              maxHeartRate: workout.maxHeartRate ?? null,
-              minHeartRate: workout.minHeartRate ?? null,
-              stepCount: workout.stepCount ?? null,
-              elevationM: workout.elevationM ?? null,
-              pauseDurationSec: workout.pauseDurationSec ?? null,
-              source: workout.source as never,
-              externalId: workout.externalId ?? null,
-              ...(workout.createdAt
-                ? { createdAt: new Date(workout.createdAt) }
-                : {}),
-              ...(workout.updatedAt
-                ? { updatedAt: new Date(workout.updatedAt) }
-                : {}),
-            })),
-          });
-        }
-
-        if (payload.documents.length > 0) {
-          await tx.inboundDocument.createMany({
-            data: payload.documents.map((document) => ({
-              id: document.id,
-              userId: ownerId,
-              kind: document.kind as never,
-              title: document.title ?? null,
-              filename: document.filename ?? null,
-              mimeType: document.mimeType,
-              byteSize: document.byteSize,
-              contentEncrypted: decodeEncryptedBytes(
-                document.contentEncrypted!,
+          if (payload.moodEntries.length > 0) {
+            const factorKeys = [
+              ...new Set(
+                payload.moodEntries.flatMap((entry) =>
+                  entry.factors.map((factor) => factor.key),
+                ),
               ),
-              contentSha256: document.contentSha256 ?? null,
-              contentCodec: document.contentCodec!,
-              status: document.status as never,
-              providerType: document.providerType ?? null,
-              reportDate: document.reportDate
-                ? new Date(document.reportDate)
-                : null,
-              documentDate: document.documentDate
-                ? new Date(document.documentDate)
-                : null,
-              errorReason: document.errorReason ?? null,
-              summaryEncrypted: document.summaryEncrypted
-                ? decodeEncryptedBytes(document.summaryEncrypted)
-                : null,
-              summaryGeneratedAt: document.summaryGeneratedAt
-                ? new Date(document.summaryGeneratedAt)
-                : null,
-              summaryState: document.summaryState as never,
-              createdAt: new Date(document.createdAt!),
-              updatedAt: new Date(document.updatedAt!),
-            })),
-          });
-        }
+            ];
+            const factorRows =
+              factorKeys.length === 0
+                ? []
+                : await tx.moodTag.findMany({
+                    where: {
+                      key: { in: factorKeys },
+                      kind: "RATED",
+                      userId: null,
+                    },
+                    select: { id: true, key: true },
+                  });
+            const factorByKey = new Map(
+              factorRows.map((factor) => [factor.key, factor.id]),
+            );
+            if (factorByKey.size !== factorKeys.length) {
+              const missing = factorKeys.filter((key) => !factorByKey.has(key));
+              throw new Error(
+                `Unknown mood factor keys: ${missing.join(", ")}`,
+              );
+            }
 
-        return {
-          measurements: measurements.count,
-          medications: meds.count,
-          intakeEvents: intake.count,
-          moodEntries: moods.count,
-          notificationChannels: channels.count,
-          pushSubscriptions: subs.count,
-          telegramScheduledDeletions: tgDel.count,
-          cycles: cycleCleared.cycles,
-          cycleDayLogs: cycleCleared.cycleDayLogs,
-          cycleProfile: cycleCleared.cycleProfile,
-          labResults: labResults.count,
-          biomarkers: biomarkers.count,
-          illnessEpisodes: illnessEpisodes.count,
-          allergies: allergies.count,
-          familyHistory: familyHistory.count,
-          workouts: workouts.count,
-          documents: documents.count,
-        };
-      }, {
-        maxWait: 10_000,
-        timeout: 120_000,
-      });
+            for (const entry of payload.moodEntries) {
+              const moodLoggedAt = new Date(entry.loggedAt);
+              const restoredData = {
+                date: entry.date,
+                mood: entry.mood,
+                score: entry.score,
+                tags: entry.tags ?? null,
+                source: entry.source ?? "MOODLOG",
+                externalId: entry.externalId ?? null,
+                moodLoggedAt,
+                deletedAt: entry.deletedAt ? new Date(entry.deletedAt) : null,
+              };
+              const createData = { userId: ownerId, ...restoredData };
+              const restored = entry.id
+                ? await tx.moodEntry.upsert({
+                    where: { id: entry.id, userId: ownerId },
+                    create: { id: entry.id, ...createData },
+                    update: restoredData,
+                  })
+                : entry.externalId
+                  ? await tx.moodEntry.upsert({
+                      where: {
+                        userId_source_externalId: {
+                          userId: ownerId,
+                          source: restoredData.source,
+                          externalId: entry.externalId,
+                        },
+                      },
+                      create: createData,
+                      update: restoredData,
+                    })
+                  : await tx.moodEntry.upsert({
+                      where: {
+                        userId_date_moodLoggedAt: {
+                          userId: ownerId,
+                          date: entry.date,
+                          moodLoggedAt,
+                        },
+                      },
+                      create: createData,
+                      update: restoredData,
+                    });
+
+              await tx.moodEntryTagLink.deleteMany({
+                where: { moodEntryId: restored.id },
+              });
+              if (entry.factors.length > 0) {
+                await tx.moodEntryTagLink.createMany({
+                  data: entry.factors.map((factor) => ({
+                    moodEntryId: restored.id,
+                    moodTagId: factorByKey.get(factor.key)!,
+                    rating: factor.rating,
+                  })),
+                });
+              }
+            }
+          }
+
+          // v1.15.0 — cycle tables (profile + observed spans + day-logs +
+          // symptom links). Delete-then-recreate, mirroring the contract
+          // above. `notesEncrypted` is restored as ciphertext verbatim.
+          const cycleCleared = await restoreCycleData(tx, ownerId, payload);
+
+          const biomarkerByName = new Map<string, string>();
+          for (const biomarker of payload.biomarkers) {
+            const created = await tx.biomarker.create({
+              data: {
+                ...(biomarker.id ? { id: biomarker.id } : {}),
+                userId: ownerId,
+                name: biomarker.name,
+                unit: biomarker.unit,
+                lowerBound: biomarker.lowerBound ?? null,
+                upperBound: biomarker.upperBound ?? null,
+                panel: biomarker.panel ?? null,
+                hidden: biomarker.hidden ?? false,
+                contextEncrypted:
+                  biomarker.context == null
+                    ? null
+                    : encryptContextToBytes(biomarker.context),
+                ...(biomarker.createdAt
+                  ? { createdAt: new Date(biomarker.createdAt) }
+                  : {}),
+                ...(biomarker.updatedAt
+                  ? { updatedAt: new Date(biomarker.updatedAt) }
+                  : {}),
+              },
+            });
+            biomarkerByName.set(biomarker.name, created.id);
+          }
+
+          for (const lab of payload.labResults) {
+            const biomarkerId = lab.biomarkerName
+              ? biomarkerByName.get(lab.biomarkerName)
+              : undefined;
+            if (lab.biomarkerName && !biomarkerId) {
+              throw new Error(
+                `Unknown biomarker reference: ${lab.biomarkerName}`,
+              );
+            }
+            await tx.labResult.create({
+              data: {
+                ...(lab.id ? { id: lab.id } : {}),
+                userId: ownerId,
+                biomarkerId: biomarkerId ?? null,
+                panel: lab.panel ?? null,
+                analyte: lab.analyte,
+                value: lab.value ?? null,
+                valueText: lab.valueText ?? null,
+                unit: lab.unit,
+                referenceLow: lab.referenceLow ?? null,
+                referenceHigh: lab.referenceHigh ?? null,
+                takenAt: new Date(lab.takenAt),
+                source: lab.source,
+                noteEncrypted:
+                  lab.note == null ? null : encryptNoteToBytes(lab.note),
+                ...(lab.createdAt
+                  ? { createdAt: new Date(lab.createdAt) }
+                  : {}),
+                ...(lab.updatedAt
+                  ? { updatedAt: new Date(lab.updatedAt) }
+                  : {}),
+              },
+            });
+          }
+
+          const episodeIds = new Set(
+            payload.illnessEpisodes.map((episode) => episode.id),
+          );
+          for (const episode of payload.illnessEpisodes) {
+            if (
+              episode.parentConditionId &&
+              !episodeIds.has(episode.parentConditionId)
+            ) {
+              throw new Error(
+                `Unknown illness parent: ${episode.parentConditionId}`,
+              );
+            }
+            await tx.illnessEpisode.create({
+              data: {
+                id: episode.id,
+                userId: ownerId,
+                label: episode.label,
+                type: episode.type as never,
+                lifecycle: episode.lifecycle as never,
+                onsetAt: new Date(episode.onsetAt),
+                resolvedAt: episode.resolvedAt
+                  ? new Date(episode.resolvedAt)
+                  : null,
+                parentConditionId: null,
+                noteEncrypted:
+                  episode.note == null ? null : encryptToBytes(episode.note),
+                ...(episode.createdAt
+                  ? { createdAt: new Date(episode.createdAt) }
+                  : {}),
+                ...(episode.updatedAt
+                  ? { updatedAt: new Date(episode.updatedAt) }
+                  : {}),
+              },
+            });
+          }
+          for (const episode of payload.illnessEpisodes) {
+            if (episode.parentConditionId) {
+              await tx.illnessEpisode.update({
+                where: { id: episode.id },
+                data: { parentConditionId: episode.parentConditionId },
+              });
+            }
+          }
+
+          const symptomKeys = [
+            ...new Set(
+              payload.illnessEpisodes.flatMap((episode) =>
+                episode.dayLogs.flatMap((dayLog) =>
+                  dayLog.symptoms.map((symptom) => symptom.key),
+                ),
+              ),
+            ),
+          ];
+          const symptomRows =
+            symptomKeys.length === 0
+              ? []
+              : await tx.illnessSymptom.findMany({
+                  where: { key: { in: symptomKeys } },
+                  select: { id: true, key: true },
+                });
+          const symptomByKey = new Map(
+            symptomRows.map((symptom) => [symptom.key, symptom.id]),
+          );
+          if (symptomByKey.size !== symptomKeys.length) {
+            const missing = symptomKeys.filter((key) => !symptomByKey.has(key));
+            throw new Error(
+              `Unknown illness symptom keys: ${missing.join(", ")}`,
+            );
+          }
+          for (const episode of payload.illnessEpisodes) {
+            for (const dayLog of episode.dayLogs) {
+              await tx.illnessDayLog.create({
+                data: {
+                  ...(dayLog.id ? { id: dayLog.id } : {}),
+                  userId: ownerId,
+                  episodeId: episode.id,
+                  date: dayLog.date,
+                  functionalImpact: dayLog.functionalImpact ?? null,
+                  feverC: dayLog.feverC ?? null,
+                  noteEncrypted:
+                    dayLog.note == null ? null : encryptToBytes(dayLog.note),
+                  ...(dayLog.updatedAt
+                    ? { updatedAt: new Date(dayLog.updatedAt) }
+                    : {}),
+                  symptomLinks: {
+                    create: dayLog.symptoms.map((symptom) => ({
+                      symptomId: symptomByKey.get(symptom.key)!,
+                      severity: symptom.severity ?? null,
+                    })),
+                  },
+                },
+              });
+            }
+          }
+
+          for (const allergy of payload.allergies) {
+            await tx.allergy.create({
+              data: {
+                id: allergy.id,
+                userId: ownerId,
+                substance: allergy.substance,
+                category: allergy.category as never,
+                type: allergy.type as never,
+                severity: (allergy.severity ?? null) as never,
+                status: allergy.status as never,
+                onsetAt: allergy.onsetAt ? new Date(allergy.onsetAt) : null,
+                reactionEncrypted:
+                  allergy.reaction == null
+                    ? null
+                    : encryptToBytes(allergy.reaction),
+                notesEncrypted:
+                  allergy.note == null ? null : encryptToBytes(allergy.note),
+                ...(allergy.createdAt
+                  ? { createdAt: new Date(allergy.createdAt) }
+                  : {}),
+                ...(allergy.updatedAt
+                  ? { updatedAt: new Date(allergy.updatedAt) }
+                  : {}),
+              },
+            });
+          }
+
+          for (const familyEntry of payload.familyHistory) {
+            await tx.familyHistoryEntry.create({
+              data: {
+                id: familyEntry.id,
+                userId: ownerId,
+                relationship: familyEntry.relationship as never,
+                condition: familyEntry.condition,
+                ageAtOnset: familyEntry.ageAtOnset ?? null,
+                notesEncrypted:
+                  familyEntry.note == null
+                    ? null
+                    : encryptToBytes(familyEntry.note),
+                ...(familyEntry.createdAt
+                  ? { createdAt: new Date(familyEntry.createdAt) }
+                  : {}),
+                ...(familyEntry.updatedAt
+                  ? { updatedAt: new Date(familyEntry.updatedAt) }
+                  : {}),
+              },
+            });
+          }
+
+          if (payload.workouts.length > 0) {
+            await tx.workout.createMany({
+              data: payload.workouts.map((workout) => ({
+                ...(workout.id ? { id: workout.id } : {}),
+                userId: ownerId,
+                sportType: workout.sportType,
+                startedAt: new Date(workout.startedAt),
+                endedAt: new Date(workout.endedAt),
+                durationSec: workout.durationSec,
+                totalEnergyKcal: workout.totalEnergyKcal ?? null,
+                totalDistanceM: workout.totalDistanceM ?? null,
+                avgHeartRate: workout.avgHeartRate ?? null,
+                maxHeartRate: workout.maxHeartRate ?? null,
+                minHeartRate: workout.minHeartRate ?? null,
+                stepCount: workout.stepCount ?? null,
+                elevationM: workout.elevationM ?? null,
+                pauseDurationSec: workout.pauseDurationSec ?? null,
+                source: workout.source as never,
+                externalId: workout.externalId ?? null,
+                ...(workout.createdAt
+                  ? { createdAt: new Date(workout.createdAt) }
+                  : {}),
+                ...(workout.updatedAt
+                  ? { updatedAt: new Date(workout.updatedAt) }
+                  : {}),
+              })),
+            });
+          }
+
+          if (payload.documents.length > 0) {
+            await tx.inboundDocument.createMany({
+              data: payload.documents.map((document) => ({
+                id: document.id,
+                userId: ownerId,
+                kind: document.kind as never,
+                title: document.title ?? null,
+                filename: document.filename ?? null,
+                mimeType: document.mimeType,
+                byteSize: document.byteSize,
+                contentEncrypted: decodeEncryptedBytes(
+                  document.contentEncrypted!,
+                ),
+                contentSha256: document.contentSha256 ?? null,
+                contentCodec: document.contentCodec!,
+                status: document.status as never,
+                providerType: document.providerType ?? null,
+                reportDate: document.reportDate
+                  ? new Date(document.reportDate)
+                  : null,
+                documentDate: document.documentDate
+                  ? new Date(document.documentDate)
+                  : null,
+                errorReason: document.errorReason ?? null,
+                summaryEncrypted: document.summaryEncrypted
+                  ? decodeEncryptedBytes(document.summaryEncrypted)
+                  : null,
+                summaryGeneratedAt: document.summaryGeneratedAt
+                  ? new Date(document.summaryGeneratedAt)
+                  : null,
+                summaryState: document.summaryState as never,
+                createdAt: new Date(document.createdAt!),
+                updatedAt: new Date(document.updatedAt!),
+              })),
+            });
+          }
+
+          return {
+            measurements: measurements.count,
+            medications: meds.count,
+            intakeEvents: intake.count,
+            moodEntries: moods.count,
+            notificationChannels: channels.count,
+            pushSubscriptions: subs.count,
+            telegramScheduledDeletions: tgDel.count,
+            cycles: cycleCleared.cycles,
+            cycleDayLogs: cycleCleared.cycleDayLogs,
+            cycleProfile: cycleCleared.cycleProfile,
+            labResults: labResults.count,
+            biomarkers: biomarkers.count,
+            illnessEpisodes: illnessEpisodes.count,
+            allergies: allergies.count,
+            familyHistory: familyHistory.count,
+            workouts: workouts.count,
+            documents: documents.count,
+          };
+        },
+        {
+          maxWait: 10_000,
+          timeout: 120_000,
+        },
+      );
     } catch (err) {
       // Scrub the raw Prisma / driver error from the wire response —
       // even on an admin endpoint, leaking column names, constraint

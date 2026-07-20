@@ -110,9 +110,9 @@ describe("external measurement identity reconciliation (real Postgres)", () => {
       status: "updated",
       row: { id: occupied.id, externalId: "sleep:new" },
     });
-    expect(
-      await prisma.measurement.count({ where: { userId: user.id } }),
-    ).toBe(1);
+    expect(await prisma.measurement.count({ where: { userId: user.id } })).toBe(
+      1,
+    );
   });
 
   it("resurrects and re-keys a tombstone occupying the natural key", async () => {

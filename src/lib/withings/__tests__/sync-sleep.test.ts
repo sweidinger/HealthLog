@@ -107,11 +107,14 @@ function installFetchMock(segments: FakeSegment[]) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  transactionMock.mockImplementation(
-    async (run: (tx: unknown) => unknown) => run({}),
+  transactionMock.mockImplementation(async (run: (tx: unknown) => unknown) =>
+    run({}),
   );
   reconcileMock.mockImplementation(
-    async (_tx: unknown, input: { type: string; measuredAt: Date; externalId: string }) => ({
+    async (
+      _tx: unknown,
+      input: { type: string; measuredAt: Date; externalId: string },
+    ) => ({
       status: "inserted",
       row: {
         id: `inserted:${input.externalId}`,
@@ -502,10 +505,7 @@ describe("syncUserSleep — segment writes + idempotency", () => {
           externalId: string;
           value: number;
         };
-        return [
-          row.type,
-          { externalId: row.externalId, value: row.value },
-        ];
+        return [row.type, { externalId: row.externalId, value: row.value }];
       }),
     );
     expect(byType.get("RESTING_HEART_RATE")).toEqual({

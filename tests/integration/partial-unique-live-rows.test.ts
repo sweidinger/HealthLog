@@ -347,7 +347,9 @@ describe("MoodEntry — external-id re-import idempotency (v1.12.1 / 0122)", () 
       mood: "OKAY",
       score: 3,
     });
-    expect(await prisma.moodEntry.count({ where: { userId: user.id } })).toBe(1);
+    expect(await prisma.moodEntry.count({ where: { userId: user.id } })).toBe(
+      1,
+    );
   });
 
   it("entries without an id still dedup on the legacy wall-clock key", async () => {

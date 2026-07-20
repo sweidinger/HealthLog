@@ -36,10 +36,7 @@ export type ReconciledMeasurementRow = Pick<
   "id" | "type" | "measuredAt" | "externalId"
 >;
 
-export type DirtyMeasurementIdentity = Pick<
-  Measurement,
-  "type" | "measuredAt"
->;
+export type DirtyMeasurementIdentity = Pick<Measurement, "type" | "measuredAt">;
 
 export type MeasurementReconciliationVerdict =
   | {
@@ -126,7 +123,9 @@ async function lockUser(
 async function lockAndReloadCandidates(
   tx: PrismaTypes.TransactionClient,
   desired: ExternalMeasurementWrite,
-): Promise<Array<PrismaTypes.MeasurementGetPayload<{ select: typeof rowSelect }>>> {
+): Promise<
+  Array<PrismaTypes.MeasurementGetPayload<{ select: typeof rowSelect }>>
+> {
   const where = {
     userId: desired.userId,
     OR: [
@@ -262,6 +261,7 @@ export async function reconcileExternalMeasurement(
     }
 
     const { userId: _ownerId, ...mutable } = desired;
+    void _ownerId;
     const updated = await tx.measurement.update({
       where: { id: canonical.id },
       data: {

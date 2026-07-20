@@ -17,7 +17,6 @@ import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { getWorkerPrisma } from "./shared";
 export type { WithingsEcgSyncPayload } from "@/lib/jobs/withings-ecg-queue";
 
-
 export interface WithingsSyncPayload {
   triggeredAt: string;
 }

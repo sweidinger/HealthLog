@@ -177,12 +177,7 @@ type BatchEntry = z.infer<typeof batchEntrySchema>;
  * sample is a canonical, immutable reading. `skipped` is a validation no-op;
  * `failed` is a hard database verdict and must not be checkpointed as landed.
  */
-type EntryStatus =
-  | "inserted"
-  | "updated"
-  | "duplicate"
-  | "skipped"
-  | "failed";
+type EntryStatus = "inserted" | "updated" | "duplicate" | "skipped" | "failed";
 
 // v1.5.0 issue #213 — `stats:*` externalIds carry per-day cumulative
 // totals that the iOS HealthKit observer re-posts as the day progresses.
@@ -475,103 +470,101 @@ async function postBatch(request: NextRequest): Promise<Response> {
     }
 
     for (const p of prepared) {
-        const externalId = p.row.externalId as string;
-        const statsRow = isStatsExternalId(externalId);
-        const key = `${p.row.type}::${p.row.source}::${externalId}`;
-        if (statsRow && lastStatsIndexByKey.get(key) !== p.index) {
-          results[p.index] = {
-            index: p.index,
-            status: "duplicate",
-            reason: "superseded_in_batch",
-          };
-          duplicateCount++;
-          continue;
-        }
+      const externalId = p.row.externalId as string;
+      const statsRow = isStatsExternalId(externalId);
+      const key = `${p.row.type}::${p.row.source}::${externalId}`;
+      if (statsRow && lastStatsIndexByKey.get(key) !== p.index) {
+        results[p.index] = {
+          index: p.index,
+          status: "duplicate",
+          reason: "superseded_in_batch",
+        };
+        duplicateCount++;
+        continue;
+      }
 
-        if (!statsRow && hasSameReadingSibling(p)) {
-          results[p.index] = {
-            index: p.index,
-            status: "duplicate",
-            reason: "cross_source_merge",
-          };
-          duplicateCount++;
-          crossSourceMergedCount++;
-          continue;
-        }
+      if (!statsRow && hasSameReadingSibling(p)) {
+        results[p.index] = {
+          index: p.index,
+          status: "duplicate",
+          reason: "cross_source_merge",
+        };
+        duplicateCount++;
+        crossSourceMergedCount++;
+        continue;
+      }
 
-        const verdict = await prisma.$transaction((tx) =>
-          reconcileExternalMeasurement(
-            tx,
-            {
-              userId: user.id,
-              type: p.row.type as MeasurementType,
-              value: p.row.value as number,
-              valueMin: p.row.valueMin as number | null,
-              valueMax: p.row.valueMax as number | null,
-              unit: p.row.unit as string,
-              source:
-                p.row.source as Prisma.MeasurementUncheckedCreateInput["source"],
-              measuredAt: p.row.measuredAt as Date,
-              externalId,
-              externalSourceVersion: p.row
-                .externalSourceVersion as string | null,
-              glucoseContext:
-                p.row.glucoseContext as Prisma.MeasurementUncheckedCreateInput["glucoseContext"],
-              sleepStage:
-                p.row.sleepStage as Prisma.MeasurementUncheckedCreateInput["sleepStage"],
-              rhythmClassification:
-                p.row
-                  .rhythmClassification as Prisma.MeasurementUncheckedCreateInput["rhythmClassification"],
-              deviceType: p.row.deviceType as string | null,
-            },
-            { exactExternalMatch: statsRow ? "update" : "duplicate" },
-          ),
-        );
-
-        switch (verdict.status) {
-          case "inserted":
-            results[p.index] = { index: p.index, status: "inserted" };
-            insertedCount++;
-            insertedPrepared.push(p);
-            writtenIdentities.push({
-              type: p.row.type as MeasurementType,
-              measuredAt: p.row.measuredAt as Date,
-            });
-            break;
-          case "updated":
-          case "resurrected":
-            results[p.index] = { index: p.index, status: "updated" };
-            updatedCount++;
-            writtenIdentities.push(
-              {
-                type: p.row.type as MeasurementType,
-                measuredAt: p.row.measuredAt as Date,
-              },
-              ...(verdict.dirtyIdentities ?? []),
-            );
-            break;
-          case "duplicate":
-            results[p.index] = { index: p.index, status: "duplicate" };
-            duplicateCount++;
-            break;
-          case "failed":
-            results[p.index] = {
-              index: p.index,
-              status: "failed",
-              reason: verdict.error.code ?? "write_failed",
-            };
-            failedCount++;
-            continue;
-        }
-
-        if (isMergeableSource(p.row.source as string)) {
-          inBatchCandidates.push({
+      const verdict = await prisma.$transaction((tx) =>
+        reconcileExternalMeasurement(
+          tx,
+          {
+            userId: user.id,
             type: p.row.type as MeasurementType,
-            source: p.row.source as string,
             value: p.row.value as number,
+            valueMin: p.row.valueMin as number | null,
+            valueMax: p.row.valueMax as number | null,
+            unit: p.row.unit as string,
+            source: p.row
+              .source as Prisma.MeasurementUncheckedCreateInput["source"],
+            measuredAt: p.row.measuredAt as Date,
+            externalId,
+            externalSourceVersion: p.row.externalSourceVersion as string | null,
+            glucoseContext: p.row
+              .glucoseContext as Prisma.MeasurementUncheckedCreateInput["glucoseContext"],
+            sleepStage: p.row
+              .sleepStage as Prisma.MeasurementUncheckedCreateInput["sleepStage"],
+            rhythmClassification: p.row
+              .rhythmClassification as Prisma.MeasurementUncheckedCreateInput["rhythmClassification"],
+            deviceType: p.row.deviceType as string | null,
+          },
+          { exactExternalMatch: statsRow ? "update" : "duplicate" },
+        ),
+      );
+
+      switch (verdict.status) {
+        case "inserted":
+          results[p.index] = { index: p.index, status: "inserted" };
+          insertedCount++;
+          insertedPrepared.push(p);
+          writtenIdentities.push({
+            type: p.row.type as MeasurementType,
             measuredAt: p.row.measuredAt as Date,
           });
-        }
+          break;
+        case "updated":
+        case "resurrected":
+          results[p.index] = { index: p.index, status: "updated" };
+          updatedCount++;
+          writtenIdentities.push(
+            {
+              type: p.row.type as MeasurementType,
+              measuredAt: p.row.measuredAt as Date,
+            },
+            ...(verdict.dirtyIdentities ?? []),
+          );
+          break;
+        case "duplicate":
+          results[p.index] = { index: p.index, status: "duplicate" };
+          duplicateCount++;
+          break;
+        case "failed":
+          results[p.index] = {
+            index: p.index,
+            status: "failed",
+            reason: verdict.error.code ?? "write_failed",
+          };
+          failedCount++;
+          continue;
+      }
+
+      if (isMergeableSource(p.row.source as string)) {
+        inBatchCandidates.push({
+          type: p.row.type as MeasurementType,
+          source: p.row.source as string,
+          value: p.row.value as number,
+          measuredAt: p.row.measuredAt as Date,
+        });
+      }
     }
   }
 

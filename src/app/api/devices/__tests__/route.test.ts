@@ -85,8 +85,8 @@ beforeEach(() => {
   vi.mocked(prisma.device.deleteMany).mockResolvedValue({ count: 0 });
   vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({ count: 0 });
   vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
-  vi.mocked(prisma.$transaction).mockImplementation(
-    async (callback) => callback(prisma as never),
+  vi.mocked(prisma.$transaction).mockImplementation(async (callback) =>
+    callback(prisma as never),
   );
   vi.mocked(prisma.notificationChannel.upsert).mockResolvedValue({
     id: "ch-1",

@@ -496,7 +496,6 @@ export async function syncUserEcg(
     }
   }
 
-
   annotate({
     action: { name: "withings.ecg.sync" },
     meta: {

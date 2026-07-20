@@ -3,12 +3,13 @@ import type { Job } from "pg-boss";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 const { syncUserEcg } = vi.hoisted(() => ({
-  syncUserEcg: vi.fn<
-    (
-      userId: string,
-      options?: { startdate?: number; enddate?: number },
-    ) => Promise<number>
-  >(),
+  syncUserEcg:
+    vi.fn<
+      (
+        userId: string,
+        options?: { startdate?: number; enddate?: number },
+      ) => Promise<number>
+    >(),
 }));
 
 vi.mock("@/lib/withings/sync-ecg", () => ({
@@ -70,10 +71,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 const registrarSource = readFileSync(
-  join(
-    process.cwd(),
-    "src/lib/jobs/reminder/register-integration-sync.ts",
-  ),
+  join(process.cwd(), "src/lib/jobs/reminder/register-integration-sync.ts"),
   "utf8",
 );
 

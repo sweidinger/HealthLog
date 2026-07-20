@@ -368,9 +368,7 @@ export async function buildRecordsBackupSection(
       mimeType: d.mimeType,
       byteSize: d.byteSize,
       status: d.status,
-      reportDate: d.reportDate
-        ? d.reportDate.toISOString().slice(0, 10)
-        : null,
+      reportDate: d.reportDate ? d.reportDate.toISOString().slice(0, 10) : null,
       documentDate: d.documentDate
         ? d.documentDate.toISOString().slice(0, 10)
         : null,
@@ -415,8 +413,7 @@ export async function buildRecordsBackupSection(
       documents: disasterRecovery
         ? {
             included: "encrypted-content",
-            note:
-              "Document metadata and encrypted stored bytes are included for disaster recovery.",
+            note: "Document metadata and encrypted stored bytes are included for disaster recovery.",
           }
         : { included: "metadata-only", note: DOCUMENTS_MANIFEST_NOTE },
       workouts: { included: "summary-only", note: WORKOUTS_MANIFEST_NOTE },

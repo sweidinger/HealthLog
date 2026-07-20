@@ -24,9 +24,7 @@ function desired(
   };
 }
 
-function row(
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+function row(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: "row-1",
     userId: "user-1",

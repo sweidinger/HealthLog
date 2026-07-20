@@ -175,7 +175,9 @@ describe("POST /api/devices", () => {
     const secondBody = (await second.json()) as { data: { id: string } };
 
     expect(secondBody.data.id).toBe(firstBody.data.id);
-    const devices = await prisma.device.findMany({ where: { userId: user.id } });
+    const devices = await prisma.device.findMany({
+      where: { userId: user.id },
+    });
     expect(devices).toHaveLength(1);
     expect(devices[0]).toMatchObject({
       id: firstBody.data.id,
@@ -214,7 +216,7 @@ describe("POST /api/devices", () => {
         liveActivityPushToken: "feedface".repeat(8),
       },
     });
-    const legacyDevice = await prisma.device.create({
+    await prisma.device.create({
       data: {
         userId: user.id,
         platform: "ios",
@@ -252,7 +254,9 @@ describe("POST /api/devices", () => {
     const body = (await response.json()) as { data: { id: string } };
     expect(body.data.id).toBe(apnsDevice.id);
 
-    const devices = await prisma.device.findMany({ where: { userId: user.id } });
+    const devices = await prisma.device.findMany({
+      where: { userId: user.id },
+    });
     expect(devices).toHaveLength(1);
     expect(devices[0]).toMatchObject({
       id: apnsDevice.id,

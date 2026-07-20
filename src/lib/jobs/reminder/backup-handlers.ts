@@ -58,11 +58,9 @@ export async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
       let backed = 0;
       for (const user of users) {
         try {
-          const { payload } = await buildFullBackupPayload(
-            prisma,
-            user.id,
-            { purpose: "disaster-recovery" },
-          );
+          const { payload } = await buildFullBackupPayload(prisma, user.id, {
+            purpose: "disaster-recovery",
+          });
           const backupJson = JSON.stringify(payload);
 
           // Encrypt the backup data (contains sensitive health information)

@@ -49,9 +49,7 @@ export async function enqueueWithingsEcgSync(
       userId: identity.userId,
       eventId,
       triggeredAt: new Date().toISOString(),
-      ...(parsedStartdate?.success
-        ? { startdate: parsedStartdate.data }
-        : {}),
+      ...(parsedStartdate?.success ? { startdate: parsedStartdate.data } : {}),
       ...(parsedEnddate?.success ? { enddate: parsedEnddate.data } : {}),
     } satisfies WithingsEcgSyncPayload,
     {

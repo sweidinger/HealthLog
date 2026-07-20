@@ -39,6 +39,7 @@ vi.mock("@/lib/crypto", () => ({ decrypt: vi.fn(() => "{}") }));
 vi.mock("@/lib/crypto/note-cipher", () => ({ encryptNote: vi.fn() }));
 vi.mock("@/lib/validations/backup", () => ({
   parseBackupPayload: vi.fn(),
+  isCompatibleSchemaVersion: vi.fn(() => true),
   summarizeBackup: vi.fn(() => ({})),
 }));
 vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn() }));

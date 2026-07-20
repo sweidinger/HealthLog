@@ -38,7 +38,9 @@ vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
   ) => {
     const override = await reconcileOverrideMock(tx, input);
     if (override !== undefined) return override;
-    const [inserted] = await tx.measurement.createManyAndReturn({ data: input });
+    const [inserted] = await tx.measurement.createManyAndReturn({
+      data: input,
+    });
     return inserted
       ? { status: "inserted", row: inserted }
       : { status: "duplicate" };
