@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.31.4] — 2026-07-21
+
+- **Web and background processes now start and recover predictably.** Invalid
+  encryption-key configuration fails before the service accepts traffic,
+  worker-only processes report their real health, connection limits are
+  divided safely across replicas, and provider backfills keep their bounded
+  queues during reconnects.
+- **Published images are reproducible and verified before promotion.** The
+  release pipeline builds one multi-architecture image, validates its digest,
+  startup, migrations, health, and reported version, and only then promotes
+  that exact artifact to production.
+- **CI now uses isolated, deterministic test environments.** Integration tests
+  receive their own database and cryptographic settings before application
+  code loads, worktrees install hooks consistently, and browser tests use the
+  intended application process on every platform.
+- **Concurrent iOS registrations no longer fail intermittently.** Device and
+  APNs notification-channel reconciliation now share one database lock and
+  transaction, so simultaneous first registration remains idempotent.
+
+No migrations. No breaking changes.
+
 ## [1.31.3] — 2026-07-20
 
 - **Document summaries now stay in the language you chose.** The same account

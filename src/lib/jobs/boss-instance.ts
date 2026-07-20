@@ -7,10 +7,7 @@
  */
 import { PgBoss } from "pg-boss";
 
-import {
-  getPgBossPoolMax,
-  getPoolConnectionTimeoutMs,
-} from "@/lib/db";
+import { getPgBossPoolMax, getPoolConnectionTimeoutMs } from "@/lib/db";
 
 const BOSS_KEY = "__healthlog_pgboss__" as const;
 const BOSS_START_KEY = "__healthlog_pgboss_start__" as const;
@@ -36,7 +33,9 @@ function wait(ms: number): Promise<void> {
   return promise;
 }
 
-function resolveRetryPolicy(options: ProducerStartOptions): ProducerRetryPolicy {
+function resolveRetryPolicy(
+  options: ProducerStartOptions,
+): ProducerRetryPolicy {
   const maxAttempts = Math.max(
     1,
     Math.trunc(options.maxAttempts ?? PRODUCER_START_MAX_ATTEMPTS),
@@ -52,7 +51,10 @@ function resolveRetryPolicy(options: ProducerStartOptions): ProducerRetryPolicy 
   return { maxAttempts, baseDelayMs, maxDelayMs };
 }
 
-function retryDelayMs(failedAttempt: number, policy: ProducerRetryPolicy): number {
+function retryDelayMs(
+  failedAttempt: number,
+  policy: ProducerRetryPolicy,
+): number {
   return Math.min(
     policy.maxDelayMs,
     policy.baseDelayMs * 2 ** Math.max(0, failedAttempt - 1),
@@ -164,8 +166,7 @@ export async function startGlobalBossProducer(
   if (existing) return existing;
 
   const starting = globalState[BOSS_START_KEY] as
-    | Promise<PgBoss | null>
-    | undefined;
+    Promise<PgBoss | null> | undefined;
   if (starting) return starting;
 
   const startPromise = startProducerAttempts(

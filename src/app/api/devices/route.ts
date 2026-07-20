@@ -274,6 +274,22 @@ export const POST = apiHandler(async (request: NextRequest) => {
           select: { id: true },
         });
 
+    // Keep channel reconciliation under the same identity locks as the device
+    // row. Moving it after commit lets two first-time registrations race the
+    // compound unique key and intermittently turns one valid request into 500.
+    if (apnsToken) {
+      await tx.notificationChannel.upsert({
+        where: { userId_type: { userId: user.id, type: "APNS" } },
+        create: {
+          userId: user.id,
+          type: "APNS",
+          enabled: true,
+          config: encrypt("{}"),
+        },
+        update: {},
+      });
+    }
+
     return { id: device.id };
   });
 
@@ -291,22 +307,6 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   const { id } = registration;
-
-  // Reconcile APNs channel state only after the canonical device transaction
-  // commits. Config is an encrypted empty record by design — the per-device
-  // token and environment live on the Device row.
-  if (apnsToken) {
-    await prisma.notificationChannel.upsert({
-      where: { userId_type: { userId: user.id, type: "APNS" } },
-      create: {
-        userId: user.id,
-        type: "APNS",
-        enabled: true,
-        config: encrypt("{}"),
-      },
-      update: {},
-    });
-  }
 
   await auditLog("devices.register", {
     userId: user.id,

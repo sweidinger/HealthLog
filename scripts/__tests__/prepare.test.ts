@@ -33,8 +33,7 @@ function runPrepareFixture(
   lefthookStatus = 0,
 ): PrepareResult {
   const testPath = expect.getState().testPath;
-  if (!testPath)
-    throw new Error("Vitest did not expose the current test path");
+  if (!testPath) throw new Error("Vitest did not expose the current test path");
   const root = join(dirname(testPath), "../..");
   const directory = mkdtempSync(join(tmpdir(), "healthlog-prepare-"));
   temporaryDirectories.push(directory);
@@ -70,7 +69,7 @@ function runPrepareFixture(
     lefthook,
     process.platform === "win32"
       ? '@echo off\r\necho %*>>"%FIXTURE_LEFTHOOK_LOG%"\r\nexit /b %FIXTURE_LEFTHOOK_STATUS%\r\n'
-      : "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$FIXTURE_LEFTHOOK_LOG\"\nexit \"$FIXTURE_LEFTHOOK_STATUS\"\n",
+      : '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$FIXTURE_LEFTHOOK_LOG"\nexit "$FIXTURE_LEFTHOOK_STATUS"\n',
   );
   if (process.platform !== "win32") chmodSync(lefthook, 0o755);
 

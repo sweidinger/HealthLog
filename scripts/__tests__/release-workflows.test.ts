@@ -48,7 +48,11 @@ function loadWorkflow(name: string): Workflow {
   return parse(readRepoFile(join(".github/workflows", name))) as Workflow;
 }
 
-function stepScript(workflow: Workflow, jobName: string, stepName: string): string {
+function stepScript(
+  workflow: Workflow,
+  jobName: string,
+  stepName: string,
+): string {
   const step = workflow.jobs[jobName]?.steps?.find(
     (candidate) => candidate.name === stepName,
   );
@@ -93,7 +97,12 @@ if [ "$FIXTURE_PRIOR_CI" = "yes" ]; then printf '1\\n'; else printf '0\\n'; fi
   const workflow = loadWorkflow("docker-publish.yml");
   return spawnSync(
     "bash",
-    ["-euo", "pipefail", "-c", stepScript(workflow, "release-policy", "Validate release policy")],
+    [
+      "-euo",
+      "pipefail",
+      "-c",
+      stepScript(workflow, "release-policy", "Validate release policy"),
+    ],
     {
       cwd: directory,
       encoding: "utf8",
@@ -114,9 +123,10 @@ if [ "$FIXTURE_PRIOR_CI" = "yes" ]; then printf '1\\n'; else printf '0\\n'; fi
   );
 }
 
-function runExactPull(
-  resolvedDigest: string,
-): { result: SpawnSyncReturns<string>; commands: string } {
+function runExactPull(resolvedDigest: string): {
+  result: SpawnSyncReturns<string>;
+  commands: string;
+} {
   const directory = mkdtempSync(join(tmpdir(), "healthlog-image-pull-"));
   temporaryDirectories.push(directory);
   const dockerPath = join(directory, "docker");
@@ -138,7 +148,12 @@ exit 1
   const workflow = loadWorkflow("post-publish-verify.yml");
   const result = spawnSync(
     "bash",
-    ["-euo", "pipefail", "-c", stepScript(workflow, "verify", "Pull exact image")],
+    [
+      "-euo",
+      "pipefail",
+      "-c",
+      stepScript(workflow, "verify", "Pull exact image"),
+    ],
     {
       encoding: "utf8",
       env: {
@@ -179,7 +194,12 @@ printf '{\"deployment_uuid\":\"fixture\"}\\n__HTTP_STATUS__:%s' "$FIXTURE_HTTP_S
   const workflow = loadWorkflow("docker-publish.yml");
   return spawnSync(
     "bash",
-    ["-euo", "pipefail", "-c", stepScript(workflow, "promote", "Trigger Coolify deploy")],
+    [
+      "-euo",
+      "pipefail",
+      "-c",
+      stepScript(workflow, "promote", "Trigger Coolify deploy"),
+    ],
     {
       encoding: "utf8",
       env: {
@@ -219,9 +239,9 @@ describe("release container inputs", () => {
     };
     expect(packageJson.packageManager).toBe("pnpm@10.31.0");
     expect(dockerfile).not.toContain("pnpm@latest");
-    expect(dockerfile.match(/corepack prepare pnpm@10\.31\.0 --activate/g)).toHaveLength(
-      3,
-    );
+    expect(
+      dockerfile.match(/corepack prepare pnpm@10\.31\.0 --activate/g),
+    ).toHaveLength(3);
   });
 
   it("relies on and verifies standalone dependency resolution", () => {
@@ -352,10 +372,10 @@ describe("exact post-publish verification", () => {
     }
 
     expect(stepScript(workflow, "verify", "Run migrations")).toContain(
-      '${IMAGE_REF}@${IMAGE_DIGEST}',
+      "${IMAGE_REF}@${IMAGE_DIGEST}",
     );
     expect(stepScript(workflow, "verify", "Start exact image")).toContain(
-      '${IMAGE_REF}@${IMAGE_DIGEST}',
+      "${IMAGE_REF}@${IMAGE_DIGEST}",
     );
     expect(stepScript(workflow, "verify", "Verify exact version")).toContain(
       'jq -e --arg expected "$IMAGE_TAG"',

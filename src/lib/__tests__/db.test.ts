@@ -42,9 +42,7 @@ describe("per-process database connection budget", () => {
     expect(getConnectionBudget()).toBe(20);
     expect(getPrismaPoolMax()).toBe(18);
     expect(getPgBossPoolMax()).toBe(2);
-    expect(getPrismaPoolMax() + getPgBossPoolMax()).toBe(
-      getConnectionBudget(),
-    );
+    expect(getPrismaPoolMax() + getPgBossPoolMax()).toBe(getConnectionBudget());
   });
 
   it("uses the existing pool_timeout seconds for both pool constructors", () => {

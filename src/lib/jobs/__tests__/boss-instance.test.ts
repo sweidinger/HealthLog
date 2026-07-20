@@ -3,9 +3,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 interface MockBoss {
   start: Mock<() => Promise<unknown>>;
   stop: Mock<(options?: { graceful?: boolean }) => Promise<void>>;
-  on: Mock<
-    (event: string, handler: (error: Error) => void) => MockBoss
-  >;
+  on: Mock<(event: string, handler: (error: Error) => void) => MockBoss>;
   emitError(error: Error): void;
 }
 
