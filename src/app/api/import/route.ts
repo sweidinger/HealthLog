@@ -315,9 +315,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ) {
         const loggedAt =
           e.loggedAt ?? stableFallbackMoodInstant(e, occurrence, probe);
-        if (!e.loggedAt) {
-          if (reservedFallbackInstants.has(loggedAt.getTime())) continue;
-          reservedFallbackInstants.add(loggedAt.getTime());
+        if (
+          !e.loggedAt &&
+          reservedFallbackInstants.has(loggedAt.getTime())
+        ) {
+          continue;
         }
         try {
           if (e.externalId) {
@@ -364,6 +366,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
               },
             });
           }
+          if (!e.loggedAt) {
+            reservedFallbackInstants.add(loggedAt.getTime());
+          }
           stats.moodEntries++;
           break;
         } catch (err) {
@@ -400,6 +405,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
                 existing.tags === (e.tags || null) &&
                 (existing.externalId ?? null) === null
               ) {
+                reservedFallbackInstants.add(loggedAt.getTime());
                 stats.skipped++;
                 break;
               }

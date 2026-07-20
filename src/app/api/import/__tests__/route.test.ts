@@ -1023,6 +1023,20 @@ describe("POST /api/import — write failure classification", () => {
     });
     expect(persisted.size).toBe(2);
 
+    const reverseOrderResponse = await POST(
+      request({
+        moodEntries: [
+          { date: "2026-05-01", mood: "GUT", score: 4, tags: "tag-421" },
+          { date: "2026-05-01", mood: "GUT", score: 4, tags: "tag-250" },
+        ],
+      }),
+    );
+    expect(await reverseOrderResponse.json()).toEqual({
+      data: { measurements: 0, moodEntries: 0, skipped: 2 },
+      error: null,
+    });
+    expect(persisted.size).toBe(2);
+
     const repeatedRowResponse = await POST(
       request({
         moodEntries: [
