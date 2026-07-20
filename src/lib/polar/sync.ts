@@ -115,11 +115,11 @@ export async function syncUserPolar(userId: string): Promise<number> {
   try {
     const [recharges, sleeps, activities, cardioLoads, spo2Tests] =
       await Promise.all([
-        fetchNightlyRecharges(conn.accessToken, conn.polarUserId),
-        fetchSleeps(conn.accessToken, conn.polarUserId),
-        fetchActivities(conn.accessToken, conn.polarUserId),
-        fetchCardioLoads(conn.accessToken, conn.polarUserId),
-        fetchSpo2(conn.accessToken, conn.polarUserId),
+        fetchNightlyRecharges(conn.accessToken),
+        fetchSleeps(conn.accessToken),
+        fetchActivities(conn.accessToken),
+        fetchCardioLoads(conn.accessToken),
+        fetchSpo2(conn.accessToken),
       ]);
     for (const r of recharges) {
       readings.push(...toUpsert(mapNightlyRecharge(r), "recharge"));

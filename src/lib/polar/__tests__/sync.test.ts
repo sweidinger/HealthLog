@@ -168,6 +168,18 @@ describe("syncUserPolar", () => {
     expect(recordSuccessMock).not.toHaveBeenCalled();
   });
 
+  it("authenticates all collection reads with the access token only", async () => {
+    getConnMock.mockResolvedValue(CONN);
+
+    await syncUserPolar("u1");
+
+    expect(fetchRechargesMock).toHaveBeenCalledWith("tok");
+    expect(fetchSleepsMock).toHaveBeenCalledWith("tok");
+    expect(fetchActivitiesMock).toHaveBeenCalledWith("tok");
+    expect(fetchCardioLoadsMock).toHaveBeenCalledWith("tok");
+    expect(fetchSpo2Mock).toHaveBeenCalledWith("tok");
+  });
+
   it("maps a recharge RECOVERY_SCORE row with source POLAR + stable externalId", async () => {
     getConnMock.mockResolvedValue(CONN);
     fetchRechargesMock.mockResolvedValue([
