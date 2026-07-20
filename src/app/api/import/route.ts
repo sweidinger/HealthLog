@@ -299,6 +299,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // Import mood entries
   if (!writeFailed && data.moodEntries?.length) {
     const fallbackOccurrences = new Map<string, number>();
+    const reservedFallbackInstants = new Set<number>();
     for (const e of data.moodEntries) {
       const identity = e.loggedAt ? null : fallbackMoodIdentity(e);
       const occurrence =
@@ -314,6 +315,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ) {
         const loggedAt =
           e.loggedAt ?? stableFallbackMoodInstant(e, occurrence, probe);
+        if (!e.loggedAt) {
+          if (reservedFallbackInstants.has(loggedAt.getTime())) continue;
+          reservedFallbackInstants.add(loggedAt.getTime());
+        }
         try {
           if (e.externalId) {
             // v1.12.1 — idempotent re-import keyed on the source-stable id.

@@ -90,6 +90,10 @@ interface ApiErrorEnvelope {
   error: string;
 }
 
+function asDate(value: string | Date): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
 // V3 audit: /api/import POST had no rate-limit. Bulk-injection vector
 // (max:10000 records per call). Now capped at 5/hour/user.
 describe("POST /api/import — rate-limit guard", () => {
@@ -807,22 +811,24 @@ describe("POST /api/import — write failure classification", () => {
       return {} as never;
     };
 
-    vi.mocked(prisma.moodEntry.create).mockImplementation(({ data }) =>
-      writeMood(data as LegacyMoodWrite, committedKeys),
+    vi.mocked(prisma.moodEntry.create).mockImplementation(
+      (({ data }) =>
+        writeMood(data as LegacyMoodWrite, committedKeys)) as never,
     );
     vi.mocked(prisma.moodEntry.findUnique).mockImplementation(
-      async ({ where }) => {
-        const key = `${where.userId_date_moodLoggedAt.date}:${where.userId_date_moodLoggedAt.moodLoggedAt.toISOString()}`;
-        if (!committedKeys.has(key)) return null;
-        const isFirstDay = where.userId_date_moodLoggedAt.date === "2026-05-01";
-        return {
+      (({ where }) => {
+        const composite = where.userId_date_moodLoggedAt;
+        const key = `${composite.date}:${asDate(composite.moodLoggedAt).toISOString()}`;
+        if (!committedKeys.has(key)) return Promise.resolve(null);
+        const isFirstDay = composite.date === "2026-05-01";
+        return Promise.resolve({
           source: "IMPORT",
           mood: isFirstDay ? "GUT" : "OKAY",
           score: isFirstDay ? 4 : 3,
           tags: null,
           externalId: null,
-        } as never;
-      },
+        } as never);
+      }) as never,
     );
 
     const payload = {
@@ -856,21 +862,25 @@ describe("POST /api/import — write failure classification", () => {
     try {
       vi.setSystemTime(new Date("2026-05-10T08:00:00.000Z"));
       const committedKeys = new Set<string>();
-      vi.mocked(prisma.moodEntry.create).mockImplementation(async ({ data }) => {
-        const key = `${data.date}:${data.moodLoggedAt.toISOString()}`;
-        if (committedKeys.has(key)) {
-          throw new Prisma.PrismaClientKnownRequestError(
-            "Unique constraint failed",
-            {
-              code: "P2002",
-              clientVersion: "test",
-              meta: { target: ["userId", "date", "moodLoggedAt"] },
-            },
-          );
-        }
-        committedKeys.add(key);
-        return {} as never;
-      });
+      vi.mocked(prisma.moodEntry.create).mockImplementation(
+        (({ data }) => {
+          const key = `${data.date}:${asDate(data.moodLoggedAt).toISOString()}`;
+          if (committedKeys.has(key)) {
+            return Promise.reject(
+              new Prisma.PrismaClientKnownRequestError(
+                "Unique constraint failed",
+                {
+                  code: "P2002",
+                  clientVersion: "test",
+                  meta: { target: ["userId", "date", "moodLoggedAt"] },
+                },
+              ),
+            );
+          }
+          committedKeys.add(key);
+          return Promise.resolve({} as never);
+        }) as never,
+      );
 
       const firstResponse = await POST(
         request({
@@ -909,8 +919,9 @@ describe("POST /api/import — write failure classification", () => {
       );
 
       expect(response.status).toBe(200);
-      const moodLoggedAt = vi.mocked(prisma.moodEntry.create).mock.calls[0][0]
-        .data.moodLoggedAt;
+      const moodLoggedAt = asDate(
+        vi.mocked(prisma.moodEntry.create).mock.calls[0][0].data.moodLoggedAt,
+      );
       expect(moodLoggedAt.getTime()).toBeGreaterThanOrEqual(
         Date.parse("2026-04-30T22:00:00.000Z"),
       );
@@ -937,10 +948,10 @@ describe("POST /api/import — write failure classification", () => {
       expect(response.status).toBe(200);
       const moodLoggedAt = vi.mocked(prisma.moodEntry.create).mock.calls[0][0]
         .data.moodLoggedAt;
-      expect(moodLoggedAt.getTime()).toBeGreaterThanOrEqual(
+      expect(new Date(moodLoggedAt).getTime()).toBeGreaterThanOrEqual(
         Date.parse("2026-05-10T22:00:00.000Z"),
       );
-      expect(moodLoggedAt.getTime()).toBeLessThan(
+      expect(new Date(moodLoggedAt).getTime()).toBeLessThan(
         Date.parse("2026-05-10T22:05:00.000Z"),
       );
     } finally {
@@ -948,7 +959,7 @@ describe("POST /api/import — write failure classification", () => {
     }
   });
 
-  it("probes past a persisted fallback timestamp collision", async () => {
+  it("resolves persisted and repeated-row fallback timestamp collisions", async () => {
     type StoredMood = {
       date: string;
       mood: string;
@@ -959,25 +970,33 @@ describe("POST /api/import — write failure classification", () => {
     };
 
     const persisted = new Map<string, StoredMood>();
-    vi.mocked(prisma.moodEntry.create).mockImplementation(async ({ data }) => {
-      const key = `${data.date}:${data.moodLoggedAt.toISOString()}`;
-      if (persisted.has(key)) {
-        throw new Prisma.PrismaClientKnownRequestError(
-          "Unique constraint failed",
-          {
-            code: "P2002",
-            clientVersion: "test",
-            meta: { target: ["userId", "date", "moodLoggedAt"] },
-          },
-        );
-      }
-      persisted.set(key, data as StoredMood);
-      return {} as never;
-    });
-    vi.mocked(prisma.moodEntry.findUnique).mockImplementation(async ({ where }) => {
-      const key = `${where.userId_date_moodLoggedAt.date}:${where.userId_date_moodLoggedAt.moodLoggedAt.toISOString()}`;
-      return (persisted.get(key) ?? null) as never;
-    });
+    vi.mocked(prisma.moodEntry.create).mockImplementation(
+      (({ data }) => {
+        const moodLoggedAt = asDate(data.moodLoggedAt);
+        const key = `${data.date}:${moodLoggedAt.toISOString()}`;
+        if (persisted.has(key)) {
+          return Promise.reject(
+            new Prisma.PrismaClientKnownRequestError(
+              "Unique constraint failed",
+              {
+                code: "P2002",
+                clientVersion: "test",
+                meta: { target: ["userId", "date", "moodLoggedAt"] },
+              },
+            ),
+          );
+        }
+        persisted.set(key, { ...data, moodLoggedAt } as StoredMood);
+        return Promise.resolve({} as never);
+      }) as never,
+    );
+    vi.mocked(prisma.moodEntry.findUnique).mockImplementation(
+      (({ where }) => {
+        const composite = where.userId_date_moodLoggedAt;
+        const key = `${composite.date}:${asDate(composite.moodLoggedAt).toISOString()}`;
+        return Promise.resolve((persisted.get(key) ?? null) as never);
+      }) as never,
+    );
 
     const firstPayload = {
       moodEntries: [
@@ -1003,6 +1022,20 @@ describe("POST /api/import — write failure classification", () => {
       error: null,
     });
     expect(persisted.size).toBe(2);
+
+    const repeatedRowResponse = await POST(
+      request({
+        moodEntries: [
+          { date: "2026-05-01", mood: "GUT", score: 4, tags: "tag-53200" },
+          { date: "2026-05-01", mood: "GUT", score: 4, tags: "tag-53200" },
+        ],
+      }),
+    );
+    expect(await repeatedRowResponse.json()).toEqual({
+      data: { measurements: 0, moodEntries: 2, skipped: 0 },
+      error: null,
+    });
+    expect(persisted.size).toBe(4);
   });
 
   it("keeps a generated timestamp stable when upserting an external ID", async () => {
