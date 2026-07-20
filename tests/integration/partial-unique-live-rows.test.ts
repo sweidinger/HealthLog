@@ -199,6 +199,157 @@ describe("MoodEntry — external-id re-import idempotency (v1.12.1 / 0122)", () 
     expect(rows[0].score).toBe(5);
   });
 
+  it("acknowledges an exact provider replay with one stable durable row", async () => {
+    const prisma = getPrismaClient();
+    const secret = "mood-secret-replay";
+    const user = await prisma.user.create({
+      data: {
+        username: "mood-provider-replay",
+        email: "mood-provider-replay@example.test",
+        role: "USER",
+        moodLogEnabled: true,
+        moodLogWebhookSecret: secret,
+      },
+    });
+    const { POST } =
+      await import("@/app/api/integrations/moodlog/webhook/route");
+    const payload = {
+      event: "mood.created",
+      timestamp: "2026-06-04T11:00:00.000Z",
+      entry: {
+        id: "provider-event-replay-1",
+        date: "2026-06-04",
+        time: "2026-06-04T11:00:00.000Z",
+        mood: "GUT",
+        score: 4,
+      },
+    };
+
+    const first = await POST(webhookRequest(secret, payload));
+    expect(first.status).toBe(200);
+    const firstRow = await prisma.moodEntry.findUniqueOrThrow({
+      where: {
+        userId_source_externalId: {
+          userId: user.id,
+          source: "MOODLOG",
+          externalId: "provider-event-replay-1",
+        },
+      },
+    });
+
+    const replay = await POST(webhookRequest(secret, payload));
+    expect(replay.status).toBe(200);
+    const rows = await prisma.moodEntry.findMany({
+      where: { userId: user.id, source: "MOODLOG" },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(firstRow.id);
+  });
+
+  it("adopts a legacy natural-key row when a replay gains a provider id", async () => {
+    const prisma = getPrismaClient();
+    const secret = "mood-secret-key-upgrade";
+    const user = await prisma.user.create({
+      data: {
+        username: "mood-key-upgrade",
+        email: "mood-key-upgrade@example.test",
+        role: "USER",
+        moodLogEnabled: true,
+        moodLogWebhookSecret: secret,
+      },
+    });
+    const { POST } =
+      await import("@/app/api/integrations/moodlog/webhook/route");
+    const entry = {
+      date: "2026-06-04",
+      time: "2026-06-04T12:00:00.000Z",
+      mood: "GUT",
+      score: 4,
+    };
+
+    const legacy = await POST(
+      webhookRequest(secret, {
+        event: "mood.created",
+        timestamp: "2026-06-04T12:00:00.000Z",
+        entry,
+      }),
+    );
+    expect(legacy.status).toBe(200);
+    const legacyRow = await prisma.moodEntry.findFirstOrThrow({
+      where: { userId: user.id, source: "MOODLOG" },
+    });
+    expect(legacyRow.externalId).toBeNull();
+
+    const upgraded = await POST(
+      webhookRequest(secret, {
+        event: "mood.updated",
+        timestamp: "2026-06-04T12:05:00.000Z",
+        entry: { ...entry, id: "provider-key-upgrade-1" },
+      }),
+    );
+    expect(upgraded.status).toBe(200);
+
+    const rows = await prisma.moodEntry.findMany({
+      where: { userId: user.id, source: "MOODLOG" },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(legacyRow.id);
+    expect(rows[0].externalId).toBe("provider-key-upgrade-1");
+  });
+
+  it("does not adopt an unrelated row that occupies the natural key", async () => {
+    const prisma = getPrismaClient();
+    const secret = "mood-secret-unrelated-collision";
+    const user = await prisma.user.create({
+      data: {
+        username: "mood-unrelated-collision",
+        email: "mood-unrelated-collision@example.test",
+        role: "USER",
+        moodLogEnabled: true,
+        moodLogWebhookSecret: secret,
+      },
+    });
+    const moodLoggedAt = new Date("2026-06-04T13:00:00.000Z");
+    const manual = await prisma.moodEntry.create({
+      data: {
+        userId: user.id,
+        date: "2026-06-04",
+        moodLoggedAt,
+        mood: "OKAY",
+        score: 3,
+        source: "MANUAL",
+      },
+    });
+    const { POST } =
+      await import("@/app/api/integrations/moodlog/webhook/route");
+
+    const response = await POST(
+      webhookRequest(secret, {
+        event: "mood.created",
+        timestamp: "2026-06-04T13:00:00.000Z",
+        entry: {
+          id: "provider-unrelated-collision-1",
+          date: "2026-06-04",
+          time: moodLoggedAt.toISOString(),
+          mood: "GUT",
+          score: 4,
+        },
+      }),
+    );
+    expect(response.status).toBe(503);
+
+    const row = await prisma.moodEntry.findUniqueOrThrow({
+      where: { id: manual.id },
+    });
+    expect(row).toMatchObject({
+      source: "MANUAL",
+      externalId: null,
+      mood: "OKAY",
+      score: 3,
+    });
+    expect(await prisma.moodEntry.count({ where: { userId: user.id } })).toBe(1);
+  });
+
   it("entries without an id still dedup on the legacy wall-clock key", async () => {
     const prisma = getPrismaClient();
     const secret = "mood-secret-legacy";

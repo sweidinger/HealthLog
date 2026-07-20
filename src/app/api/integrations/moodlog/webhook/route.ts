@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/api-response";
 import { moodLogWebhookPayloadSchema } from "@/lib/validations/moodlog";
 import { readMoodLogSecret } from "@/lib/moodlog-secret";
+import { persistMoodLogSourceEntry } from "@/lib/moodlog/persistence";
 import { apiHandler } from "@/lib/api-handler";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
@@ -97,7 +98,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { event, entry } = parsed.data;
   annotate({ meta: { webhook_event: event } });
 
-  // 5. Process event (non-blocking — fire and forget with error logging)
+  // 5. Process event and acknowledge only after the source write commits.
   const moodLoggedAt = new Date(entry.time);
   // v1.12.1 — when the upstream supplies a stable entry id, dedup on
   // `(userId, source, externalId)` so a re-emit with a re-rounded /
@@ -116,67 +117,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
             : { date: entry.date, moodLoggedAt }),
         },
       });
-    } else if (externalId) {
-      // mood.created or mood.updated, keyed on the stable external id.
-      await prisma.moodEntry.upsert({
-        where: {
-          userId_source_externalId: {
-            userId: user.id,
-            source: "MOODLOG",
-            externalId,
-          },
-        },
-        update: {
-          mood: entry.mood,
-          score: entry.score,
-          tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          source: "MOODLOG",
-          date: entry.date,
-          moodLoggedAt,
-          // No-op on a live row, a deliberate RESURRECTION on a tombstoned
-          // one — moodLog is the source of truth for the rows it minted; a
-          // created/updated event means the entry exists upstream (deletion
-          // arrives as its own `mood.deleted` event).
-          deletedAt: null,
-        },
-        create: {
-          userId: user.id,
-          date: entry.date,
-          mood: entry.mood,
-          score: entry.score,
-          tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          source: "MOODLOG",
-          externalId,
-          moodLoggedAt,
-        },
-      });
     } else {
-      // mood.created or mood.updated, legacy wall-clock key.
-      await prisma.moodEntry.upsert({
-        where: {
-          userId_date_moodLoggedAt: {
-            userId: user.id,
-            date: entry.date,
-            moodLoggedAt,
-          },
-        },
-        update: {
-          mood: entry.mood,
-          score: entry.score,
-          tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          source: "MOODLOG",
-          // Same resurrection rule as the externalId-keyed upsert above.
-          deletedAt: null,
-        },
-        create: {
-          userId: user.id,
-          date: entry.date,
-          mood: entry.mood,
-          score: entry.score,
-          tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          source: "MOODLOG",
-          moodLoggedAt,
-        },
+      await persistMoodLogSourceEntry(user.id, {
+        externalId,
+        date: entry.date,
+        moodLoggedAt,
+        mood: entry.mood,
+        score: entry.score,
+        tags: entry.tags,
       });
     }
 
@@ -193,9 +141,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
       );
     }
   } catch (err) {
-    getEvent()?.addWarning("DB operation failed: " + err);
+    const message = err instanceof Error ? err.message : String(err);
+    getEvent()?.addWarning(`MoodLog source persistence failed: ${message}`);
+    return apiError("Failed to persist moodLog event", 503);
   }
 
-  // 6. Return 200 immediately
+  // 6. The source record is durable; the provider can stop retrying.
   return new Response(null, { status: 200 });
 });
