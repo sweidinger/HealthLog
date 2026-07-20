@@ -812,14 +812,14 @@ describe("POST /api/import — write failure classification", () => {
     };
 
     vi.mocked(prisma.moodEntry.create).mockImplementation(
-      (({ data }) =>
-        writeMood(data as LegacyMoodWrite, committedKeys)) as never,
+      ({ data }: Prisma.MoodEntryCreateArgs) =>
+        writeMood(data as LegacyMoodWrite, committedKeys) as never,
     );
     vi.mocked(prisma.moodEntry.findUnique).mockImplementation(
-      (({ where }) => {
-        const composite = where.userId_date_moodLoggedAt;
+      ({ where }: Prisma.MoodEntryFindUniqueArgs) => {
+        const composite = where.userId_date_moodLoggedAt!;
         const key = `${composite.date}:${asDate(composite.moodLoggedAt).toISOString()}`;
-        if (!committedKeys.has(key)) return Promise.resolve(null);
+        if (!committedKeys.has(key)) return Promise.resolve(null) as never;
         const isFirstDay = composite.date === "2026-05-01";
         return Promise.resolve({
           source: "IMPORT",
@@ -827,8 +827,8 @@ describe("POST /api/import — write failure classification", () => {
           score: isFirstDay ? 4 : 3,
           tags: null,
           externalId: null,
-        } as never);
-      }) as never,
+        } as never) as never;
+      },
     );
 
     const payload = {
@@ -863,7 +863,7 @@ describe("POST /api/import — write failure classification", () => {
       vi.setSystemTime(new Date("2026-05-10T08:00:00.000Z"));
       const committedKeys = new Set<string>();
       vi.mocked(prisma.moodEntry.create).mockImplementation(
-        (({ data }) => {
+        ({ data }: Prisma.MoodEntryCreateArgs) => {
           const key = `${data.date}:${asDate(data.moodLoggedAt).toISOString()}`;
           if (committedKeys.has(key)) {
             return Promise.reject(
@@ -875,11 +875,11 @@ describe("POST /api/import — write failure classification", () => {
                   meta: { target: ["userId", "date", "moodLoggedAt"] },
                 },
               ),
-            );
+            ) as never;
           }
           committedKeys.add(key);
-          return Promise.resolve({} as never);
-        }) as never,
+          return Promise.resolve({} as never) as never;
+        },
       );
 
       const firstResponse = await POST(
@@ -971,7 +971,7 @@ describe("POST /api/import — write failure classification", () => {
 
     const persisted = new Map<string, StoredMood>();
     vi.mocked(prisma.moodEntry.create).mockImplementation(
-      (({ data }) => {
+      ({ data }: Prisma.MoodEntryCreateArgs) => {
         const moodLoggedAt = asDate(data.moodLoggedAt);
         const key = `${data.date}:${moodLoggedAt.toISOString()}`;
         if (persisted.has(key)) {
@@ -984,18 +984,18 @@ describe("POST /api/import — write failure classification", () => {
                 meta: { target: ["userId", "date", "moodLoggedAt"] },
               },
             ),
-          );
+          ) as never;
         }
         persisted.set(key, { ...data, moodLoggedAt } as StoredMood);
-        return Promise.resolve({} as never);
-      }) as never,
+        return Promise.resolve({} as never) as never;
+      },
     );
     vi.mocked(prisma.moodEntry.findUnique).mockImplementation(
-      (({ where }) => {
-        const composite = where.userId_date_moodLoggedAt;
+      ({ where }: Prisma.MoodEntryFindUniqueArgs) => {
+        const composite = where.userId_date_moodLoggedAt!;
         const key = `${composite.date}:${asDate(composite.moodLoggedAt).toISOString()}`;
-        return Promise.resolve((persisted.get(key) ?? null) as never);
-      }) as never,
+        return Promise.resolve((persisted.get(key) ?? null) as never) as never;
+      },
     );
 
     const firstPayload = {
