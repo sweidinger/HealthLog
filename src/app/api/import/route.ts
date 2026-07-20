@@ -238,14 +238,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
       .map((row) => row.measuredAt),
   ).catch(() => {});
 
-  // Import mood entries
+  // Import mood entries with stable identities first. Rows without either
+  // identity are committed together so a retry cannot replay a partial batch.
   if (!writeFailed && data.moodEntries?.length) {
-    for (const [index, e] of data.moodEntries.entries()) {
+    const retryUnsafeEntries = [];
+    for (const e of data.moodEntries) {
+      if (!e.loggedAt && !e.externalId) {
+        retryUnsafeEntries.push(e);
+        continue;
+      }
+
       try {
-        // Keep legacy rows retry-stable while preserving distinct rows per payload.
-        const loggedAt =
-          e.loggedAt ??
-          new Date(Date.parse(`${e.date}T12:00:00.000Z`) + index);
+        const loggedAt = e.loggedAt ?? new Date();
         if (e.externalId) {
           // v1.12.1 — idempotent re-import keyed on the source-stable id.
           // A second import of the same export updates the row in place
@@ -298,6 +302,32 @@ export const POST = apiHandler(async (request: NextRequest) => {
         }
         writeFailed = true;
         break;
+      }
+    }
+
+    if (!writeFailed && retryUnsafeEntries.length > 0) {
+      const loggedAtBase = Date.now();
+      let importedMoodEntries = 0;
+      try {
+        await prisma.$transaction(async (tx) => {
+          for (const [index, e] of retryUnsafeEntries.entries()) {
+            await tx.moodEntry.create({
+              data: {
+                userId,
+                date: e.date,
+                mood: e.mood,
+                score: e.score,
+                tags: e.tags || null,
+                source: "IMPORT",
+                moodLoggedAt: new Date(loggedAtBase + index),
+              },
+            });
+            importedMoodEntries++;
+          }
+        });
+        stats.moodEntries += importedMoodEntries;
+      } catch {
+        writeFailed = true;
       }
     }
   }

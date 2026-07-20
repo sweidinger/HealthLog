@@ -18,6 +18,7 @@ vi.mock("@/lib/db", () => ({
       upsert: vi.fn(),
     },
     moodEntry: { create: vi.fn(), upsert: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -77,6 +78,9 @@ import { auditLog } from "@/lib/auth/audit";
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurement.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.$transaction).mockImplementation(
+    (operation) => operation(prisma as never) as never,
+  );
   vi.mocked(emitInsertedMeasurementArrivals).mockResolvedValue(undefined);
   vi.mocked(maybeEnqueueMorningRefresh).mockResolvedValue(undefined);
   encryptNoteMock.mockImplementation((note: string | null) =>
@@ -777,20 +781,22 @@ describe("POST /api/import — write failure classification", () => {
     });
   });
 
-  it("resumes a partially committed legacy mood import without duplicates", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-05-10T08:00:00.000Z"));
+  it("rolls back a partial legacy mood import before a retry", async () => {
+    type LegacyMoodWrite = { date: string; moodLoggedAt: Date };
 
     const committedKeys = new Set<string>();
     let writeAttempt = 0;
-    vi.mocked(prisma.moodEntry.create).mockImplementation(async ({ data }) => {
+    const writeMood = async (
+      data: LegacyMoodWrite,
+      target: Set<string>,
+    ): Promise<never> => {
       writeAttempt++;
       if (writeAttempt === 2) {
         throw new Error("transient write failure");
       }
 
       const key = `${data.date}:${data.moodLoggedAt.toISOString()}`;
-      if (committedKeys.has(key)) {
+      if (target.has(key)) {
         throw new Prisma.PrismaClientKnownRequestError(
           "Unique constraint failed",
           {
@@ -800,8 +806,26 @@ describe("POST /api/import — write failure classification", () => {
           },
         );
       }
-      committedKeys.add(key);
+      target.add(key);
       return {} as never;
+    };
+
+    vi.mocked(prisma.moodEntry.create).mockImplementation(({ data }) =>
+      writeMood(data as LegacyMoodWrite, committedKeys),
+    );
+    vi.mocked(prisma.$transaction).mockImplementation(async (operation) => {
+      const pendingKeys = new Set(committedKeys);
+      const result = await operation({
+        moodEntry: {
+          create: vi.fn(({ data }: { data: LegacyMoodWrite }) =>
+            writeMood(data, pendingKeys),
+          ),
+          upsert: prisma.moodEntry.upsert,
+        },
+      } as never);
+      committedKeys.clear();
+      for (const key of pendingKeys) committedKeys.add(key);
+      return result as never;
     });
 
     const payload = {
@@ -815,21 +839,86 @@ describe("POST /api/import — write failure classification", () => {
     expect(failedResponse.status).toBe(503);
     expectRetryableFailure(await failedResponse.json(), {
       measurements: 0,
-      moodEntries: 1,
+      moodEntries: 0,
       skipped: 0,
     });
+    expect(committedKeys.size).toBe(0);
 
-    vi.advanceTimersByTime(1000);
     const retryResponse = await POST(request(payload));
 
     expect(retryResponse.status).toBe(200);
     expect(await retryResponse.json()).toEqual({
-      data: { measurements: 0, moodEntries: 1, skipped: 1 },
+      data: { measurements: 0, moodEntries: 2, skipped: 0 },
       error: null,
     });
     expect(committedKeys.size).toBe(2);
+  });
 
-    vi.useRealTimers();
+  it("does not alias unrelated date-only mood imports", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-10T08:00:00.000Z"));
+      const committedKeys = new Set<string>();
+      vi.mocked(prisma.moodEntry.create).mockImplementation(async ({ data }) => {
+        const key = `${data.date}:${data.moodLoggedAt.toISOString()}`;
+        if (committedKeys.has(key)) {
+          throw new Prisma.PrismaClientKnownRequestError(
+            "Unique constraint failed",
+            {
+              code: "P2002",
+              clientVersion: "test",
+              meta: { target: ["userId", "date", "moodLoggedAt"] },
+            },
+          );
+        }
+        committedKeys.add(key);
+        return {} as never;
+      });
+
+      const firstResponse = await POST(
+        request({
+          moodEntries: [{ date: "2026-05-10", mood: "GUT", score: 4 }],
+        }),
+      );
+      vi.advanceTimersByTime(1000);
+      const secondResponse = await POST(
+        request({
+          moodEntries: [{ date: "2026-05-10", mood: "SCHLECHT", score: 2 }],
+        }),
+      );
+
+      expect(firstResponse.status).toBe(200);
+      expect(secondResponse.status).toBe(200);
+      expect(await secondResponse.json()).toEqual({
+        data: { measurements: 0, moodEntries: 1, skipped: 0 },
+        error: null,
+      });
+      expect(committedKeys.size).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("uses the current instant for a date-only mood row", async () => {
+    vi.useFakeTimers();
+    try {
+      const now = new Date("2026-05-10T08:00:00.000Z");
+      vi.setSystemTime(now);
+      vi.mocked(prisma.moodEntry.create).mockResolvedValue({} as never);
+
+      const response = await POST(
+        request({
+          moodEntries: [{ date: "2026-05-10", mood: "GUT", score: 4 }],
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(prisma.moodEntry.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ moodLoggedAt: now }),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns a retryable failure for a generic mood write error", async () => {
