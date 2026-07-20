@@ -57,10 +57,15 @@ export interface LabResultBackupEntry {
   takenAt: string;
   source: string;
   /** Human-readable cross-reference into `biomarkers` below, not an id. */
+  /** Stable canonical FK; legacy portable payloads use biomarkerName. */
+  biomarkerId?: string | null;
   biomarkerName: string | null;
   note: string | null;
+  /** Base64 ciphertext in canonical DR payloads. */
+  noteEncrypted?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string | null;
 }
 
 export interface BiomarkerBackupEntry {
@@ -140,11 +145,30 @@ interface DisasterRecoveryDocumentRow {
   updatedAt: Date;
 }
 
+type CanonicalIllnessDayLog = IllnessDayLogDTO & {
+  noteEncrypted?: string | null;
+  tz?: string | null;
+  createdAt?: string;
+  deletedAt?: string | null;
+};
+
+type CanonicalIllnessEpisode = IllnessEpisodeDTO & {
+  noteEncrypted?: string | null;
+  deletedAt?: string | null;
+  dayLogs: CanonicalIllnessDayLog[];
+};
+
+type CanonicalAllergy = AllergyDTO & {
+  reactionEncrypted?: string | null;
+  notesEncrypted?: string | null;
+  deletedAt?: string | null;
+};
+
 export interface RecordsBackupSection {
   labResults: LabResultBackupEntry[];
   biomarkers: BiomarkerBackupEntry[];
-  illnessEpisodes: Array<IllnessEpisodeDTO & { dayLogs: IllnessDayLogDTO[] }>;
-  allergies: AllergyDTO[];
+  illnessEpisodes: CanonicalIllnessEpisode[];
+  allergies: CanonicalAllergy[];
   familyHistory: FamilyHistoryEntryDTO[];
   workouts: WorkoutBackupEntry[];
   documents: DocumentBackupEntry[];
@@ -255,7 +279,7 @@ export async function buildRecordsBackupSection(
     documentRows,
   ] = await Promise.all([
     prisma.labResult.findMany({
-      where: { userId, deletedAt: null },
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
       orderBy: { takenAt: "desc" },
       include: { biomarker: { select: { name: true } } },
     }),
@@ -264,18 +288,18 @@ export async function buildRecordsBackupSection(
       orderBy: { name: "asc" },
     }),
     prisma.illnessEpisode.findMany({
-      where: { userId, deletedAt: null },
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
       orderBy: { onsetAt: "desc" },
       include: {
         dayLogs: {
-          where: { deletedAt: null },
+          ...(disasterRecovery ? {} : { where: { deletedAt: null } }),
           orderBy: { date: "asc" },
           include: dayLogSymptomInclude,
         },
       },
     }),
     prisma.allergy.findMany({
-      where: { userId, deletedAt: null },
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
       orderBy: { createdAt: "desc" },
     }),
     prisma.familyHistoryEntry.findMany({
@@ -293,10 +317,16 @@ export async function buildRecordsBackupSection(
     ...(disasterRecovery
       ? {
           id: r.id,
+          biomarkerId: r.biomarkerId,
+          noteEncrypted: r.noteEncrypted
+            ? Buffer.from(r.noteEncrypted).toString("base64")
+            : null,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
+          deletedAt: r.deletedAt?.toISOString() ?? null,
+          note: null,
         }
-      : {}),
+      : { note: decryptNoteSoft(r.noteEncrypted) }),
     panel: r.panel,
     analyte: r.analyte,
     value: r.value,
@@ -307,7 +337,6 @@ export async function buildRecordsBackupSection(
     takenAt: r.takenAt.toISOString(),
     source: r.source,
     biomarkerName: r.biomarker?.name ?? null,
-    note: decryptNoteSoft(r.noteEncrypted),
   }));
 
   const biomarkers: BiomarkerBackupEntry[] = biomarkerRows.map((b) => ({
@@ -327,12 +356,69 @@ export async function buildRecordsBackupSection(
     context: decryptContextSoft(b.contextEncrypted),
   }));
 
-  const illnessEpisodes = episodeRows.map((row) => ({
-    ...toIllnessEpisodeDTO(row),
-    dayLogs: row.dayLogs.map(toIllnessDayLogDTO),
-  }));
+  const illnessEpisodes: CanonicalIllnessEpisode[] = disasterRecovery
+    ? episodeRows.map((row) => ({
+        id: row.id,
+        label: row.label,
+        type: row.type,
+        lifecycle: row.lifecycle,
+        onsetAt: row.onsetAt.toISOString(),
+        resolvedAt: row.resolvedAt?.toISOString() ?? null,
+        parentConditionId: row.parentConditionId,
+        note: null,
+        noteEncrypted: row.noteEncrypted
+          ? Buffer.from(row.noteEncrypted).toString("base64")
+          : null,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+        deletedAt: row.deletedAt?.toISOString() ?? null,
+        dayLogs: row.dayLogs.map((dayLog) => ({
+          id: dayLog.id,
+          episodeId: dayLog.episodeId,
+          date: dayLog.date,
+          functionalImpact: dayLog.functionalImpact,
+          feverC: dayLog.feverC,
+          note: null,
+          noteEncrypted: dayLog.noteEncrypted
+            ? Buffer.from(dayLog.noteEncrypted).toString("base64")
+            : null,
+          tz: dayLog.tz,
+          createdAt: dayLog.createdAt.toISOString(),
+          updatedAt: dayLog.updatedAt.toISOString(),
+          deletedAt: dayLog.deletedAt?.toISOString() ?? null,
+          symptoms: dayLog.symptomLinks.map((link) => ({
+            key: link.symptom.key,
+            severity: link.severity,
+          })),
+        })),
+      }))
+    : episodeRows.map((row) => ({
+        ...toIllnessEpisodeDTO(row),
+        dayLogs: row.dayLogs.map(toIllnessDayLogDTO),
+      }));
 
-  const allergies = allergyRows.map(toAllergyDTO);
+  const allergies: CanonicalAllergy[] = disasterRecovery
+    ? allergyRows.map((row) => ({
+        id: row.id,
+        substance: row.substance,
+        category: row.category,
+        type: row.type,
+        severity: row.severity,
+        status: row.status,
+        onsetAt: row.onsetAt?.toISOString() ?? null,
+        reaction: null,
+        note: null,
+        reactionEncrypted: row.reactionEncrypted
+          ? Buffer.from(row.reactionEncrypted).toString("base64")
+          : null,
+        notesEncrypted: row.notesEncrypted
+          ? Buffer.from(row.notesEncrypted).toString("base64")
+          : null,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+        deletedAt: row.deletedAt?.toISOString() ?? null,
+      }))
+    : allergyRows.map(toAllergyDTO);
   const familyHistory = familyRows.map(toFamilyHistoryEntryDTO);
 
   const workouts: WorkoutBackupEntry[] = workoutRows.map((w) => ({

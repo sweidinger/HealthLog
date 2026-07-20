@@ -34,19 +34,28 @@ import {
   DocumentSummaryState,
   FamilyRelationship,
   FlowLevel,
+  GlucoseContext,
   HomeTestResult,
   IllnessLifecycle,
   IllnessType,
   InboundDocumentKind,
   InboundDocumentStatus,
+  InjectionSite,
+  IntakeAttributionSource,
   IntakeSource,
   MeasurementSource,
   MeasurementType,
+  MedicationCategory,
+  MedicationDeliveryForm,
+  MedicationScheduleType,
   OvulationTest,
+  RhythmClassification,
   SecondarySymptom,
+  SleepStage,
 } from "@/generated/prisma/enums";
 
-export const BACKUP_SCHEMA_VERSION = "1" as const;
+export const BACKUP_SCHEMA_VERSION = "2" as const;
+const LEGACY_BACKUP_SCHEMA_VERSION = "1" as const;
 
 const isoDateTime = z
   .string()
@@ -55,44 +64,112 @@ const isoDateTime = z
     message: "Expected ISO-8601 date-time string",
   });
 
+const base64BytesSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => value.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(value),
+    { message: "Expected base64-encoded encrypted bytes" },
+  );
+
 const measurementSchema = z
   .object({
     id: z.string().min(1).optional(),
     type: z.enum(MeasurementType),
     value: z.number(),
+    valueMin: z.number().nullable().optional(),
+    valueMax: z.number().nullable().optional(),
     unit: z.string().min(1),
     measuredAt: isoDateTime,
     source: z.enum(MeasurementSource).optional(),
     notes: z.string().nullable().optional(),
+    notesEncrypted: base64BytesSchema.nullable().optional(),
+    externalId: z.string().nullable().optional(),
+    externalSourceVersion: z.string().nullable().optional(),
+    glucoseContext: z.enum(GlucoseContext).nullable().optional(),
+    sleepStage: z.enum(SleepStage).nullable().optional(),
+    rhythmClassification: z.enum(RhythmClassification).nullable().optional(),
+    deviceType: z.string().nullable().optional(),
+    syncVersion: z.number().int().optional(),
     deletedAt: isoDateTime.nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
   })
   .passthrough();
 
 const medicationScheduleSchema = z
   .object({
+    id: z.string().min(1).optional(),
     windowStart: z.string().min(1),
     windowEnd: z.string().min(1),
     label: z.string().nullable().optional(),
     dose: z.string().nullable().optional(),
+    daysOfWeek: z.string().nullable().optional(),
+    timesOfDay: z.array(z.string()).optional(),
+    reminderGraceMinutes: z.number().int().nullable().optional(),
+    rrule: z.string().nullable().optional(),
+    rollingIntervalDays: z.number().int().nullable().optional(),
+    scheduleType: z.enum(MedicationScheduleType).optional(),
+    cyclicOnWeeks: z.number().int().nullable().optional(),
+    cyclicOffWeeks: z.number().int().nullable().optional(),
+    doseWindows: z.unknown().nullable().optional(),
   })
   .passthrough();
 
 const medicationSchema = z
   .object({
+    id: z.string().min(1).optional(),
     name: z.string().min(1),
     dose: z.string(),
+    treatmentClass: z.enum(MedicationCategory).optional(),
+    dosesPerUnit: z.number().int().nullable().optional(),
+    unitsPerDose: z.string().min(1).optional(),
     active: z.boolean().optional(),
+    notificationsEnabled: z.boolean().optional(),
+    pausedAt: isoDateTime.nullable().optional(),
+    snoozedUntil: isoDateTime.nullable().optional(),
+    startsOn: isoDateTime.nullable().optional(),
+    endsOn: isoDateTime.nullable().optional(),
+    oneShot: z.boolean().optional(),
+    asNeeded: z.boolean().optional(),
+    deliveryForm: z.enum(MedicationDeliveryForm).optional(),
+    trackInjectionSites: z.boolean().optional(),
+    allowedInjectionSites: z.array(z.enum(InjectionSite)).optional(),
+    liveActivityEnabled: z.boolean().optional(),
+    criticalAlarmEnabled: z.boolean().optional(),
+    atcCode: z.string().nullable().optional(),
+    rxNormCode: z.string().nullable().optional(),
+    lowStockNotifiedAt: isoDateTime.nullable().optional(),
+    lowStockNotifiedThresholdDays: z.number().int().nullable().optional(),
+    reorderLeadDays: z.number().int().nullable().optional(),
+    externalSource: z.enum(IntakeSource).nullable().optional(),
+    externalId: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
     schedules: z.array(medicationScheduleSchema).default([]),
   })
   .passthrough();
 
 const intakeEventSchema = z
   .object({
+    id: z.string().min(1).optional(),
+    medicationId: z.string().min(1).optional(),
     medication: z.string().min(1),
     scheduledFor: isoDateTime,
     takenAt: isoDateTime.nullable().optional(),
     skipped: z.boolean().optional(),
+    autoMissed: z.boolean().optional(),
+    attributionSource: z.enum(IntakeAttributionSource).optional(),
     source: z.enum(IntakeSource).optional(),
+    idempotencyKey: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    injectionSite: z.enum(InjectionSite).nullable().optional(),
+    doseTaken: z.string().nullable().optional(),
+    inventoryConsumption: z.unknown().nullable().optional(),
+    externalId: z.string().nullable().optional(),
+    updatedAt: isoDateTime.optional(),
+    syncVersion: z.number().int().optional(),
+    deletedAt: isoDateTime.nullable().optional(),
   })
   .passthrough();
 
@@ -156,13 +233,19 @@ const moodEntrySchema = z
  */
 const cycleSpanSchema = z
   .object({
+    id: z.string().min(1).optional(),
     startDate: z.string().min(1),
     endDate: z.string().nullable().optional(),
     periodEndDate: z.string().nullable().optional(),
     lengthDays: z.number().int().nullable().optional(),
     ovulationDate: z.string().nullable().optional(),
     ovulationConfirmed: z.boolean().optional(),
+    isPredicted: z.boolean().optional(),
     tz: z.string().nullable().optional(),
+    syncVersion: z.number().int().optional(),
+    deletedAt: isoDateTime.nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
   })
   .passthrough();
 
@@ -175,7 +258,9 @@ const cycleSpanSchema = z
  */
 const cycleDayLogSchema = z
   .object({
+    id: z.string().min(1).optional(),
     date: z.string().min(1),
+    cycleId: z.string().nullable().optional(),
     flow: z.enum(FlowLevel).nullable().optional(),
     intermenstrualBleeding: z.boolean().optional(),
     basalBodyTempC: z.number().nullable().optional(),
@@ -195,6 +280,10 @@ const cycleDayLogSchema = z
     source: z.enum(MeasurementSource).optional(),
     externalId: z.string().nullable().optional(),
     tz: z.string().nullable().optional(),
+    syncVersion: z.number().int().optional(),
+    deletedAt: isoDateTime.nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
     symptomKeys: z.array(z.string()).default([]),
   })
   .passthrough();
@@ -202,6 +291,7 @@ const cycleDayLogSchema = z
 /** Cycle-tracking preferences (one row per user). */
 const cycleProfileSchema = z
   .object({
+    id: z.string().min(1).optional(),
     goal: z.enum(CycleTrackingGoal).optional(),
     cycleTrackingEnabled: z.boolean().nullable().optional(),
     typicalCycleLength: z.number().int().nullable().optional(),
@@ -212,6 +302,53 @@ const cycleProfileSchema = z
     rawChartMode: z.boolean().optional(),
     discreetNotifications: z.boolean().optional(),
     sensitiveCategoryEncryption: z.boolean().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
+  })
+  .passthrough();
+
+const appSettingsBackupSchema = z
+  .object({
+    id: z.string().min(1),
+    registrationEnabled: z.boolean(),
+    mfaRequired: z.boolean(),
+    defaultLocale: z.string(),
+    telegramGlobal: z.boolean(),
+    ntfyGlobal: z.boolean(),
+    webPushGlobal: z.boolean(),
+    webPushVapidPublicKey: z.string().nullable(),
+    webPushVapidPrivateKeyEncrypted: z.string().nullable(),
+    webPushVapidSubject: z.string().nullable(),
+    apiGlobal: z.boolean(),
+    moodLogGlobal: z.boolean(),
+    umamiEnabled: z.boolean(),
+    umamiScriptUrl: z.string().nullable(),
+    umamiWebsiteId: z.string().nullable(),
+    glitchtipEnabled: z.boolean(),
+    glitchtipDsn: z.string().nullable(),
+    glitchtipEnvironment: z.string().nullable(),
+    reminderLateMinutes: z.number().int(),
+    reminderMissedMinutes: z.number().int(),
+    adminAiKeyEncrypted: z.string().nullable(),
+    adminAiModel: z.string(),
+    adminAiBaseUrl: z.string(),
+    adminCodexAccessTokenEncrypted: z.string().nullable(),
+    adminCodexRefreshTokenEncrypted: z.string().nullable(),
+    adminCodexAccountIdEncrypted: z.string().nullable(),
+    adminCodexTokenExpiresAt: isoDateTime.nullable(),
+    adminCodexConnectedAt: isoDateTime.nullable(),
+    adminCodexConnectionStatus: z.string(),
+    adminAiInsightsFeedbackSummary: z.unknown().nullable(),
+    defaultUserTimezone: z.string().nullable(),
+    assistantEnabled: z.boolean(),
+    assistantCoachEnabled: z.boolean(),
+    assistantBriefingEnabled: z.boolean(),
+    assistantInsightStatusEnabled: z.boolean(),
+    assistantCorrelationsEnabled: z.boolean(),
+    assistantHealthScoreExplainerEnabled: z.boolean(),
+    moduleAvailabilityJson: z.unknown().nullable(),
+    documentMaxFileBytes: z.number().int(),
+    documentQuotaBytes: z.string().regex(/^\d+$/),
   })
   .passthrough();
 
@@ -237,8 +374,11 @@ const labResultBackupSchema = z
     takenAt: isoDateTime,
     source: z.string().min(1),
     biomarkerName: z.string().nullable().optional(),
+    biomarkerId: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
     createdAt: isoDateTime.optional(),
+    noteEncrypted: base64BytesSchema.nullable().optional(),
+    deletedAt: isoDateTime.nullable().optional(),
     updatedAt: isoDateTime.optional(),
   })
   .passthrough();
@@ -275,6 +415,10 @@ const illnessDayLogBackupSchema = z
     symptoms: z.array(illnessSymptomBackupSchema).default([]),
     note: z.string().nullable().optional(),
     updatedAt: isoDateTime.optional(),
+    noteEncrypted: base64BytesSchema.nullable().optional(),
+    tz: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    deletedAt: isoDateTime.nullable().optional(),
   })
   .passthrough();
 
@@ -291,6 +435,8 @@ const illnessEpisodeBackupSchema = z
     parentConditionId: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
     createdAt: isoDateTime.optional(),
+    noteEncrypted: base64BytesSchema.nullable().optional(),
+    deletedAt: isoDateTime.nullable().optional(),
     updatedAt: isoDateTime.optional(),
     dayLogs: z.array(illnessDayLogBackupSchema).default([]),
   })
@@ -308,6 +454,9 @@ const allergyBackupSchema = z
     reaction: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
     createdAt: isoDateTime.optional(),
+    reactionEncrypted: base64BytesSchema.nullable().optional(),
+    notesEncrypted: base64BytesSchema.nullable().optional(),
+    deletedAt: isoDateTime.nullable().optional(),
     updatedAt: isoDateTime.optional(),
   })
   .passthrough();
@@ -345,14 +494,6 @@ const workoutBackupSchema = z
     updatedAt: isoDateTime.optional(),
   })
   .passthrough();
-
-const base64BytesSchema = z
-  .string()
-  .min(1)
-  .refine(
-    (value) => value.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(value),
-    { message: "Expected base64-encoded encrypted bytes" },
-  );
 
 const documentBackupSchema = z
   .object({
@@ -401,9 +542,10 @@ const backupManifestSchema = z
  */
 export const backupPayloadSchema = z
   .object({
-    schemaVersion: z.string().min(1).default(BACKUP_SCHEMA_VERSION),
+    schemaVersion: z.string().min(1).default(LEGACY_BACKUP_SCHEMA_VERSION),
     exportedAt: isoDateTime,
     userId: z.string().min(1),
+    appSettings: appSettingsBackupSchema.nullable().default(null),
     measurements: z.array(measurementSchema).default([]),
     medications: z.array(medicationSchema).default([]),
     intakeEvents: z.array(intakeEventSchema).default([]),
@@ -425,7 +567,19 @@ export const backupPayloadSchema = z
     documents: z.array(documentBackupSchema).default([]),
     manifest: backupManifestSchema.nullable().default(null),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((payload, ctx) => {
+    if (payload.schemaVersion !== BACKUP_SCHEMA_VERSION) return;
+    payload.measurements.forEach((measurement, index) => {
+      if (!measurement.id) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["measurements", index, "id"],
+          message: "Canonical v2 measurements require a stable id",
+        });
+      }
+    });
+  });
 
 export type BackupPayload = z.infer<typeof backupPayloadSchema>;
 
@@ -512,5 +666,8 @@ export function parseBackupPayload(input: string | unknown): BackupPayload {
  * new shape carried.
  */
 export function isCompatibleSchemaVersion(version: string): boolean {
-  return version === BACKUP_SCHEMA_VERSION;
+  return (
+    version === LEGACY_BACKUP_SCHEMA_VERSION ||
+    version === BACKUP_SCHEMA_VERSION
+  );
 }

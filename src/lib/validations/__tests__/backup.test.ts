@@ -18,7 +18,12 @@
  * of bubbling out of `prisma.createMany` with a useless message.
  */
 import { describe, expect, it } from "vitest";
-import { backupPayloadSchema, summarizeBackup } from "../backup";
+import {
+  backupPayloadSchema,
+  isCompatibleSchemaVersion,
+  parseBackupPayload,
+  summarizeBackup,
+} from "../backup";
 
 const baseEntry = {
   date: "2026-05-08",
@@ -381,6 +386,52 @@ describe("backupPayloadSchema — v1.28 backup-completeness domains", () => {
     expect(summary.allergies).toBe(0);
     expect(summary.familyHistory).toBe(0);
     expect(summary.documents).toBe(0);
+  });
+});
+
+describe("backupPayloadSchema — canonical v2 identity compatibility", () => {
+  const base = {
+    exportedAt: "2026-07-20T00:00:00.000Z",
+    userId: "u1",
+  };
+
+  it("treats an unversioned payload as legacy v1 and accepts measurements without ids", () => {
+    const payload = parseBackupPayload({
+      ...base,
+      measurements: [
+        {
+          type: "WEIGHT",
+          value: 75,
+          unit: "kg",
+          measuredAt: "2026-07-19T07:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(payload.schemaVersion).toBe("1");
+    expect(isCompatibleSchemaVersion(payload.schemaVersion)).toBe(true);
+  });
+
+  it("requires stable measurement ids in canonical v2 payloads", () => {
+    const result = backupPayloadSchema.safeParse({
+      ...base,
+      schemaVersion: "2",
+      measurements: [
+        {
+          type: "SLEEP_DURATION",
+          value: 120,
+          unit: "minutes",
+          measuredAt: "2026-07-19T22:00:00.000Z",
+          source: "IMPORT",
+          sleepStage: "DEEP",
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    expect(isCompatibleSchemaVersion("1")).toBe(true);
+    expect(isCompatibleSchemaVersion("2")).toBe(true);
+    expect(isCompatibleSchemaVersion("3")).toBe(false);
   });
 });
 

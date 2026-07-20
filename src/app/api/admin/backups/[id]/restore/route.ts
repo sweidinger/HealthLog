@@ -329,43 +329,141 @@ const handler = apiHandler(
             where: { userId: ownerId },
           });
 
-          // Stable ids are authoritative for canonical snapshots. Legacy payloads
-          // without ids fall back to the historic natural measurement key.
-          for (const measurement of payload.measurements) {
-            const measuredAt = new Date(measurement.measuredAt);
-            const source = measurement.source ?? "MANUAL";
-            const restoredData = {
-              type: measurement.type,
-              value: measurement.value,
-              unit: measurement.unit,
-              source,
-              measuredAt,
-              notes: null,
-              notesEncrypted: encryptNote(measurement.notes ?? null),
-              deletedAt: measurement.deletedAt
-                ? new Date(measurement.deletedAt)
+          if (payload.appSettings) {
+            const settings = payload.appSettings;
+            const settingsData = {
+              registrationEnabled: settings.registrationEnabled,
+              mfaRequired: settings.mfaRequired,
+              defaultLocale: settings.defaultLocale,
+              telegramGlobal: settings.telegramGlobal,
+              ntfyGlobal: settings.ntfyGlobal,
+              webPushGlobal: settings.webPushGlobal,
+              webPushVapidPublicKey: settings.webPushVapidPublicKey,
+              webPushVapidPrivateKeyEncrypted:
+                settings.webPushVapidPrivateKeyEncrypted,
+              webPushVapidSubject: settings.webPushVapidSubject,
+              apiGlobal: settings.apiGlobal,
+              moodLogGlobal: settings.moodLogGlobal,
+              umamiEnabled: settings.umamiEnabled,
+              umamiScriptUrl: settings.umamiScriptUrl,
+              umamiWebsiteId: settings.umamiWebsiteId,
+              glitchtipEnabled: settings.glitchtipEnabled,
+              glitchtipDsn: settings.glitchtipDsn,
+              glitchtipEnvironment: settings.glitchtipEnvironment,
+              reminderLateMinutes: settings.reminderLateMinutes,
+              reminderMissedMinutes: settings.reminderMissedMinutes,
+              adminAiKeyEncrypted: settings.adminAiKeyEncrypted,
+              adminAiModel: settings.adminAiModel,
+              adminAiBaseUrl: settings.adminAiBaseUrl,
+              adminCodexAccessTokenEncrypted:
+                settings.adminCodexAccessTokenEncrypted,
+              adminCodexRefreshTokenEncrypted:
+                settings.adminCodexRefreshTokenEncrypted,
+              adminCodexAccountIdEncrypted:
+                settings.adminCodexAccountIdEncrypted,
+              adminCodexTokenExpiresAt: settings.adminCodexTokenExpiresAt
+                ? new Date(settings.adminCodexTokenExpiresAt)
                 : null,
+              adminCodexConnectedAt: settings.adminCodexConnectedAt
+                ? new Date(settings.adminCodexConnectedAt)
+                : null,
+              adminCodexConnectionStatus:
+                settings.adminCodexConnectionStatus,
+              adminAiInsightsFeedbackSummary:
+                settings.adminAiInsightsFeedbackSummary as never,
+              defaultUserTimezone: settings.defaultUserTimezone,
+              assistantEnabled: settings.assistantEnabled,
+              assistantCoachEnabled: settings.assistantCoachEnabled,
+              assistantBriefingEnabled: settings.assistantBriefingEnabled,
+              assistantInsightStatusEnabled:
+                settings.assistantInsightStatusEnabled,
+              assistantCorrelationsEnabled:
+                settings.assistantCorrelationsEnabled,
+              assistantHealthScoreExplainerEnabled:
+                settings.assistantHealthScoreExplainerEnabled,
+              moduleAvailabilityJson:
+                settings.moduleAvailabilityJson as never,
+              documentMaxFileBytes: settings.documentMaxFileBytes,
+              documentQuotaBytes: BigInt(settings.documentQuotaBytes),
             };
+            await tx.appSettings.upsert({
+              where: { id: settings.id },
+              create: { id: settings.id, ...settingsData },
+              update: settingsData,
+            });
+          }
 
-            if (measurement.id) {
-              await tx.measurement.upsert({
-                where: { id: measurement.id, userId: ownerId },
-                create: {
-                  id: measurement.id,
-                  userId: ownerId,
-                  ...restoredData,
-                },
-                update: restoredData,
-              });
-              continue;
-            }
+          const toRestoredMeasurementData = (
+            measurement: (typeof payload.measurements)[number],
+          ) => ({
+            type: measurement.type,
+            value: measurement.value,
+            valueMin: measurement.valueMin ?? null,
+            valueMax: measurement.valueMax ?? null,
+            unit: measurement.unit,
+            source: measurement.source ?? "MANUAL",
+            measuredAt: new Date(measurement.measuredAt),
+            notes: measurement.notes ?? null,
+            notesEncrypted:
+              measurement.notesEncrypted !== undefined
+                ? measurement.notesEncrypted === null
+                  ? null
+                  : decodeEncryptedBytes(measurement.notesEncrypted)
+                : encryptNote(measurement.notes ?? null),
+            externalId: measurement.externalId ?? null,
+            externalSourceVersion: measurement.externalSourceVersion ?? null,
+            glucoseContext: (measurement.glucoseContext ?? null) as never,
+            sleepStage: (measurement.sleepStage ?? null) as never,
+            rhythmClassification: (measurement.rhythmClassification ??
+              null) as never,
+            deviceType: measurement.deviceType ?? null,
+            syncVersion: measurement.syncVersion ?? 1,
+            deletedAt: measurement.deletedAt
+              ? new Date(measurement.deletedAt)
+              : null,
+            ...(measurement.createdAt
+              ? { createdAt: new Date(measurement.createdAt) }
+              : {}),
+            ...(measurement.updatedAt
+              ? { updatedAt: new Date(measurement.updatedAt) }
+              : {}),
+          });
 
+          const stableRows = payload.measurements.flatMap((measurement) =>
+            measurement.id
+              ? [
+                  {
+                    id: measurement.id,
+                    userId: ownerId,
+                    ...toRestoredMeasurementData(measurement),
+                  },
+                ]
+              : [],
+          );
+          const measurementBatchSize = 1_000;
+          for (
+            let offset = 0;
+            offset < stableRows.length;
+            offset += measurementBatchSize
+          ) {
+            await tx.measurement.createMany({
+              data: stableRows.slice(offset, offset + measurementBatchSize),
+            });
+          }
+
+          // v1 payloads did not require stable ids. Preserve their historical
+          // natural-key reconciliation without routing canonical v2 rows
+          // through it.
+          for (const measurement of payload.measurements) {
+            if (measurement.id) continue;
+            const restoredData = toRestoredMeasurementData(measurement);
             const existing = await tx.measurement.findFirst({
               where: {
                 userId: ownerId,
                 type: measurement.type,
-                source,
-                measuredAt,
+                source: restoredData.source,
+                measuredAt: restoredData.measuredAt,
+                sleepStage: restoredData.sleepStage,
               },
               select: { id: true },
             });
@@ -381,50 +479,97 @@ const handler = apiHandler(
             }
           }
 
-          // Medications + schedules — restore one at a time so we can
-          // wire schedules to their parent's freshly-generated id, AND
-          // build a name → id map for the intake events that follow.
           const medByName = new Map<string, string>();
+          const restoredMedicationIds = new Set<string>();
           for (const m of payload.medications) {
             const created = await tx.medication.create({
               data: {
+                ...(m.id ? { id: m.id } : {}),
                 userId: ownerId,
                 name: m.name,
                 dose: m.dose,
+                treatmentClass: m.treatmentClass ?? "GENERIC",
+                dosesPerUnit: m.dosesPerUnit ?? null,
+                unitsPerDose: m.unitsPerDose ?? "1",
                 active: m.active ?? true,
+                notificationsEnabled: m.notificationsEnabled ?? true,
+                pausedAt: m.pausedAt ? new Date(m.pausedAt) : null,
+                snoozedUntil: m.snoozedUntil
+                  ? new Date(m.snoozedUntil)
+                  : null,
+                startsOn: m.startsOn ? new Date(m.startsOn) : null,
+                endsOn: m.endsOn ? new Date(m.endsOn) : null,
+                oneShot: m.oneShot ?? false,
+                asNeeded: m.asNeeded ?? false,
+                deliveryForm: m.deliveryForm ?? "ORAL",
+                trackInjectionSites: m.trackInjectionSites ?? false,
+                allowedInjectionSites: m.allowedInjectionSites ?? [],
+                liveActivityEnabled: m.liveActivityEnabled ?? false,
+                criticalAlarmEnabled: m.criticalAlarmEnabled ?? false,
+                atcCode: m.atcCode ?? null,
+                rxNormCode: m.rxNormCode ?? null,
+                lowStockNotifiedAt: m.lowStockNotifiedAt
+                  ? new Date(m.lowStockNotifiedAt)
+                  : null,
+                lowStockNotifiedThresholdDays:
+                  m.lowStockNotifiedThresholdDays ?? null,
+                reorderLeadDays: m.reorderLeadDays ?? null,
+                externalSource: m.externalSource ?? null,
+                externalId: m.externalId ?? null,
+                ...(m.createdAt ? { createdAt: new Date(m.createdAt) } : {}),
+                ...(m.updatedAt ? { updatedAt: new Date(m.updatedAt) } : {}),
                 schedules: {
                   create: m.schedules.map((s) => ({
+                    ...(s.id ? { id: s.id } : {}),
                     windowStart: s.windowStart,
                     windowEnd: s.windowEnd,
                     label: s.label ?? null,
                     dose: s.dose ?? null,
+                    daysOfWeek: s.daysOfWeek ?? null,
+                    timesOfDay: s.timesOfDay ?? [],
+                    reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+                    rrule: s.rrule ?? null,
+                    rollingIntervalDays: s.rollingIntervalDays ?? null,
+                    scheduleType: s.scheduleType ?? "SCHEDULED",
+                    cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+                    cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+                    doseWindows: (s.doseWindows ?? null) as never,
                   })),
                 },
               },
             });
-            // First write wins on duplicate names — keeps the round-trip
-            // deterministic against the restore-from-our-own-download case.
+            restoredMedicationIds.add(created.id);
             if (!medByName.has(m.name)) medByName.set(m.name, created.id);
           }
 
-          // Intake events — only restore the ones whose `medication` name
-          // resolved against a row we just created. Orphans (medications
-          // that were deleted before the snapshot but still referenced by
-          // intake events) are dropped silently — the alternative would
-          // be an FK-violation crash, which is worse than a slightly
-          // smaller history.
           if (payload.intakeEvents.length > 0) {
             const rows = payload.intakeEvents
               .map((e) => {
-                const medId = medByName.get(e.medication);
+                const medId =
+                  e.medicationId && restoredMedicationIds.has(e.medicationId)
+                    ? e.medicationId
+                    : medByName.get(e.medication);
                 if (!medId) return null;
                 return {
+                  ...(e.id ? { id: e.id } : {}),
                   userId: ownerId,
                   medicationId: medId,
                   scheduledFor: new Date(e.scheduledFor),
                   takenAt: e.takenAt ? new Date(e.takenAt) : null,
                   skipped: e.skipped ?? false,
-                  source: (e.source ?? "WEB") as never,
+                  autoMissed: e.autoMissed ?? false,
+                  attributionSource: e.attributionSource ?? "AUTO",
+                  source: e.source ?? "WEB",
+                  idempotencyKey: e.idempotencyKey ?? null,
+                  ...(e.createdAt ? { createdAt: new Date(e.createdAt) } : {}),
+                  injectionSite: e.injectionSite ?? null,
+                  doseTaken: e.doseTaken ?? null,
+                  inventoryConsumption: (e.inventoryConsumption ??
+                    null) as never,
+                  externalId: e.externalId ?? null,
+                  ...(e.updatedAt ? { updatedAt: new Date(e.updatedAt) } : {}),
+                  syncVersion: e.syncVersion ?? 0,
+                  deletedAt: e.deletedAt ? new Date(e.deletedAt) : null,
                 };
               })
               .filter((r): r is NonNullable<typeof r> => r !== null);
@@ -526,6 +671,7 @@ const handler = apiHandler(
           const cycleCleared = await restoreCycleData(tx, ownerId, payload);
 
           const biomarkerByName = new Map<string, string>();
+          const restoredBiomarkerIds = new Set<string>();
           for (const biomarker of payload.biomarkers) {
             const created = await tx.biomarker.create({
               data: {
@@ -550,15 +696,23 @@ const handler = apiHandler(
               },
             });
             biomarkerByName.set(biomarker.name, created.id);
+            restoredBiomarkerIds.add(created.id);
           }
 
           for (const lab of payload.labResults) {
-            const biomarkerId = lab.biomarkerName
-              ? biomarkerByName.get(lab.biomarkerName)
-              : undefined;
-            if (lab.biomarkerName && !biomarkerId) {
+            const biomarkerId =
+              lab.biomarkerId !== undefined
+                ? lab.biomarkerId === null
+                  ? null
+                  : restoredBiomarkerIds.has(lab.biomarkerId)
+                    ? lab.biomarkerId
+                    : undefined
+                : lab.biomarkerName
+                  ? biomarkerByName.get(lab.biomarkerName)
+                  : null;
+            if (biomarkerId === undefined) {
               throw new Error(
-                `Unknown biomarker reference: ${lab.biomarkerName}`,
+                `Unknown biomarker reference: ${lab.biomarkerId ?? lab.biomarkerName}`,
               );
             }
             await tx.labResult.create({
@@ -576,7 +730,14 @@ const handler = apiHandler(
                 takenAt: new Date(lab.takenAt),
                 source: lab.source,
                 noteEncrypted:
-                  lab.note == null ? null : encryptNoteToBytes(lab.note),
+                  lab.noteEncrypted !== undefined
+                    ? lab.noteEncrypted === null
+                      ? null
+                      : decodeEncryptedBytes(lab.noteEncrypted)
+                    : lab.note == null
+                      ? null
+                      : encryptNoteToBytes(lab.note),
+                deletedAt: lab.deletedAt ? new Date(lab.deletedAt) : null,
                 ...(lab.createdAt
                   ? { createdAt: new Date(lab.createdAt) }
                   : {}),
@@ -612,7 +773,16 @@ const handler = apiHandler(
                   : null,
                 parentConditionId: null,
                 noteEncrypted:
-                  episode.note == null ? null : encryptToBytes(episode.note),
+                  episode.noteEncrypted !== undefined
+                    ? episode.noteEncrypted === null
+                      ? null
+                      : decodeEncryptedBytes(episode.noteEncrypted)
+                    : episode.note == null
+                      ? null
+                      : encryptToBytes(episode.note),
+                deletedAt: episode.deletedAt
+                  ? new Date(episode.deletedAt)
+                  : null,
                 ...(episode.createdAt
                   ? { createdAt: new Date(episode.createdAt) }
                   : {}),
@@ -667,7 +837,20 @@ const handler = apiHandler(
                   functionalImpact: dayLog.functionalImpact ?? null,
                   feverC: dayLog.feverC ?? null,
                   noteEncrypted:
-                    dayLog.note == null ? null : encryptToBytes(dayLog.note),
+                    dayLog.noteEncrypted !== undefined
+                      ? dayLog.noteEncrypted === null
+                        ? null
+                        : decodeEncryptedBytes(dayLog.noteEncrypted)
+                      : dayLog.note == null
+                        ? null
+                        : encryptToBytes(dayLog.note),
+                  tz: dayLog.tz ?? null,
+                  deletedAt: dayLog.deletedAt
+                    ? new Date(dayLog.deletedAt)
+                    : null,
+                  ...(dayLog.createdAt
+                    ? { createdAt: new Date(dayLog.createdAt) }
+                    : {}),
                   ...(dayLog.updatedAt
                     ? { updatedAt: new Date(dayLog.updatedAt) }
                     : {}),
@@ -694,11 +877,24 @@ const handler = apiHandler(
                 status: allergy.status as never,
                 onsetAt: allergy.onsetAt ? new Date(allergy.onsetAt) : null,
                 reactionEncrypted:
-                  allergy.reaction == null
-                    ? null
-                    : encryptToBytes(allergy.reaction),
+                  allergy.reactionEncrypted !== undefined
+                    ? allergy.reactionEncrypted === null
+                      ? null
+                      : decodeEncryptedBytes(allergy.reactionEncrypted)
+                    : allergy.reaction == null
+                      ? null
+                      : encryptToBytes(allergy.reaction),
                 notesEncrypted:
-                  allergy.note == null ? null : encryptToBytes(allergy.note),
+                  allergy.notesEncrypted !== undefined
+                    ? allergy.notesEncrypted === null
+                      ? null
+                      : decodeEncryptedBytes(allergy.notesEncrypted)
+                    : allergy.note == null
+                      ? null
+                      : encryptToBytes(allergy.note),
+                deletedAt: allergy.deletedAt
+                  ? new Date(allergy.deletedAt)
+                  : null,
                 ...(allergy.createdAt
                   ? { createdAt: new Date(allergy.createdAt) }
                   : {}),

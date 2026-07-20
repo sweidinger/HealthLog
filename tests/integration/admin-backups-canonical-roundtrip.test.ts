@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Prisma } from "@/generated/prisma/client";
 
 process.env.ENCRYPTION_KEY =
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -117,6 +118,50 @@ describe("canonical disaster-recovery backup round-trip", () => {
     const prisma = getPrismaClient();
     const admin = await seedAdminSession();
     const ownerId = admin.id;
+    const settings = await prisma.appSettings.create({
+      data: {
+        id: "singleton",
+        registrationEnabled: false,
+        mfaRequired: true,
+        defaultLocale: "en",
+        telegramGlobal: false,
+        ntfyGlobal: false,
+        webPushGlobal: false,
+        webPushVapidPublicKey: "public-dr",
+        webPushVapidPrivateKeyEncrypted: "private-dr",
+        webPushVapidSubject: "mailto:dr@example.test",
+        apiGlobal: false,
+        moodLogGlobal: false,
+        umamiEnabled: true,
+        umamiScriptUrl: "https://analytics.example.test/script.js",
+        umamiWebsiteId: "website-dr",
+        glitchtipEnabled: true,
+        glitchtipDsn: "https://glitchtip.example.test/1",
+        glitchtipEnvironment: "dr",
+        reminderLateMinutes: 47,
+        reminderMissedMinutes: 93,
+        adminAiKeyEncrypted: "ai-key-dr",
+        adminAiModel: "model-dr",
+        adminAiBaseUrl: "https://ai.example.test/v1",
+        adminCodexAccessTokenEncrypted: "access-dr",
+        adminCodexRefreshTokenEncrypted: "refresh-dr",
+        adminCodexAccountIdEncrypted: "account-dr",
+        adminCodexTokenExpiresAt: new Date("2026-07-03T00:00:00.000Z"),
+        adminCodexConnectedAt: new Date("2026-07-01T00:00:00.000Z"),
+        adminCodexConnectionStatus: "connected",
+        adminAiInsightsFeedbackSummary: { helpful: 8, total: 10 },
+        defaultUserTimezone: "Europe/London",
+        assistantEnabled: false,
+        assistantCoachEnabled: false,
+        assistantBriefingEnabled: false,
+        assistantInsightStatusEnabled: false,
+        assistantCorrelationsEnabled: false,
+        assistantHealthScoreExplainerEnabled: false,
+        moduleAvailabilityJson: { insights: true, nutrients: false },
+        documentMaxFileBytes: 12_345_678,
+        documentQuotaBytes: 9_876_543_210n,
+      },
+    });
 
     const measurement = await prisma.measurement.create({
       data: {
@@ -193,6 +238,146 @@ describe("canonical disaster-recovery backup round-trip", () => {
       },
     });
 
+    const medication = await prisma.medication.create({
+      data: {
+        id: "medication-dr",
+        userId: ownerId,
+        name: "Canonical medicine",
+        dose: "2 mg",
+        treatmentClass: "GENERIC",
+        dosesPerUnit: 4,
+        unitsPerDose: "0.5000",
+        active: false,
+        notificationsEnabled: false,
+        pausedAt: new Date("2026-06-25T08:00:00.000Z"),
+        snoozedUntil: new Date("2026-07-05T08:00:00.000Z"),
+        startsOn: new Date("2026-06-01T00:00:00.000Z"),
+        endsOn: new Date("2026-08-01T00:00:00.000Z"),
+        asNeeded: false,
+        deliveryForm: "INJECTION",
+        trackInjectionSites: true,
+        allowedInjectionSites: ["THIGH_LEFT", "THIGH_RIGHT"],
+        liveActivityEnabled: true,
+        criticalAlarmEnabled: true,
+        atcCode: "A10BX10",
+        rxNormCode: "12345",
+        lowStockNotifiedAt: new Date("2026-06-26T08:00:00.000Z"),
+        lowStockNotifiedThresholdDays: 7,
+        reorderLeadDays: 3,
+        externalSource: "APPLE_HEALTH",
+        externalId: "medication-external-dr",
+        schedules: {
+          create: {
+            id: "schedule-dr",
+            windowStart: "08:00",
+            windowEnd: "10:00",
+            label: "Morning",
+            dose: "1 mg",
+            daysOfWeek: "i2;1,3,5",
+            timesOfDay: ["08:00", "20:00"],
+            reminderGraceMinutes: 90,
+            rrule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR",
+            scheduleType: "CYCLIC",
+            cyclicOnWeeks: 3,
+            cyclicOffWeeks: 1,
+            doseWindows: [
+              { timeOfDay: "08:00", start: "07:30", end: "09:00" },
+            ],
+          },
+        },
+      },
+      include: { schedules: true },
+    });
+    const intake = await prisma.medicationIntakeEvent.create({
+      data: {
+        id: "intake-dr",
+        userId: ownerId,
+        medicationId: medication.id,
+        scheduledFor: new Date("2026-06-29T08:00:00.000Z"),
+        takenAt: new Date("2026-06-29T08:05:00.000Z"),
+        autoMissed: false,
+        attributionSource: "USER_PIN",
+        source: "APPLE_HEALTH",
+        idempotencyKey: "intake-idempotency-dr",
+        injectionSite: "THIGH_LEFT",
+        doseTaken: "1 mg",
+        inventoryConsumption: [{ itemId: "pen-dr", units: 0.5 }],
+        externalId: "intake-external-dr",
+        syncVersion: 5,
+        deletedAt: tombstoneDeletedAt,
+      },
+    });
+
+    const cycleProfile = await prisma.cycleProfile.create({
+      data: {
+        id: "cycle-profile-dr",
+        userId: ownerId,
+        goal: "GENERAL_HEALTH",
+        cycleTrackingEnabled: true,
+        typicalCycleLength: 28,
+        typicalPeriodLength: 5,
+        lutealPhaseLength: 14,
+        secondarySymptom: "CERVIX",
+        predictionEnabled: false,
+        rawChartMode: true,
+        discreetNotifications: true,
+        sensitiveCategoryEncryption: true,
+      },
+    });
+    const cycle = await prisma.menstrualCycle.create({
+      data: {
+        id: "cycle-dr",
+        userId: ownerId,
+        startDate: "2026-06-01",
+        endDate: "2026-06-28",
+        periodEndDate: "2026-06-05",
+        lengthDays: 28,
+        ovulationDate: "2026-06-14",
+        ovulationConfirmed: true,
+        isPredicted: false,
+        tz: "Europe/London",
+        syncVersion: 6,
+        deletedAt: tombstoneDeletedAt,
+      },
+    });
+    const cycleCategory =
+      await prisma.cycleSymptomCategory.findFirstOrThrow();
+    const cycleSymptom = await prisma.cycleSymptom.create({
+      data: {
+        id: "cycle-symptom-dr",
+        userId: ownerId,
+        categoryId: cycleCategory.id,
+        key: "cycle_cramps_dr",
+        labelKey: "cycle.symptom.crampsDr",
+      },
+    });
+    const cycleDay = await prisma.cycleDayLog.create({
+      data: {
+        id: "cycle-day-dr",
+        userId: ownerId,
+        cycleId: cycle.id,
+        date: "2026-06-02",
+        flow: "HEAVY",
+        intermenstrualBleeding: true,
+        basalBodyTempC: 36.7,
+        temperatureExcluded: true,
+        ovulationTest: "NEGATIVE",
+        cervicalMucus: "CREAMY",
+        cervixPosition: "LOW",
+        cervixFirmness: "FIRM",
+        cervixOpening: "CLOSED",
+        sexualActivity: false,
+        sensitiveEncrypted: "sensitive-cycle-dr",
+        notesEncrypted: "notes-cycle-dr",
+        source: "APPLE_HEALTH",
+        externalId: "cycle-day-external-dr",
+        tz: "Europe/London",
+        syncVersion: 7,
+        deletedAt: tombstoneDeletedAt,
+        symptomLinks: { create: { symptomId: cycleSymptom.id } },
+      },
+    });
+
     const biomarker = await prisma.biomarker.create({
       data: {
         id: "biomarker-dr",
@@ -219,6 +404,7 @@ describe("canonical disaster-recovery backup round-trip", () => {
         takenAt: new Date("2026-06-30T09:00:00.000Z"),
         source: "MANUAL",
         noteEncrypted: encryptToBytes("Fasted"),
+        deletedAt: tombstoneDeletedAt,
       },
     });
 
@@ -232,6 +418,7 @@ describe("canonical disaster-recovery backup round-trip", () => {
         onsetAt: new Date("2026-06-20T00:00:00.000Z"),
         resolvedAt: new Date("2026-06-24T00:00:00.000Z"),
         noteEncrypted: encryptToBytes("Recovered fully"),
+        deletedAt: tombstoneDeletedAt,
       },
     });
     const symptom = await prisma.illnessSymptom.create({
@@ -250,6 +437,8 @@ describe("canonical disaster-recovery backup round-trip", () => {
         functionalImpact: 2,
         feverC: 38.1,
         noteEncrypted: encryptToBytes("Rest day"),
+        tz: "Europe/London",
+        deletedAt: tombstoneDeletedAt,
         symptomLinks: {
           create: { symptomId: symptom.id, severity: 2 },
         },
@@ -268,6 +457,7 @@ describe("canonical disaster-recovery backup round-trip", () => {
         onsetAt: new Date("2020-01-01T00:00:00.000Z"),
         reactionEncrypted: encryptToBytes("Hives"),
         notesEncrypted: encryptToBytes("Avoid beta-lactams"),
+        deletedAt: tombstoneDeletedAt,
       },
     });
     const family = await prisma.familyHistoryEntry.create({
@@ -342,14 +532,21 @@ describe("canonical disaster-recovery backup round-trip", () => {
       decryptBackup(offhostObject!, Buffer.from(OFFHOST_ENCRYPTION_KEY, "hex")),
     );
     expect(payload).toMatchObject({
-      schemaVersion: "1",
+      schemaVersion: "2",
       userId: ownerId,
+      appSettings: { id: settings.id },
     });
     expect(payload.documents[0]).not.toHaveProperty("summary");
     expect(JSON.stringify(payload.documents[0])).not.toContain(
       "private PDF bytes",
     );
 
+    await prisma.appSettings.deleteMany();
+    await prisma.medicationIntakeEvent.deleteMany({ where: { userId: ownerId } });
+    await prisma.medication.deleteMany({ where: { userId: ownerId } });
+    await prisma.cycleDayLog.deleteMany({ where: { userId: ownerId } });
+    await prisma.menstrualCycle.deleteMany({ where: { userId: ownerId } });
+    await prisma.cycleProfile.deleteMany({ where: { userId: ownerId } });
     await prisma.inboundDocument.deleteMany({ where: { userId: ownerId } });
     await prisma.workout.deleteMany({ where: { userId: ownerId } });
     await prisma.familyHistoryEntry.deleteMany({ where: { userId: ownerId } });
@@ -372,6 +569,44 @@ describe("canonical disaster-recovery backup round-trip", () => {
       });
 
     expect((await restore()).status).toBe(200);
+
+    expect(
+      await prisma.appSettings.findUniqueOrThrow({
+        where: { id: settings.id },
+      }),
+    ).toEqual(settings);
+    expect(
+      await prisma.medication.findUniqueOrThrow({
+        where: { id: medication.id },
+        include: { schedules: true },
+      }),
+    ).toEqual(medication);
+    expect(
+      await prisma.medicationIntakeEvent.findUniqueOrThrow({
+        where: { id: intake.id },
+      }),
+    ).toEqual(intake);
+    expect(
+      await prisma.cycleProfile.findUniqueOrThrow({
+        where: { id: cycleProfile.id },
+      }),
+    ).toEqual(cycleProfile);
+    expect(
+      await prisma.menstrualCycle.findUniqueOrThrow({
+        where: { id: cycle.id },
+      }),
+    ).toEqual(cycle);
+    expect(
+      await prisma.cycleDayLog.findUniqueOrThrow({
+        where: { id: cycleDay.id },
+      }),
+    ).toEqual(cycleDay);
+    expect(
+      await prisma.cycleSymptomLink.findMany({
+        where: { dayLogId: cycleDay.id },
+        select: { symptomId: true },
+      }),
+    ).toEqual([{ symptomId: cycleSymptom.id }]);
 
     expect(await prisma.labResult.count({ where: { userId: ownerId } })).toBe(
       1,
@@ -397,45 +632,19 @@ describe("canonical disaster-recovery backup round-trip", () => {
       await prisma.measurement.findUniqueOrThrow({
         where: { id: measurement.id },
       }),
-    ).toEqual(
-      expect.objectContaining({
-        userId: ownerId,
-        type: measurement.type,
-        value: measurement.value,
-        unit: measurement.unit,
-        measuredAt: measurement.measuredAt,
-        source: measurement.source,
-        deletedAt: null,
-      }),
-    );
+    ).toEqual(measurement);
     expect(
       await prisma.measurement.findUniqueOrThrow({
         where: { id: deletedMeasurement.id },
       }),
-    ).toEqual(
-      expect.objectContaining({
-        userId: ownerId,
-        deletedAt: tombstoneDeletedAt,
-      }),
-    );
+    ).toEqual(deletedMeasurement);
 
     const restoredLab = await prisma.labResult.findUniqueOrThrow({
       where: { id: lab.id },
     });
     expect(decryptFromBytes(restoredLab.noteEncrypted!)).toBe("Fasted");
     expect(restoredLab.biomarkerId).toBe(biomarker.id);
-    expect(restoredLab).toEqual(
-      expect.objectContaining({
-        panel: lab.panel,
-        analyte: lab.analyte,
-        value: lab.value,
-        unit: lab.unit,
-        referenceLow: lab.referenceLow,
-        referenceHigh: lab.referenceHigh,
-        takenAt: lab.takenAt,
-        source: lab.source,
-      }),
-    );
+    expect(restoredLab).toEqual(lab);
     const restoredBiomarker = await prisma.biomarker.findUniqueOrThrow({
       where: { id: biomarker.id },
     });
@@ -456,26 +665,22 @@ describe("canonical disaster-recovery backup round-trip", () => {
     const restoredIllness = await prisma.illnessEpisode.findUniqueOrThrow({
       where: { id: illness.id },
     });
-    expect(restoredIllness).toEqual(
-      expect.objectContaining({
-        label: illness.label,
-        type: illness.type,
-        lifecycle: illness.lifecycle,
-        onsetAt: illness.onsetAt,
-        resolvedAt: illness.resolvedAt,
-      }),
-    );
+    expect(restoredIllness).toEqual(illness);
     expect(decryptFromBytes(restoredIllness.noteEncrypted!)).toBe(
       "Recovered fully",
     );
     const restoredIllnessDay = await prisma.illnessDayLog.findUniqueOrThrow({
       where: { id: illnessDay.id },
-      include: { symptomLinks: true },
     });
+    expect(restoredIllnessDay).toEqual(illnessDay);
     expect(decryptFromBytes(restoredIllnessDay.noteEncrypted!)).toBe(
       "Rest day",
     );
-    expect(restoredIllnessDay.symptomLinks).toEqual([
+    expect(
+      await prisma.illnessSymptomLink.findMany({
+        where: { dayLogId: illnessDay.id },
+      }),
+    ).toEqual([
       expect.objectContaining({ symptomId: symptom.id, severity: 2 }),
     ]);
 
@@ -483,16 +688,7 @@ describe("canonical disaster-recovery backup round-trip", () => {
       where: { id: allergy.id },
     });
     expect(decryptFromBytes(restoredAllergy.reactionEncrypted!)).toBe("Hives");
-    expect(restoredAllergy).toEqual(
-      expect.objectContaining({
-        substance: allergy.substance,
-        category: allergy.category,
-        type: allergy.type,
-        severity: allergy.severity,
-        status: allergy.status,
-        onsetAt: allergy.onsetAt,
-      }),
-    );
+    expect(restoredAllergy).toEqual(allergy);
     const restoredFamily = await prisma.familyHistoryEntry.findUniqueOrThrow({
       where: { id: family.id },
     });
@@ -611,6 +807,149 @@ describe("canonical disaster-recovery backup round-trip", () => {
         select: { id: true },
       }),
     ).toEqual([{ id: illness.id }]);
+  });
+
+  it("rejects a stable measurement id owned by another account without clearing either owner", async () => {
+    const prisma = getPrismaClient();
+    const admin = await seedAdminSession();
+    const other = await prisma.user.create({
+      data: { username: "stable-id-owner-other" },
+    });
+    const original = await prisma.measurement.create({
+      data: {
+        id: "owner-original-measurement",
+        userId: admin.id,
+        type: "PULSE",
+        value: 70,
+        unit: "bpm",
+        measuredAt: new Date("2026-07-08T10:00:00.000Z"),
+      },
+    });
+    const conflicting = await prisma.measurement.create({
+      data: {
+        id: "cross-owner-stable-id",
+        userId: other.id,
+        type: "PULSE",
+        value: 65,
+        unit: "bpm",
+        measuredAt: new Date("2026-07-08T11:00:00.000Z"),
+      },
+    });
+    const payload = backupPayloadSchema.parse({
+      schemaVersion: "2",
+      exportedAt: "2026-07-12T00:00:00.000Z",
+      userId: admin.id,
+      measurements: [
+        {
+          id: conflicting.id,
+          type: "PULSE",
+          value: 80,
+          unit: "bpm",
+          measuredAt: "2026-07-08T12:00:00.000Z",
+          source: "IMPORT",
+        },
+      ],
+    });
+    const backup = await prisma.dataBackup.create({
+      data: {
+        userId: admin.id,
+        type: "STABLE_ID_OWNER_CONFLICT",
+        data: encrypt(JSON.stringify(payload)),
+      },
+    });
+
+    const response = await POST(
+      makeRequest(backup.id) as unknown as Parameters<typeof POST>[0],
+      { params: Promise.resolve({ id: backup.id }) },
+    );
+
+    expect(response.status).toBe(500);
+    expect(
+      await prisma.measurement.findUnique({ where: { id: original.id } }),
+    ).toEqual(original);
+    expect(
+      await prisma.measurement.findUnique({ where: { id: conflicting.id } }),
+    ).toEqual(conflicting);
+  });
+
+  it("restores many stable-id measurements with a bounded number of writes", async () => {
+    const prisma = getPrismaClient();
+    const admin = await seedAdminSession();
+    const measurements = Array.from({ length: 250 }, (_, index) => ({
+      id: `stable-measurement-${index}`,
+      type: "PULSE" as const,
+      value: 60 + (index % 20),
+      unit: "bpm",
+      measuredAt: new Date(
+        Date.UTC(2026, 6, 10, 0, 0, 0, index),
+      ).toISOString(),
+      source: "IMPORT" as const,
+      externalId: `external-${index}`,
+      syncVersion: 3,
+      deletedAt: index % 10 === 0 ? "2026-07-11T00:00:00.000Z" : null,
+    }));
+    const payload = backupPayloadSchema.parse({
+      schemaVersion: "2",
+      exportedAt: "2026-07-12T00:00:00.000Z",
+      userId: admin.id,
+      measurements,
+    });
+    const backup = await prisma.dataBackup.create({
+      data: {
+        userId: admin.id,
+        type: "BOUNDED_STABLE_ID_RESTORE",
+        data: encrypt(JSON.stringify(payload)),
+      },
+    });
+    let stableWriteQueries = 0;
+    const originalTransaction = prisma.$transaction.bind(prisma) as unknown as (
+      callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
+      options?: { maxWait?: number; timeout?: number },
+    ) => Promise<unknown>;
+    const transactionSpy = vi.spyOn(prisma, "$transaction");
+    transactionSpy.mockImplementation(
+      (async (
+        callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
+        options?: { maxWait?: number; timeout?: number },
+      ) =>
+        originalTransaction(async (tx) => {
+          const originalUpsert = tx.measurement.upsert.bind(tx.measurement);
+          const originalCreateMany = tx.measurement.createMany.bind(
+            tx.measurement,
+          );
+          vi.spyOn(tx.measurement, "upsert").mockImplementation(async (args) => {
+            stableWriteQueries += 1;
+            return originalUpsert(args);
+          });
+          vi.spyOn(tx.measurement, "createMany").mockImplementation(
+            async (args) => {
+              stableWriteQueries += 1;
+              return originalCreateMany(args);
+            },
+          );
+          return callback(tx);
+        }, options)) as never,
+    );
+
+    const response = await POST(
+      makeRequest(backup.id) as unknown as Parameters<typeof POST>[0],
+      { params: Promise.resolve({ id: backup.id }) },
+    );
+
+    expect(response.status).toBe(200);
+    transactionSpy.mockRestore();
+    expect(stableWriteQueries).toBeLessThanOrEqual(2);
+    expect(
+      await prisma.measurement.findMany({
+        where: { userId: admin.id },
+        orderBy: { id: "asc" },
+        select: { id: true },
+      }),
+    ).toEqual(
+      measurements
+        .map(({ id }) => ({ id }))
+        .sort((left, right) => left.id.localeCompare(right.id)),
+    );
   });
   it.each([
     {

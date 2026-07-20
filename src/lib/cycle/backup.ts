@@ -28,8 +28,13 @@ import type {
 import type { BackupPayload } from "@/lib/validations/backup";
 
 /** The cycle slice of a backup payload. */
+export interface CycleBackupOptions {
+  purpose?: "portable-export" | "disaster-recovery";
+}
+
 export interface CycleBackupSection {
   cycleProfile: {
+    id?: string;
     goal: string;
     cycleTrackingEnabled: boolean | null;
     typicalCycleLength: number | null;
@@ -40,8 +45,11 @@ export interface CycleBackupSection {
     rawChartMode: boolean;
     discreetNotifications: boolean;
     sensitiveCategoryEncryption: boolean;
+    createdAt?: string;
+    updatedAt?: string;
   } | null;
   cycles: Array<{
+    id?: string;
     startDate: string;
     endDate: string | null;
     periodEndDate: string | null;
@@ -49,8 +57,15 @@ export interface CycleBackupSection {
     ovulationDate: string | null;
     ovulationConfirmed: boolean;
     tz: string | null;
+    isPredicted?: boolean;
+    syncVersion?: number;
+    deletedAt?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
   }>;
   cycleDayLogs: Array<{
+    id?: string;
+    cycleId?: string | null;
     date: string;
     flow: string | null;
     intermenstrualBleeding: boolean;
@@ -71,6 +86,10 @@ export interface CycleBackupSection {
     source: string;
     externalId: string | null;
     tz: string | null;
+    syncVersion?: number;
+    deletedAt?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
     symptomKeys: string[];
   }>;
 }
@@ -83,15 +102,19 @@ export interface CycleBackupSection {
 export async function buildCycleBackupSection(
   prisma: Pick<PrismaClient, "cycleProfile" | "menstrualCycle" | "cycleDayLog">,
   userId: string,
+  options: CycleBackupOptions = {},
 ): Promise<CycleBackupSection> {
+  const disasterRecovery = options.purpose === "disaster-recovery";
   const [profile, cycles, dayLogs] = await Promise.all([
     prisma.cycleProfile.findUnique({ where: { userId } }),
     prisma.menstrualCycle.findMany({
-      where: { userId, deletedAt: null, isPredicted: false },
+      where: disasterRecovery
+        ? { userId }
+        : { userId, deletedAt: null, isPredicted: false },
       orderBy: { startDate: "asc" },
     }),
     prisma.cycleDayLog.findMany({
-      where: { userId, deletedAt: null },
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
       orderBy: { date: "asc" },
       include: {
         symptomLinks: { include: { symptom: { select: { key: true } } } },
@@ -102,6 +125,13 @@ export async function buildCycleBackupSection(
   return {
     cycleProfile: profile
       ? {
+          ...(disasterRecovery
+            ? {
+                id: profile.id,
+                createdAt: profile.createdAt.toISOString(),
+                updatedAt: profile.updatedAt.toISOString(),
+              }
+            : {}),
           goal: profile.goal,
           cycleTrackingEnabled: profile.cycleTrackingEnabled,
           typicalCycleLength: profile.typicalCycleLength,
@@ -115,6 +145,16 @@ export async function buildCycleBackupSection(
         }
       : null,
     cycles: cycles.map((c) => ({
+      ...(disasterRecovery
+        ? {
+            id: c.id,
+            isPredicted: c.isPredicted,
+            syncVersion: c.syncVersion,
+            deletedAt: c.deletedAt?.toISOString() ?? null,
+            createdAt: c.createdAt.toISOString(),
+            updatedAt: c.updatedAt.toISOString(),
+          }
+        : {}),
       startDate: c.startDate,
       endDate: c.endDate,
       periodEndDate: c.periodEndDate,
@@ -124,6 +164,16 @@ export async function buildCycleBackupSection(
       tz: c.tz,
     })),
     cycleDayLogs: dayLogs.map((d) => ({
+      ...(disasterRecovery
+        ? {
+            id: d.id,
+            cycleId: d.cycleId,
+            syncVersion: d.syncVersion,
+            deletedAt: d.deletedAt?.toISOString() ?? null,
+            createdAt: d.createdAt.toISOString(),
+            updatedAt: d.updatedAt.toISOString(),
+          }
+        : {}),
       date: d.date,
       flow: d.flow,
       intermenstrualBleeding: d.intermenstrualBleeding,
@@ -139,7 +189,6 @@ export async function buildCycleBackupSection(
       pregnancyTest: d.pregnancyTest,
       progesteroneTest: d.progesteroneTest,
       contraceptive: d.contraceptive,
-      // Both ciphertext envelopes carried verbatim — never decrypted here.
       sensitiveEncrypted: d.sensitiveEncrypted,
       notesEncrypted: d.notesEncrypted,
       source: d.source,
@@ -258,6 +307,7 @@ export async function restoreCycleData(
     const p = payload.cycleProfile;
     await tx.cycleProfile.create({
       data: {
+        ...(p.id ? { id: p.id } : {}),
         userId: ownerId,
         goal: enumOrNull(p.goal, CYCLE_GOALS) ?? "GENERAL_HEALTH",
         cycleTrackingEnabled: p.cycleTrackingEnabled ?? null,
@@ -270,6 +320,8 @@ export async function restoreCycleData(
         rawChartMode: p.rawChartMode ?? false,
         discreetNotifications: p.discreetNotifications ?? false,
         sensitiveCategoryEncryption: p.sensitiveCategoryEncryption ?? true,
+        ...(p.createdAt ? { createdAt: new Date(p.createdAt) } : {}),
+        ...(p.updatedAt ? { updatedAt: new Date(p.updatedAt) } : {}),
       },
     });
   }
@@ -277,9 +329,11 @@ export async function restoreCycleData(
   // Recreate observed cycle spans; map startDate → id so day-logs can
   // re-attach to their owning span.
   const cycleIdByStart = new Map<string, string>();
+  const restoredCycleIds = new Set<string>();
   for (const c of payload.cycles) {
     const created = await tx.menstrualCycle.create({
       data: {
+        ...(c.id ? { id: c.id } : {}),
         userId: ownerId,
         startDate: c.startDate,
         endDate: c.endDate ?? null,
@@ -288,10 +342,15 @@ export async function restoreCycleData(
         ovulationDate: c.ovulationDate ?? null,
         ovulationConfirmed: c.ovulationConfirmed ?? false,
         tz: c.tz ?? null,
-        isPredicted: false,
+        isPredicted: c.isPredicted ?? false,
+        syncVersion: c.syncVersion ?? 0,
+        deletedAt: c.deletedAt ? new Date(c.deletedAt) : null,
+        ...(c.createdAt ? { createdAt: new Date(c.createdAt) } : {}),
+        ...(c.updatedAt ? { updatedAt: new Date(c.updatedAt) } : {}),
       },
     });
     cycleIdByStart.set(c.startDate, created.id);
+    restoredCycleIds.add(created.id);
   }
 
   // Resolve the seeded symptom catalogue once for the link re-creation.
@@ -328,11 +387,22 @@ export async function restoreCycleData(
     const symptomIds = (d.symptomKeys ?? [])
       .map((k) => symptomIdByKey.get(k))
       .filter((v): v is string => v !== undefined);
+    const cycleId =
+      d.cycleId !== undefined
+        ? d.cycleId === null
+          ? null
+          : restoredCycleIds.has(d.cycleId)
+            ? d.cycleId
+            : (() => {
+                throw new Error(`Unknown cycle reference: ${d.cycleId}`);
+              })()
+        : owningCycleId(d.date);
     await tx.cycleDayLog.create({
       data: {
+        ...(d.id ? { id: d.id } : {}),
         userId: ownerId,
         date: d.date,
-        cycleId: owningCycleId(d.date),
+        cycleId,
         flow: enumOrNull(d.flow, FLOW_LEVELS),
         intermenstrualBleeding: d.intermenstrualBleeding ?? false,
         basalBodyTempC: d.basalBodyTempC ?? null,
@@ -353,6 +423,10 @@ export async function restoreCycleData(
         source: enumOrNull(d.source, CYCLE_SOURCES) ?? "MANUAL",
         externalId: d.externalId ?? null,
         tz: d.tz ?? null,
+        syncVersion: d.syncVersion ?? 0,
+        deletedAt: d.deletedAt ? new Date(d.deletedAt) : null,
+        ...(d.createdAt ? { createdAt: new Date(d.createdAt) } : {}),
+        ...(d.updatedAt ? { updatedAt: new Date(d.updatedAt) } : {}),
         ...(symptomIds.length > 0
           ? {
               symptomLinks: {
