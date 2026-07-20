@@ -3,22 +3,14 @@ import { Buffer } from "node:buffer";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  buildRecordsBackupSection: vi.fn(),
+  buildFullBackupPayload: vi.fn(),
   encrypt: vi.fn((value: string) => value),
   getWorkerPrisma: vi.fn(),
   upsert: vi.fn(),
 }));
 
-vi.mock("@/lib/export/records-backup", () => ({
-  buildRecordsBackupSection: mocks.buildRecordsBackupSection,
-}));
-
-vi.mock("@/lib/cycle/backup", () => ({
-  buildCycleBackupSection: vi.fn().mockResolvedValue({
-    cycleProfile: null,
-    cycles: [],
-    cycleDayLogs: [],
-  }),
+vi.mock("@/lib/export/full-backup-payload", () => ({
+  buildFullBackupPayload: mocks.buildFullBackupPayload,
 }));
 
 vi.mock("@/lib/crypto", () => ({ encrypt: mocks.encrypt }));
@@ -50,26 +42,6 @@ function buildPrismaMock() {
         { id: "user-dr", username: "backup-owner" },
       ]),
     },
-    measurement: { findMany: vi.fn().mockResolvedValue([]) },
-    medication: { findMany: vi.fn().mockResolvedValue([]) },
-    medicationIntakeEvent: { findMany: vi.fn().mockResolvedValue([]) },
-    moodEntry: {
-      findMany: vi.fn().mockResolvedValue([
-        {
-          id: "mood-dr",
-          date: "2026-07-01",
-          mood: "GUT",
-          score: 4,
-          tags: null,
-          source: "MOODLOG",
-          externalId: "mood-external-dr",
-          moodLoggedAt: new Date("2026-07-01T20:00:00.000Z"),
-          tagLinks: [
-            { rating: 5, moodTag: { key: "sleep_quality" } },
-          ],
-        },
-      ]),
-    },
     dataBackup: { upsert: mocks.upsert },
   };
 }
@@ -79,51 +51,36 @@ describe("handleDataBackup canonical DR payload", () => {
     vi.clearAllMocks();
     mocks.getWorkerPrisma.mockReturnValue(buildPrismaMock());
     mocks.upsert.mockResolvedValue({});
-    mocks.buildRecordsBackupSection.mockResolvedValue({
-      labResults: [],
-      biomarkers: [],
-      illnessEpisodes: [],
-      allergies: [],
-      familyHistory: [],
-      workouts: [],
-      documents: [
-        {
-          id: "document-dr",
-          kind: "OTHER",
-          title: null,
-          filename: "record.pdf",
-          mimeType: "application/pdf",
-          byteSize: 4,
-          status: "STORED",
-          reportDate: null,
-          documentDate: null,
-          createdAt: "2026-07-01T00:00:00.000Z",
-          updatedAt: "2026-07-01T00:00:00.000Z",
-          contentEncrypted: documentCiphertext,
-          contentSha256: null,
-          contentCodec: "binary2",
-          providerType: null,
-          errorReason: null,
-          summaryEncrypted: null,
-          summaryGeneratedAt: null,
-          summaryState: "NONE",
-        },
-      ],
-      manifest: {
-        documents: {
-          included: "encrypted-content",
-          note: "Encrypted content included",
-        },
-        workouts: { included: "summary-only", note: "Summary only" },
+    mocks.buildFullBackupPayload.mockResolvedValue({
+      payload: {
+        schemaVersion: "1",
+        exportedAt: "2026-07-20T00:00:00.000Z",
+        userId: "user-dr",
+        moodEntries: [
+          {
+            id: "mood-dr",
+            externalId: "mood-external-dr",
+            factors: [{ key: "sleep_quality", rating: 5 }],
+          },
+        ],
+        documents: [
+          {
+            id: "document-dr",
+            contentEncrypted: documentCiphertext,
+            contentCodec: "binary2",
+          },
+        ],
       },
+      counts: {},
     });
   });
 
-  it("requests canonical records and serializes rated mood factors", async () => {
+  it("serializes the shared canonical disaster-recovery payload", async () => {
     await handleDataBackup([]);
 
-    expect(mocks.buildRecordsBackupSection).toHaveBeenCalledWith(
-      expect.anything(),
+    const prisma = mocks.getWorkerPrisma.mock.results[0]!.value;
+    expect(mocks.buildFullBackupPayload).toHaveBeenCalledWith(
+      prisma,
       "user-dr",
       { purpose: "disaster-recovery" },
     );

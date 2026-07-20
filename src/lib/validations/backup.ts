@@ -20,6 +20,32 @@
  * a useful summary for them.
  */
 import { z } from "zod/v4";
+import {
+  AllergyCategory,
+  AllergySeverity,
+  AllergyStatus,
+  AllergyType,
+  CervicalMucus,
+  CervixFirmness,
+  CervixOpening,
+  CervixPosition,
+  ContraceptiveKind,
+  CycleTrackingGoal,
+  DocumentSummaryState,
+  FamilyRelationship,
+  FlowLevel,
+  HomeTestResult,
+  IllnessLifecycle,
+  IllnessType,
+  InboundDocumentKind,
+  InboundDocumentStatus,
+  IntakeSource,
+  MeasurementSource,
+  MeasurementType,
+  OvulationTest,
+  SecondarySymptom,
+} from "@/generated/prisma/enums";
+
 
 export const BACKUP_SCHEMA_VERSION = "1" as const;
 
@@ -32,12 +58,14 @@ const isoDateTime = z
 
 const measurementSchema = z
   .object({
-    type: z.string().min(1),
+    id: z.string().min(1).optional(),
+    type: z.enum(MeasurementType),
     value: z.number(),
     unit: z.string().min(1),
     measuredAt: isoDateTime,
-    source: z.string().min(1).optional(),
+    source: z.enum(MeasurementSource).optional(),
     notes: z.string().nullable().optional(),
+    deletedAt: isoDateTime.nullable().optional(),
   })
   .passthrough();
 
@@ -65,7 +93,7 @@ const intakeEventSchema = z
     scheduledFor: isoDateTime,
     takenAt: isoDateTime.nullable().optional(),
     skipped: z.boolean().optional(),
-    source: z.string().min(1).optional(),
+    source: z.enum(IntakeSource).optional(),
   })
   .passthrough();
 
@@ -114,6 +142,7 @@ const moodEntrySchema = z
     source: z.string().min(1).optional(),
     externalId: z.string().nullable().optional(),
     loggedAt: isoDateTime,
+    deletedAt: isoDateTime.nullable().optional(),
     factors: z.array(moodFactorSchema).default([]),
   })
   .passthrough();
@@ -148,23 +177,23 @@ const cycleSpanSchema = z
 const cycleDayLogSchema = z
   .object({
     date: z.string().min(1),
-    flow: z.string().nullable().optional(),
+    flow: z.enum(FlowLevel).nullable().optional(),
     intermenstrualBleeding: z.boolean().optional(),
     basalBodyTempC: z.number().nullable().optional(),
     temperatureExcluded: z.boolean().optional(),
-    ovulationTest: z.string().nullable().optional(),
-    cervicalMucus: z.string().nullable().optional(),
-    cervixPosition: z.string().nullable().optional(),
-    cervixFirmness: z.string().nullable().optional(),
-    cervixOpening: z.string().nullable().optional(),
+    ovulationTest: z.enum(OvulationTest).nullable().optional(),
+    cervicalMucus: z.enum(CervicalMucus).nullable().optional(),
+    cervixPosition: z.enum(CervixPosition).nullable().optional(),
+    cervixFirmness: z.enum(CervixFirmness).nullable().optional(),
+    cervixOpening: z.enum(CervixOpening).nullable().optional(),
     sexualActivity: z.boolean().optional(),
     protectedSex: z.boolean().nullable().optional(),
-    pregnancyTest: z.string().nullable().optional(),
-    progesteroneTest: z.string().nullable().optional(),
-    contraceptive: z.string().nullable().optional(),
+    pregnancyTest: z.enum(HomeTestResult).nullable().optional(),
+    progesteroneTest: z.enum(HomeTestResult).nullable().optional(),
+    contraceptive: z.enum(ContraceptiveKind).nullable().optional(),
     sensitiveEncrypted: z.string().nullable().optional(),
     notesEncrypted: z.string().nullable().optional(),
-    source: z.string().min(1).optional(),
+    source: z.enum(MeasurementSource).optional(),
     externalId: z.string().nullable().optional(),
     tz: z.string().nullable().optional(),
     symptomKeys: z.array(z.string()).default([]),
@@ -174,12 +203,12 @@ const cycleDayLogSchema = z
 /** Cycle-tracking preferences (one row per user). */
 const cycleProfileSchema = z
   .object({
-    goal: z.string().min(1).optional(),
+    goal: z.enum(CycleTrackingGoal).optional(),
     cycleTrackingEnabled: z.boolean().nullable().optional(),
     typicalCycleLength: z.number().int().nullable().optional(),
     typicalPeriodLength: z.number().int().nullable().optional(),
     lutealPhaseLength: z.number().int().nullable().optional(),
-    secondarySymptom: z.string().nullable().optional(),
+    secondarySymptom: z.enum(SecondarySymptom).nullable().optional(),
     predictionEnabled: z.boolean().optional(),
     rawChartMode: z.boolean().optional(),
     discreetNotifications: z.boolean().optional(),
@@ -254,8 +283,8 @@ const illnessEpisodeBackupSchema = z
   .object({
     id: z.string().min(1),
     label: z.string().min(1),
-    type: z.string().min(1),
-    lifecycle: z.string().min(1),
+    type: z.enum(IllnessType),
+    lifecycle: z.enum(IllnessLifecycle),
     onsetAt: isoDateTime,
     resolvedAt: isoDateTime.nullable().optional(),
     // Self-referencing flare/exacerbation link, carried as the exported
@@ -272,10 +301,10 @@ const allergyBackupSchema = z
   .object({
     id: z.string().min(1),
     substance: z.string().min(1),
-    category: z.string().min(1),
-    type: z.string().min(1),
-    severity: z.string().nullable().optional(),
-    status: z.string().min(1),
+    category: z.enum(AllergyCategory),
+    type: z.enum(AllergyType),
+    severity: z.enum(AllergySeverity).nullable().optional(),
+    status: z.enum(AllergyStatus),
     onsetAt: isoDateTime.nullable().optional(),
     reaction: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
@@ -287,7 +316,7 @@ const allergyBackupSchema = z
 const familyHistoryBackupSchema = z
   .object({
     id: z.string().min(1),
-    relationship: z.string().min(1),
+    relationship: z.enum(FamilyRelationship),
     condition: z.string().min(1),
     ageAtOnset: z.number().int().nullable().optional(),
     note: z.string().nullable().optional(),
@@ -311,7 +340,7 @@ const workoutBackupSchema = z
     stepCount: z.number().int().nullable().optional(),
     elevationM: z.number().nullable().optional(),
     pauseDurationSec: z.number().int().nullable().optional(),
-    source: z.string().min(1),
+    source: z.enum(MeasurementSource),
     externalId: z.string().nullable().optional(),
     createdAt: isoDateTime.optional(),
     updatedAt: isoDateTime.optional(),
@@ -330,12 +359,12 @@ const base64BytesSchema = z
 const documentBackupSchema = z
   .object({
     id: z.string().min(1),
-    kind: z.string().min(1),
+    kind: z.enum(InboundDocumentKind),
     title: z.string().nullable().optional(),
     filename: z.string().nullable().optional(),
     mimeType: z.string().min(1),
     byteSize: z.number().int(),
-    status: z.string().min(1),
+    status: z.enum(InboundDocumentStatus),
     reportDate: z.string().nullable().optional(),
     documentDate: z.string().nullable().optional(),
     contentEncrypted: base64BytesSchema.optional(),
@@ -349,7 +378,7 @@ const documentBackupSchema = z
     errorReason: z.string().nullable().optional(),
     summaryEncrypted: base64BytesSchema.nullable().optional(),
     summaryGeneratedAt: isoDateTime.nullable().optional(),
-    summaryState: z.string().min(1).optional(),
+    summaryState: z.enum(DocumentSummaryState).optional(),
     summary: z.string().nullable().optional(),
     createdAt: isoDateTime.optional(),
     updatedAt: isoDateTime.optional(),

@@ -35,14 +35,21 @@ export interface FullBackupResult {
   counts: FullBackupCounts;
 }
 
+export interface FullBackupOptions {
+  purpose?: "portable-export" | "disaster-recovery";
+  exportedAt?: Date;
+}
 /**
- * Build the canonical full-backup payload for `userId`. Soft-deleted rows are
- * excluded so a round-trip via admin restore never resurrects deleted records.
+ * Build the canonical full-backup payload for `userId`. Portable exports omit
+ * tombstones and document ciphertext; disaster-recovery payloads preserve
+ * both so weekly and off-host snapshots share one restorable wire format.
  */
 export async function buildFullBackupPayload(
   prisma: PrismaClient,
   userId: string,
+  options: FullBackupOptions = {},
 ): Promise<FullBackupResult> {
+  const disasterRecovery = options.purpose === "disaster-recovery";
   const [measurements, medications, intakeEvents, moodEntries, cycle, records] =
     await Promise.all([
       // v1.28.25 — keyset-paginated read with a narrow select. The backup
@@ -55,7 +62,7 @@ export async function buildFullBackupPayload(
       // note columns `readNote` decrypts + the `id` cursor key.
       findMeasurementsPaged(
         prisma,
-        { userId, deletedAt: null },
+        disasterRecovery ? { userId } : { userId, deletedAt: null },
         {
           id: true,
           type: true,
@@ -65,6 +72,7 @@ export async function buildFullBackupPayload(
           source: true,
           notes: true,
           notesEncrypted: true,
+          deletedAt: true,
         },
       ),
       prisma.medication.findMany({
@@ -89,24 +97,37 @@ export async function buildFullBackupPayload(
         orderBy: { scheduledFor: "desc" },
       }),
       prisma.moodEntry.findMany({
-        where: { userId, deletedAt: null },
+        where: disasterRecovery ? { userId } : { userId, deletedAt: null },
         orderBy: { moodLoggedAt: "desc" },
+        include: {
+          tagLinks: {
+            where: { rating: { not: null } },
+            select: {
+              rating: true,
+              moodTag: { select: { key: true } },
+            },
+          },
+        },
       }),
       buildCycleBackupSection(prisma, userId),
-      buildRecordsBackupSection(prisma, userId),
+      buildRecordsBackupSection(prisma, userId, {
+        purpose: disasterRecovery ? "disaster-recovery" : "portable-export",
+      }),
     ]);
 
   const payload = {
     schemaVersion: BACKUP_SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
+    exportedAt: (options.exportedAt ?? new Date()).toISOString(),
     userId,
     measurements: measurements.map((m) => ({
+      id: m.id,
       type: m.type,
       value: m.value,
       unit: m.unit,
       measuredAt: m.measuredAt.toISOString(),
       source: m.source,
       notes: readNote(m.notesEncrypted, m.notes),
+      deletedAt: m.deletedAt?.toISOString() ?? null,
     })),
     medications: medications.map((m) => ({
       name: m.name,
@@ -127,12 +148,19 @@ export async function buildFullBackupPayload(
       source: e.source,
     })),
     moodEntries: moodEntries.map((e) => ({
+      id: e.id,
       date: e.date,
       mood: e.mood,
       score: e.score,
       tags: e.tags,
       source: e.source,
       loggedAt: e.moodLoggedAt.toISOString(),
+      externalId: e.externalId,
+      deletedAt: e.deletedAt?.toISOString() ?? null,
+      factors: e.tagLinks.map((link) => ({
+        key: link.moodTag.key,
+        rating: link.rating!,
+      })),
     })),
     cycleProfile: cycle.cycleProfile,
     cycles: cycle.cycles,

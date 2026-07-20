@@ -27,6 +27,7 @@ import { defaultUserIdResolver, withIdempotency } from "@/lib/idempotency";
 import { annotate } from "@/lib/logging/context";
 import {
   parseBackupPayload,
+  isCompatibleSchemaVersion,
   summarizeBackup,
   type BackupSummary,
 } from "@/lib/validations/backup";
@@ -72,43 +73,6 @@ function decodeEncryptedBytes(encoded: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-/**
- * Maps a measurement-type string from the backup back into the
- * Prisma enum literal. Backups are written from `enum MeasurementType`
- * (Postgres-mapped to lowercase column type), so the round-trip is
- * normally identity. But the schema is a `passthrough` schema so a
- * malformed type slips through Zod — guard it explicitly here so the
- * restore fails fast instead of erroring deep in `prisma.create()`.
- */
-const MEASUREMENT_TYPES = new Set([
-  "WEIGHT",
-  "BLOOD_PRESSURE_SYS",
-  "BLOOD_PRESSURE_DIA",
-  "PULSE",
-  "BODY_FAT",
-  "SLEEP_DURATION",
-  "ACTIVITY_STEPS",
-  "BLOOD_GLUCOSE",
-  "TOTAL_BODY_WATER",
-  "BONE_MASS",
-  "OXYGEN_SATURATION",
-  // ── v1.4.23 Apple Health additions ──
-  "HEART_RATE_VARIABILITY",
-  "RESTING_HEART_RATE",
-  "ACTIVE_ENERGY_BURNED",
-  "FLIGHTS_CLIMBED",
-  "WALKING_RUNNING_DISTANCE",
-  "VO2_MAX",
-  "BODY_TEMPERATURE",
-]);
-
-const MEASUREMENT_SOURCES = new Set([
-  "MANUAL",
-  "WITHINGS",
-  "IMPORT",
-  "APPLE_HEALTH",
-]);
-const INTAKE_SOURCES = new Set(["WEB", "API", "REMINDER", "IMPORT"]);
 
 const handler = apiHandler(
   async (
@@ -185,7 +149,24 @@ const handler = apiHandler(
           message: err instanceof Error ? err.message : String(err),
         },
       });
-      return apiError("Backup payload failed schema validation", 500);
+      return apiError("Backup payload failed schema validation", 422);
+    }
+
+    if (!isCompatibleSchemaVersion(payload.schemaVersion)) {
+      await auditLog("admin.backups.restore.failed", {
+        userId: admin.id,
+        ipAddress: getClientIp(request),
+        details: {
+          backupId: id,
+          ownerId: backup.userId,
+          reason: "incompatible_schema_version",
+          schemaVersion: payload.schemaVersion,
+        },
+      });
+      return apiError(
+        `Backup schema version '${payload.schemaVersion}' is not supported by this server`,
+        422,
+      );
     }
 
     // The payload declares its own owner, and the backup ROW records who the
@@ -250,55 +231,6 @@ const handler = apiHandler(
       },
     });
 
-    // Pre-validate enum values OUTSIDE the transaction so a malformed
-    // payload doesn't half-wipe the user before failing the create
-    // step. Cheap up-front guard.
-    for (const m of payload.measurements) {
-      if (!MEASUREMENT_TYPES.has(m.type)) {
-        await auditLog("admin.backups.restore.failed", {
-          userId: admin.id,
-          ipAddress: getClientIp(request),
-          details: {
-            backupId: id,
-            ownerId,
-            reason: "unknown_measurement_type",
-            type: m.type,
-          },
-        });
-        return apiError(`Unknown measurement type in backup: '${m.type}'`, 422);
-      }
-      if (m.source && !MEASUREMENT_SOURCES.has(m.source)) {
-        await auditLog("admin.backups.restore.failed", {
-          userId: admin.id,
-          ipAddress: getClientIp(request),
-          details: {
-            backupId: id,
-            ownerId,
-            reason: "unknown_measurement_source",
-            source: m.source,
-          },
-        });
-        return apiError(
-          `Unknown measurement source in backup: '${m.source}'`,
-          422,
-        );
-      }
-    }
-    for (const e of payload.intakeEvents) {
-      if (e.source && !INTAKE_SOURCES.has(e.source)) {
-        await auditLog("admin.backups.restore.failed", {
-          userId: admin.id,
-          ipAddress: getClientIp(request),
-          details: {
-            backupId: id,
-            ownerId,
-            reason: "unknown_intake_source",
-            source: e.source,
-          },
-        });
-        return apiError(`Unknown intake source in backup: '${e.source}'`, 422);
-      }
-    }
 
     // Portable exports intentionally omit document ciphertext. They remain
     // valid upload/download artifacts, but cannot be used to manufacture an
@@ -398,27 +330,56 @@ const handler = apiHandler(
           where: { userId: ownerId },
         });
 
-        // ── re-create from payload ──
-        if (payload.measurements.length > 0) {
-          await tx.measurement.createMany({
-            data: payload.measurements.map((m) => ({
+        // Stable ids are authoritative for canonical snapshots. Legacy payloads
+        // without ids fall back to the historic natural measurement key.
+        for (const measurement of payload.measurements) {
+          const measuredAt = new Date(measurement.measuredAt);
+          const source = measurement.source ?? "MANUAL";
+          const restoredData = {
+            type: measurement.type,
+            value: measurement.value,
+            unit: measurement.unit,
+            source,
+            measuredAt,
+            notes: null,
+            notesEncrypted: encryptNote(measurement.notes ?? null),
+            deletedAt: measurement.deletedAt
+              ? new Date(measurement.deletedAt)
+              : null,
+          };
+
+          if (measurement.id) {
+            await tx.measurement.upsert({
+              where: { id: measurement.id, userId: ownerId },
+              create: {
+                id: measurement.id,
+                userId: ownerId,
+                ...restoredData,
+              },
+              update: restoredData,
+            });
+            continue;
+          }
+
+          const existing = await tx.measurement.findFirst({
+            where: {
               userId: ownerId,
-              type: m.type as never, // already enum-validated above
-              value: m.value,
-              unit: m.unit,
-              source: (m.source ?? "MANUAL") as never,
-              measuredAt: new Date(m.measuredAt),
-              // v1.23 — re-encrypt the note from the (decrypted) backup payload
-              // into the at-rest column; legacy plaintext column nulled.
-              notes: null,
-              notesEncrypted: encryptNote(m.notes ?? null),
-            })),
-            // Backups can replay the same data — the unique
-            // (userId, type, measuredAt, source) constraint catches
-            // accidental dupes. `skipDuplicates` keeps the restore
-            // idempotent across retries instead of throwing.
-            skipDuplicates: true,
+              type: measurement.type,
+              source,
+              measuredAt,
+            },
+            select: { id: true },
           });
+          if (existing) {
+            await tx.measurement.update({
+              where: { id: existing.id, userId: ownerId },
+              data: restoredData,
+            });
+          } else {
+            await tx.measurement.create({
+              data: { userId: ownerId, ...restoredData },
+            });
+          }
         }
 
         // Medications + schedules — restore one at a time so we can
@@ -501,23 +462,55 @@ const handler = apiHandler(
           }
 
           for (const entry of payload.moodEntries) {
-            const created = await tx.moodEntry.create({
-              data: {
-                ...(entry.id ? { id: entry.id } : {}),
-                userId: ownerId,
-                date: entry.date,
-                mood: entry.mood,
-                score: entry.score,
-                tags: entry.tags ?? null,
-                source: entry.source ?? "MOODLOG",
-                externalId: entry.externalId ?? null,
-                moodLoggedAt: new Date(entry.loggedAt),
-              },
+            const moodLoggedAt = new Date(entry.loggedAt);
+            const restoredData = {
+              date: entry.date,
+              mood: entry.mood,
+              score: entry.score,
+              tags: entry.tags ?? null,
+              source: entry.source ?? "MOODLOG",
+              externalId: entry.externalId ?? null,
+              moodLoggedAt,
+              deletedAt: entry.deletedAt ? new Date(entry.deletedAt) : null,
+            };
+            const createData = { userId: ownerId, ...restoredData };
+            const restored = entry.id
+              ? await tx.moodEntry.upsert({
+                  where: { id: entry.id, userId: ownerId },
+                  create: { id: entry.id, ...createData },
+                  update: restoredData,
+                })
+              : entry.externalId
+                ? await tx.moodEntry.upsert({
+                    where: {
+                      userId_source_externalId: {
+                        userId: ownerId,
+                        source: restoredData.source,
+                        externalId: entry.externalId,
+                      },
+                    },
+                    create: createData,
+                    update: restoredData,
+                  })
+                : await tx.moodEntry.upsert({
+                    where: {
+                      userId_date_moodLoggedAt: {
+                        userId: ownerId,
+                        date: entry.date,
+                        moodLoggedAt,
+                      },
+                    },
+                    create: createData,
+                    update: restoredData,
+                  });
+
+            await tx.moodEntryTagLink.deleteMany({
+              where: { moodEntryId: restored.id },
             });
             if (entry.factors.length > 0) {
               await tx.moodEntryTagLink.createMany({
                 data: entry.factors.map((factor) => ({
-                  moodEntryId: created.id,
+                  moodEntryId: restored.id,
                   moodTagId: factorByKey.get(factor.key)!,
                   rating: factor.rating,
                 })),

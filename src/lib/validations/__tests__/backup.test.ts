@@ -383,3 +383,135 @@ describe("backupPayloadSchema — v1.28 backup-completeness domains", () => {
     expect(summary.documents).toBe(0);
   });
 });
+
+describe("backupPayloadSchema — database enum boundaries", () => {
+  const enumPayload = {
+    schemaVersion: "1",
+    exportedAt: "2026-07-20T00:00:00.000Z",
+    userId: "u1",
+    measurements: [
+      {
+        id: "measurement-1",
+        type: "WEIGHT",
+        value: 75,
+        unit: "kg",
+        measuredAt: "2026-07-19T07:00:00.000Z",
+        source: "MANUAL",
+      },
+    ],
+    intakeEvents: [
+      {
+        medication: "Example",
+        scheduledFor: "2026-07-19T08:00:00.000Z",
+        source: "WEB",
+      },
+    ],
+    cycleProfile: {
+      goal: "GENERAL_HEALTH",
+      secondarySymptom: "MUCUS",
+    },
+    cycleDayLogs: [
+      {
+        date: "2026-07-19",
+        flow: "MEDIUM",
+        ovulationTest: "NEGATIVE",
+        cervicalMucus: "CREAMY",
+        cervixPosition: "LOW",
+        cervixFirmness: "FIRM",
+        cervixOpening: "CLOSED",
+        pregnancyTest: "NEGATIVE",
+        progesteroneTest: "INDETERMINATE",
+        contraceptive: "NONE",
+        source: "MANUAL",
+      },
+    ],
+    illnessEpisodes: [
+      {
+        id: "illness-1",
+        label: "Cold",
+        type: "INFECTION",
+        lifecycle: "ACUTE",
+        onsetAt: "2026-07-01T00:00:00.000Z",
+      },
+    ],
+    allergies: [
+      {
+        id: "allergy-1",
+        substance: "Penicillin",
+        category: "MEDICATION",
+        type: "ALLERGY",
+        severity: "SEVERE",
+        status: "ACTIVE",
+      },
+    ],
+    familyHistory: [
+      {
+        id: "family-1",
+        relationship: "MOTHER",
+        condition: "Diabetes",
+      },
+    ],
+    workouts: [
+      {
+        id: "workout-1",
+        sportType: "RUNNING",
+        startedAt: "2026-07-19T06:00:00.000Z",
+        endedAt: "2026-07-19T06:30:00.000Z",
+        durationSec: 1800,
+        source: "APPLE_HEALTH",
+      },
+    ],
+    documents: [
+      {
+        id: "document-1",
+        kind: "LAB_RESULT",
+        mimeType: "application/pdf",
+        byteSize: 42,
+        status: "STORED",
+        summaryState: "NONE",
+      },
+    ],
+  };
+
+  const enumPaths: Array<[string, Array<string | number>]> = [
+    ["measurement type", ["measurements", 0, "type"]],
+    ["measurement source", ["measurements", 0, "source"]],
+    ["intake source", ["intakeEvents", 0, "source"]],
+    ["cycle goal", ["cycleProfile", "goal"]],
+    ["cycle secondary symptom", ["cycleProfile", "secondarySymptom"]],
+    ["cycle flow", ["cycleDayLogs", 0, "flow"]],
+    ["cycle ovulation test", ["cycleDayLogs", 0, "ovulationTest"]],
+    ["cycle cervical mucus", ["cycleDayLogs", 0, "cervicalMucus"]],
+    ["cycle cervix position", ["cycleDayLogs", 0, "cervixPosition"]],
+    ["cycle cervix firmness", ["cycleDayLogs", 0, "cervixFirmness"]],
+    ["cycle cervix opening", ["cycleDayLogs", 0, "cervixOpening"]],
+    ["cycle pregnancy test", ["cycleDayLogs", 0, "pregnancyTest"]],
+    ["cycle progesterone test", ["cycleDayLogs", 0, "progesteroneTest"]],
+    ["cycle contraceptive", ["cycleDayLogs", 0, "contraceptive"]],
+    ["cycle source", ["cycleDayLogs", 0, "source"]],
+    ["illness type", ["illnessEpisodes", 0, "type"]],
+    ["illness lifecycle", ["illnessEpisodes", 0, "lifecycle"]],
+    ["allergy category", ["allergies", 0, "category"]],
+    ["allergy type", ["allergies", 0, "type"]],
+    ["allergy severity", ["allergies", 0, "severity"]],
+    ["allergy status", ["allergies", 0, "status"]],
+    ["family relationship", ["familyHistory", 0, "relationship"]],
+    ["workout source", ["workouts", 0, "source"]],
+    ["document kind", ["documents", 0, "kind"]],
+    ["document status", ["documents", 0, "status"]],
+    ["document summary state", ["documents", 0, "summaryState"]],
+  ];
+
+  it.each(enumPaths)("rejects an unsupported %s", (_label, path) => {
+    const candidate = structuredClone(enumPayload);
+    let cursor: Record<PropertyKey, unknown> = candidate;
+    for (const segment of path.slice(0, -1)) {
+      cursor = cursor[segment] as Record<PropertyKey, unknown>;
+    }
+    cursor[path.at(-1)!] = "UNSUPPORTED_BACKUP_ENUM";
+
+    const parsed = backupPayloadSchema.safeParse(candidate);
+
+    expect(parsed.success).toBe(false);
+  });
+});

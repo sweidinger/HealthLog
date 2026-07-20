@@ -4,11 +4,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 process.env.ENCRYPTION_KEY =
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const OFFHOST_ENCRYPTION_KEY =
+  "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+process.env.BACKUP_S3_ENDPOINT = "https://s3.example.test";
+process.env.BACKUP_S3_BUCKET = "healthlog-test";
+process.env.BACKUP_S3_ACCESS_KEY = "test-access";
+process.env.BACKUP_S3_SECRET_KEY = "test-secret";
+process.env.BACKUP_ENCRYPTION_KEY = OFFHOST_ENCRYPTION_KEY;
+
 
 import { encrypt, encryptBytes } from "@/lib/crypto";
 import { encryptToBytes, decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
-import { buildRecordsBackupSection } from "@/lib/export/records-backup";
-import { backupPayloadSchema } from "@/lib/validations/backup";
+import {
+  decryptBackup,
+  runOffhostBackup,
+  type S3Like,
+} from "@/lib/jobs/offhost-backup";
+import {
+  backupPayloadSchema,
+  parseBackupPayload,
+} from "@/lib/validations/backup";
 import { POST } from "@/app/api/admin/backups/[id]/restore/route";
 import { invalidateUserData } from "@/lib/cache/invalidate";
 
@@ -74,8 +89,32 @@ function makeRequest(id: string) {
   });
 }
 
+function makeS3Store(): S3Like & { objects: Map<string, Buffer> } {
+  const objects = new Map<string, Buffer>();
+  return {
+    objects,
+    putObject: vi.fn(async (key, body) => {
+      objects.set(key, Buffer.from(body));
+    }),
+    getObject: vi.fn(async (key) => {
+      const body = objects.get(key);
+      if (!body) throw new Error(`Missing S3 object: ${key}`);
+      return body;
+    }),
+    headObject: vi.fn(async (key) => objects.has(key)),
+    listObjects: vi.fn(async (prefix) =>
+      [...objects.keys()]
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => ({ key })),
+    ),
+    deleteObject: vi.fn(async (key) => {
+      objects.delete(key);
+    }),
+  };
+}
+
 describe("canonical disaster-recovery backup round-trip", () => {
-  it("restores every serialized record class and document ciphertext verbatim", async () => {
+  it("restores an off-host payload with tombstones and encrypted documents", async () => {
     const prisma = getPrismaClient();
     const admin = await seedAdminSession();
     const ownerId = admin.id;
@@ -89,6 +128,19 @@ describe("canonical disaster-recovery backup round-trip", () => {
         unit: "kg",
         measuredAt: new Date("2026-07-01T07:00:00.000Z"),
         source: "MANUAL",
+      },
+    });
+    const tombstoneDeletedAt = new Date("2026-07-01T12:00:00.000Z");
+    const deletedMeasurement = await prisma.measurement.create({
+      data: {
+        id: "measurement-deleted-dr",
+        userId: ownerId,
+        type: "PULSE",
+        value: 61,
+        unit: "bpm",
+        measuredAt: new Date("2026-07-01T08:00:00.000Z"),
+        source: "MANUAL",
+        deletedAt: tombstoneDeletedAt,
       },
     });
 
@@ -127,6 +179,18 @@ describe("canonical disaster-recovery backup round-trip", () => {
         tagLinks: {
           select: { rating: true, moodTag: { select: { key: true } } },
         },
+      },
+    });
+    const deletedMood = await prisma.moodEntry.create({
+      data: {
+        id: "mood-deleted-dr",
+        userId: ownerId,
+        date: "2026-06-30",
+        mood: "OKAY",
+        score: 3,
+        source: "MOODLOG",
+        moodLoggedAt: new Date("2026-06-30T20:00:00.000Z"),
+        deletedAt: tombstoneDeletedAt,
       },
     });
 
@@ -265,48 +329,27 @@ describe("canonical disaster-recovery backup round-trip", () => {
       },
     });
 
-    const records = await buildRecordsBackupSection(prisma, ownerId, {
-      purpose: "disaster-recovery",
+    const s3 = makeS3Store();
+    const snapshotAt = new Date("2026-07-02T00:00:00.000Z");
+    const offhostReport = await runOffhostBackup(prisma, s3, snapshotAt);
+    expect(offhostReport).toMatchObject({
+      uploaded: 1,
+      failed: 0,
+      totalUsers: 1,
     });
-
-    const payload = backupPayloadSchema.parse({
+    const offhostObject = s3.objects.get(
+      `2026-07-02/user-${ownerId}.json.enc`,
+    );
+    expect(offhostObject).toBeDefined();
+    const payload = parseBackupPayload(
+      decryptBackup(
+        offhostObject!,
+        Buffer.from(OFFHOST_ENCRYPTION_KEY, "hex"),
+      ),
+    );
+    expect(payload).toMatchObject({
       schemaVersion: "1",
-      exportedAt: "2026-07-02T00:00:00.000Z",
       userId: ownerId,
-      measurements: [
-        {
-          type: measurement.type,
-          value: measurement.value,
-          unit: measurement.unit,
-          measuredAt: measurement.measuredAt.toISOString(),
-          source: measurement.source,
-        },
-      ],
-      medications: [],
-      intakeEvents: [],
-      moodEntries: [
-        {
-          id: mood.id,
-          date: mood.date,
-          mood: mood.mood,
-          score: mood.score,
-          tags: mood.tags,
-          source: mood.source,
-          loggedAt: mood.moodLoggedAt.toISOString(),
-          factors: mood.tagLinks.map((link) => ({
-            key: link.moodTag.key,
-            rating: link.rating,
-          })),
-        },
-      ],
-      labResults: records.labResults,
-      biomarkers: records.biomarkers,
-      illnessEpisodes: records.illnessEpisodes,
-      allergies: records.allergies,
-      familyHistory: records.familyHistory,
-      workouts: records.workouts,
-      documents: records.documents,
-      manifest: records.manifest,
     });
     expect(payload.documents[0]).not.toHaveProperty("summary");
     expect(JSON.stringify(payload.documents[0])).not.toContain(
@@ -345,25 +388,30 @@ describe("canonical disaster-recovery backup round-trip", () => {
     expect(await prisma.workout.count({ where: { userId: ownerId } })).toBe(1);
     expect(await prisma.inboundDocument.count({ where: { userId: ownerId } })).toBe(1);
     expect(
-      await prisma.measurement.findMany({
-        where: { userId: ownerId },
-        select: {
-          type: true,
-          value: true,
-          unit: true,
-          measuredAt: true,
-          source: true,
-        },
+      await prisma.measurement.findUniqueOrThrow({
+        where: { id: measurement.id },
       }),
-    ).toEqual([
-      {
+    ).toEqual(
+      expect.objectContaining({
+        userId: ownerId,
         type: measurement.type,
         value: measurement.value,
         unit: measurement.unit,
         measuredAt: measurement.measuredAt,
         source: measurement.source,
-      },
-    ]);
+        deletedAt: null,
+      }),
+    );
+    expect(
+      await prisma.measurement.findUniqueOrThrow({
+        where: { id: deletedMeasurement.id },
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        userId: ownerId,
+        deletedAt: tombstoneDeletedAt,
+      }),
+    );
 
     const restoredLab = await prisma.labResult.findUniqueOrThrow({
       where: { id: lab.id },
@@ -519,6 +567,16 @@ describe("canonical disaster-recovery backup round-trip", () => {
         moodTag: { key: "dr_sleep_quality" },
       }),
     ]);
+    expect(
+      await prisma.moodEntry.findUniqueOrThrow({
+        where: { id: deletedMood.id },
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        userId: ownerId,
+        deletedAt: tombstoneDeletedAt,
+      }),
+    );
 
     expect((await restore()).status).toBe(200);
     expect(
@@ -546,6 +604,76 @@ describe("canonical disaster-recovery backup round-trip", () => {
       }),
     ).toEqual([{ id: illness.id }]);
   });
+  it.each([
+    {
+      label: "invalid enum",
+      mutate: (payload: Record<string, unknown>) => {
+        payload.measurements = [
+          {
+            type: "INVALID_MEASUREMENT_TYPE",
+            value: 72,
+            unit: "kg",
+            measuredAt: "2026-07-03T07:00:00.000Z",
+            source: "MANUAL",
+          },
+        ];
+      },
+    },
+    {
+      label: "unsupported schema version",
+      mutate: (payload: Record<string, unknown>) => {
+        payload.schemaVersion = "999";
+      },
+    },
+  ])("rejects $label with 422 before writes or invalidation", async ({ mutate }) => {
+    const prisma = getPrismaClient();
+    const admin = await seedAdminSession();
+    const existing = await prisma.measurement.create({
+      data: {
+        id: "pre-validation-measurement",
+        userId: admin.id,
+        type: "WEIGHT",
+        value: 91,
+        unit: "kg",
+        source: "MANUAL",
+        measuredAt: new Date("2026-07-03T06:00:00.000Z"),
+      },
+    });
+    const payload: Record<string, unknown> = {
+      schemaVersion: "1",
+      exportedAt: "2026-07-03T08:00:00.000Z",
+      userId: admin.id,
+      measurements: [],
+      moodEntries: [],
+    };
+    mutate(payload);
+    const backup = await prisma.dataBackup.create({
+      data: {
+        userId: admin.id,
+        type: `INVALID_BOUNDARY_${String(payload.schemaVersion)}`,
+        data: encrypt(JSON.stringify(payload)),
+      },
+    });
+
+    const response = await POST(
+      makeRequest(backup.id) as unknown as Parameters<typeof POST>[0],
+      { params: Promise.resolve({ id: backup.id }) },
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      data: null,
+      error: expect.any(String),
+    });
+    expect(
+      await prisma.measurement.findMany({
+        where: { userId: admin.id },
+        select: { id: true },
+      }),
+    ).toEqual([{ id: existing.id }]);
+    expect(invalidateUserData).not.toHaveBeenCalled();
+  });
+
 
   it("rejects metadata-only documents before mutation or invalidation", async () => {
     const prisma = getPrismaClient();
