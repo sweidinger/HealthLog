@@ -24,12 +24,7 @@ describe("<CoachInput>", () => {
     expect(html).not.toContain("Coach replies are generated");
   });
 
-  it("hides the mic in SSR markup (dictation is client-and-secure-context only)", () => {
-    // v1.25.0 — the mic only mounts once the client confirms the Web Speech
-    // API exists AND the page runs in a secure context. SSR (and any
-    // unsupported / non-secure environment) renders NO mic at all, so the
-    // composer never ships an advertised-but-erroring control. The earlier
-    // "render it disabled" affordance is gone.
+  it("does not render the retired voice-input control", () => {
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
     );
@@ -233,11 +228,7 @@ describe("<CoachInput>", () => {
     expect(html).toContain('data-slot="coach-input-send"');
   });
 
-  it("renders the one-row page composer with showHub", () => {
-    // v1.21.0 — the page composer is ONE baseline row: a leading `+` actions
-    // menu (new chat + open conversations), the textarea, then mic + send.
-    // The settings gear moved OUT of the composer (now the page toolbar's
-    // top-right), so the composer's front is only the `+`.
+  it("puts the textarea above a split control row on phones", () => {
     const html = render(
       <CoachInput
         value=""
@@ -248,21 +239,29 @@ describe("<CoachInput>", () => {
         onOpenHistory={() => {}}
       />,
     );
-    expect(html).toContain('data-slot="coach-input-hub"');
+    expect(html).toContain('data-slot="coach-input-controls"');
+    expect(html).toContain('data-slot="coach-input-leading"');
     expect(html).toContain('data-slot="coach-input-actions"');
-    // The settings gear is gone from the composer entirely.
     expect(html).not.toContain('data-slot="coach-input-settings"');
-    // Send remains in the trailing cluster. The mic is client-and-secure-
-    // context only, so it never appears in SSR markup.
     expect(html).not.toContain('data-slot="coach-input-mic"');
     expect(html).toContain('data-slot="coach-input-send"');
-    // The leading `+` precedes the textarea; the textarea precedes the send.
-    const plusIdx = html.indexOf('data-slot="coach-input-actions"');
+
+    // DOM and visual order agree at every breakpoint: the textarea comes first,
+    // followed by the leading actions and then Send.
     const textareaIdx = html.indexOf('data-slot="coach-input-textarea"');
+    const plusIdx = html.indexOf('data-slot="coach-input-actions"');
     const sendIdx = html.indexOf('data-slot="coach-input-send"');
-    expect(plusIdx).toBeGreaterThan(-1);
-    expect(plusIdx).toBeLessThan(textareaIdx);
-    expect(textareaIdx).toBeLessThan(sendIdx);
+    expect(textareaIdx).toBeGreaterThan(-1);
+    expect(textareaIdx).toBeLessThan(plusIdx);
+    expect(plusIdx).toBeLessThan(sendIdx);
+
+    const controls = html.match(
+      /<div[^>]*data-slot="coach-input-controls"[^>]*>/,
+    );
+    expect(controls?.[0]).toMatch(/\bw-full\b/);
+    expect(controls?.[0]).toMatch(/\bjustify-between\b/);
+    expect(controls?.[0]).toMatch(/\bsm:w-auto\b/);
+    expect(controls?.[0]).not.toMatch(/\bsm:contents\b/);
   });
 
   it("sizes the hub actions trigger to the 44px tap-target floor on phones", () => {

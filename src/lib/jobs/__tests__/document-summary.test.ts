@@ -159,6 +159,18 @@ describe("runDocumentSummaryJob — gating", () => {
     );
   });
 
+  it("generates the background summary in the owner's selected locale", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      locale: "de",
+    } as never);
+
+    await runDocumentSummaryJob({ userId: "user-1", documentId: "doc-1" });
+
+    expect(runDocumentSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ locale: "de" }),
+    );
+  });
+
   it("SKIPS a document that already has a summary (before reading the opt-in)", async () => {
     vi.mocked(prisma.inboundDocument.findFirst).mockResolvedValue({
       id: "doc-1",

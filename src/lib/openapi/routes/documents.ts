@@ -778,9 +778,9 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/documents/inbound/{id}/summary": {
     post: {
       tags: ["Documents"],
-      summary: "Summarise or transcribe a document (session-only)",
+      summary: "Summarise or transcribe a document",
       description:
-        'On-demand, SESSION-ONLY description of a stored document. `?mode=summary` (default) returns a short plain-language summary of WHAT the document is; `?mode=text` returns its raw transcribed text. The result is transient — nothing is persisted except the AI-budget ledger + audit log; it never reaches coach memory, snapshots, the structured stores, or the search index. The summary is descriptive only and never a diagnosis. Same VISION (empty body) / TEXT (`application/json` `{ mode: "text", text }`, opt-in local OCR) dispatch as extract. AI-consent / rate / budget gated. 422 with no provider.',
+        'On-demand description of a stored document. `?mode=summary` (default) returns a short plain-language summary of WHAT the document is; it remains transient unless `persist=true` fills the empty stored-summary slot, while `persist=true&replace=true` explicitly replaces an existing summary. `?mode=text` returns transient raw transcribed text. Neither result reaches coach memory, snapshots, structured stores, or the search index. The summary is descriptive only and never a diagnosis. Same VISION (empty body) / TEXT (`application/json` `{ mode: "text", text }`, opt-in local OCR) dispatch as extract. AI-consent / rate / budget gated. 422 with no provider.',
       parameters: [
         { name: "id", in: "path", required: true, schema: { type: "string" } },
         {
@@ -794,6 +794,22 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           },
           description:
             "`summary` (plain-language description) or `text` (raw).",
+        },
+        {
+          name: "persist",
+          in: "query",
+          required: false,
+          schema: { type: "boolean", default: false },
+          description:
+            "For summary mode only: persist into an empty stored-summary slot.",
+        },
+        {
+          name: "replace",
+          in: "query",
+          required: false,
+          schema: { type: "boolean", default: false },
+          description:
+            "With `persist=true`, explicitly replace an existing stored summary.",
         },
       ],
       requestBody: {
@@ -811,7 +827,7 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       responses: {
         "200": {
           description:
-            "The session-only summary (`{ summary }`) or extracted text (`{ text }`).",
+            "The summary and its persistence outcome, or transient extracted text.",
           content: {
             "application/json": {
               schema: dataEnvelope(
@@ -819,6 +835,9 @@ export const inboundDocumentPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                   .object({
                     summary: z.string().optional(),
                     text: z.string().optional(),
+                    persistence: z
+                      .enum(["stored", "withheld", "failed"])
+                      .optional(),
                   })
                   .meta({ id: "DocumentSummaryResponse" }),
                 "DocumentSummaryEnvelope",

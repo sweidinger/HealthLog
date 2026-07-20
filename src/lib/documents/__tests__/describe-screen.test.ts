@@ -9,6 +9,7 @@ import {
 } from "@/lib/documents/describe";
 import type { AIProvider } from "@/lib/ai/types";
 import { locales } from "@/lib/i18n/config";
+import { targetLanguageName } from "@/lib/ai/prompts/output-language";
 
 function providerReturning(content: string): AIProvider {
   return {
@@ -43,6 +44,25 @@ describe("runDocumentSummary — screened prose", () => {
       expect(out.summary).toBe("");
     });
   }
+
+  it.each(locales)(
+    "tells the provider to write summaries in %s",
+    async (locale) => {
+      const provider = providerReturning("A short descriptive summary.");
+
+      await runDocumentSummary({
+        provider,
+        providerType: "local",
+        ocrText: "irrelevant",
+        locale,
+      });
+
+      const params = vi.mocked(provider.generateCompletion).mock.calls[0]?.[0];
+      expect(params?.system).toContain(
+        `Write the summary in ${targetLanguageName(locale)}.`,
+      );
+    },
+  );
 
   it("passes a genuinely descriptive summary through untouched", async () => {
     const clean =

@@ -2469,10 +2469,6 @@
       "settingsClustersHint": "Choisissez les groupes de données que le Coach peut lire. Plus de données, des réponses plus riches et un prompt plus grand.",
       "settingsClusterNoData": "Pas encore de données",
       "sourcesMemberCount": "{count} mesures",
-      "dictate": "Dicter",
-      "dictateStop": "Arrêter la dictée",
-      "voiceUnsupported": "La saisie vocale n'est pas prise en charge par ce navigateur",
-      "dictateError": "Impossible de démarrer la saisie vocale. Vérifiez l'autorisation du microphone et réessayez.",
       "showConversations": "Afficher les conversations",
       "hideConversations": "Masquer les conversations",
       "heroGreeting": "Pose-moi une question sur tes données",
@@ -8536,6 +8532,7 @@
         "withheld": "Un résumé a été généré mais n’a pas passé le contrôle de sécurité, il n’est donc pas affiché. Vous pouvez réessayer ou lire le document lui-même.",
         "unavailable": "Aucun résumé n’a pu être généré pour ce document.",
         "generate": "Générer le résumé",
+        "regenerate": "Regénérer",
         "generating": "Génération…"
       },
       "loadError": "Impossible de charger ce document.",

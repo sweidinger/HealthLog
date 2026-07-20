@@ -2469,10 +2469,6 @@
       "settingsClustersHint": "Wybierz, które grupy danych Coach może czytać. Więcej danych to bogatsze odpowiedzi i większy prompt.",
       "settingsClusterNoData": "Brak danych",
       "sourcesMemberCount": "{count} wskaźników",
-      "dictate": "Dyktuj",
-      "dictateStop": "Zatrzymaj dyktowanie",
-      "voiceUnsupported": "Wprowadzanie głosowe nie jest obsługiwane w tej przeglądarce",
-      "dictateError": "Nie udało się uruchomić wprowadzania głosowego. Sprawdź uprawnienia mikrofonu i spróbuj ponownie.",
       "showConversations": "Pokaż rozmowy",
       "hideConversations": "Ukryj rozmowy",
       "heroGreeting": "Zapytaj mnie o cokolwiek na temat twoich danych",
@@ -8536,6 +8532,7 @@
         "withheld": "Podsumowanie zostało wygenerowane, ale nie przeszło kontroli bezpieczeństwa, więc nie jest wyświetlane. Możesz spróbować ponownie lub przeczytać sam dokument.",
         "unavailable": "Nie udało się wygenerować podsumowania dla tego dokumentu.",
         "generate": "Wygeneruj podsumowanie",
+        "regenerate": "Wygeneruj ponownie",
         "generating": "Generowanie…"
       },
       "loadError": "Nie udało się wczytać tego dokumentu.",

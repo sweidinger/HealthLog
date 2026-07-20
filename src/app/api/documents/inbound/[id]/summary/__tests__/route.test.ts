@@ -93,18 +93,25 @@ const SESSION_OK = {
   user: { id: "user-1", username: "tester", role: "USER" as const },
 };
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
-const req = (id: string, mode?: string) =>
-  new NextRequest(
-    new URL(
-      `http://localhost/api/documents/inbound/${id}/summary${mode ? `?mode=${mode}` : ""}`,
-    ),
+const req = (
+  id: string,
+  mode?: string,
+  options: { persist?: boolean; replace?: boolean } = {},
+) => {
+  const query = new URLSearchParams();
+  if (mode) query.set("mode", mode);
+  if (options.persist) query.set("persist", "true");
+  if (options.replace) query.set("replace", "true");
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return new NextRequest(
+    new URL(`http://localhost/api/documents/inbound/${id}/summary${suffix}`),
     { method: "POST" },
   );
+};
 
 /**
- * Nothing beyond the summary column may be written. `mode=summary` DOES persist
- * onto the document since v1.30.31 (see the route header) — that leg is asserted
- * explicitly below; everything else stays session-only.
+ * Nothing beyond the explicitly requested summary column may be written.
+ * Transcription and ordinary action-row summaries stay session-only.
  */
 function assertNoPersistence(): void {
   expect(prisma.inboundDocument.update).not.toHaveBeenCalled();
@@ -124,6 +131,9 @@ beforeEach(() => {
     mimeType: "image/png",
     status: "STORED",
   } as never);
+  vi.mocked(prisma.inboundDocument.updateMany).mockResolvedValue({
+    count: 1,
+  });
   vi.mocked(resolveDocumentVisionProvider).mockResolvedValue({
     chain: [{ providerType: "anthropic", instance: {} }],
     pick: {
@@ -135,9 +145,9 @@ beforeEach(() => {
 });
 
 describe("POST /api/documents/inbound/[id]/summary", () => {
-  it("mode=summary returns { summary } and STORES it, so a second open is free", async () => {
+  it("keeps an ordinary requested summary session-only", async () => {
     vi.mocked(runDocumentSummary).mockResolvedValue({
-      summary: "A blood panel from a lab.",
+      summary: "A transient summary.",
       blocked: null,
     } as never);
 
@@ -145,16 +155,34 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
       req("doc-1", "summary") as never,
       ctx("doc-1") as never,
     );
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toEqual({
+      summary: "A transient summary.",
+    });
+    expect(prisma.inboundDocument.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("stores the first requested summary without replacing an existing one", async () => {
+    vi.mocked(runDocumentSummary).mockResolvedValue({
+      summary: "A blood panel from a lab.",
+      blocked: null,
+    } as never);
+
+    const res = await POST(
+      req("doc-1", "summary", { persist: true }) as never,
+      ctx("doc-1") as never,
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.data).toEqual({ summary: "A blood panel from a lab." });
+    expect(body.data).toEqual({
+      summary: "A blood panel from a lab.",
+      persistence: "stored",
+    });
     expect(auditLog).toHaveBeenCalledWith(
       "documents.inbound.summary",
       expect.anything(),
     );
-
-    // Persisted READY, owner-scoped, and only onto a document without one —
-    // an explicit re-run must not replace a summary already on screen.
     expect(prisma.inboundDocument.updateMany).toHaveBeenCalledWith({
       where: {
         id: "doc-1",
@@ -167,6 +195,49 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
     assertNoPersistence();
   });
 
+  it("replaces a stored summary only when replacement is explicit", async () => {
+    vi.mocked(runDocumentSummary).mockResolvedValue({
+      summary: "A newly generated summary.",
+      blocked: null,
+    } as never);
+
+    const res = await POST(
+      req("doc-1", "summary", { persist: true, replace: true }) as never,
+      ctx("doc-1") as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect(prisma.inboundDocument.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "doc-1",
+        userId: "user-1",
+        deletedAt: null,
+      },
+      data: expect.objectContaining({ summaryState: "READY" }),
+    });
+  });
+
+  it("uses the signed-in user's locale for a requested summary", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      ...SESSION_OK,
+      user: { ...SESSION_OK.user, locale: "de" },
+    } as never);
+    vi.mocked(runDocumentSummary).mockResolvedValue({
+      summary: "Ein Laborbericht.",
+      blocked: null,
+    } as never);
+
+    const res = await POST(
+      req("doc-1", "summary") as never,
+      ctx("doc-1") as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect(runDocumentSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ locale: "de" }),
+    );
+  });
+
   it("records WITHHELD without ever storing the blocked prose", async () => {
     vi.mocked(runDocumentSummary).mockResolvedValue({
       summary: "raise the dose to 10 mg",
@@ -174,7 +245,7 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
     } as never);
 
     const res = await POST(
-      req("doc-1", "summary") as never,
+      req("doc-1", "summary", { persist: true }) as never,
       ctx("doc-1") as never,
     );
     expect(res.status).toBe(200);
@@ -182,6 +253,7 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
     // The user gets the honest statement, never the blocked text.
     const body = await res.json();
     expect(body.data.summary).toBe("The summary was withheld.");
+    expect(body.data.persistence).toBe("withheld");
     expect(body.data.summary).not.toContain("10 mg");
 
     // Only the state lands. No ciphertext column is touched on this path.
@@ -201,6 +273,27 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
     assertNoPersistence();
   });
 
+  it("reports a failed save when the document changed before the write", async () => {
+    vi.mocked(runDocumentSummary).mockResolvedValue({
+      summary: "A blood panel from a lab.",
+      blocked: null,
+    } as never);
+    vi.mocked(prisma.inboundDocument.updateMany).mockResolvedValueOnce({
+      count: 0,
+    });
+
+    const res = await POST(
+      req("doc-1", "summary", { persist: true }) as never,
+      ctx("doc-1") as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toEqual({
+      summary: "A blood panel from a lab.",
+      persistence: "failed",
+    });
+  });
+
   it("still answers when the summary write fails", async () => {
     vi.mocked(runDocumentSummary).mockResolvedValue({
       summary: "A blood panel from a lab.",
@@ -213,12 +306,13 @@ describe("POST /api/documents/inbound/[id]/summary", () => {
     // The user is waiting on a summary they can already read; a failed write
     // must not turn that into an error.
     const res = await POST(
-      req("doc-1", "summary") as never,
+      req("doc-1", "summary", { persist: true }) as never,
       ctx("doc-1") as never,
     );
     expect(res.status).toBe(200);
     expect((await res.json()).data).toEqual({
       summary: "A blood panel from a lab.",
+      persistence: "failed",
     });
   });
 

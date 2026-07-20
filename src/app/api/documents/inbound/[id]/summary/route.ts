@@ -86,39 +86,56 @@ function rateLimited(rl: Awaited<ReturnType<typeof checkRateLimit>>): Response {
   return response;
 }
 
+type SummaryPersistenceTarget = {
+  userId: string;
+  documentId: string;
+  replaceExisting: boolean;
+};
+
 function resolveMode(request: NextRequest): DocumentSummaryMode {
   const raw = new URL(request.url).searchParams.get("mode");
   return (DOCUMENT_SUMMARY_MODES as readonly string[]).includes(raw ?? "")
     ? (raw as DocumentSummaryMode)
     : "summary";
 }
+function resolvePersistRequested(request: NextRequest): boolean {
+  return new URL(request.url).searchParams.get("persist") === "true";
+}
+
+function resolveReplaceExisting(request: NextRequest): boolean {
+  return new URL(request.url).searchParams.get("replace") === "true";
+}
 
 /**
  * Run the requested describe call (summary or raw text) over the input.
  *
- * `mode=summary` PERSISTS a clean result onto the document (v1.30.31). The
- * route was session-only by design (P2-D4), and the transcription leg still is
- * — but a summary that the user explicitly asked for and that passed the screen
- * is exactly the artefact the background job stores, and re-deriving it on every
- * open would mean paying a provider call to show the same paragraph twice. This
- * is a deliberate user action, not a warm-on-mount: nothing generates because a
- * view rendered. It is also the only repair path for the documents the
- * background job never ran for — those uploaded before the auto-read opt-in
- * went on, which no backfill ever reaches.
+ * Ordinary action-row summaries and raw transcription remain session-only.
+ * The document summary block opts into persistence so an empty document can be
+ * repaired and an existing stored summary can be explicitly regenerated.
  */
 async function describe(
   mode: DocumentSummaryMode,
   input: DescribeInput,
   locale: Locale,
-  persist: { userId: string; documentId: string } | null,
-): Promise<{ summary: string } | { text: string }> {
+  persist: SummaryPersistenceTarget | null,
+): Promise<
+  | {
+      summary: string;
+      persistence?: "stored" | "withheld" | "failed";
+    }
+  | { text: string }
+> {
   if (mode === "text") return transcribeDocument(input);
-  // REPLACE policy: the user clicked "summarise" and is waiting, so a screened
-  // summary becomes a short honest statement rather than an empty panel. The
-  // document itself and the extracted text remain reachable and unaltered.
+  // A normal summary request fills an empty slot only. Replacement is reserved
+  // for the document detail's explicit "Generate again" action.
   const { summary, blocked } = await runDocumentSummary({ ...input, locale });
-  if (persist) await persistSummary(persist, summary, blocked);
-  return { summary: blocked ? documentSummaryBlockedCopy(locale) : summary };
+  const persistence = persist
+    ? await persistSummary(persist, summary, blocked)
+    : undefined;
+  return {
+    summary: blocked ? documentSummaryBlockedCopy(locale) : summary,
+    ...(persistence ? { persistence } : {}),
+  };
 }
 
 /**
@@ -133,10 +150,10 @@ async function describe(
  * read in the response; a failed write must not turn that into an error.
  */
 async function persistSummary(
-  target: { userId: string; documentId: string },
+  target: SummaryPersistenceTarget,
   summary: string,
   blocked: OutboundReason | null,
-): Promise<void> {
+): Promise<"stored" | "withheld" | "failed"> {
   try {
     if (blocked) {
       await prisma.inboundDocument.updateMany({
@@ -148,16 +165,17 @@ async function persistSummary(
         },
         data: { summaryState: "WITHHELD" },
       });
-      return;
+      return "withheld";
     }
-    // Scoped to a document without a stored summary: an explicit re-run must
-    // not silently replace a summary the user already has on screen.
+    // Preserve a previously stored summary unless the caller explicitly chose
+    // the replacement action. Failed or screened attempts never reach this
+    // write, so the previous clean summary remains available in those cases.
     const written = await prisma.inboundDocument.updateMany({
       where: {
         id: target.documentId,
         userId: target.userId,
         deletedAt: null,
-        summaryEncrypted: null,
+        ...(target.replaceExisting ? {} : { summaryEncrypted: null }),
       },
       data: {
         summaryEncrypted: encryptDocumentSummary(summary),
@@ -169,11 +187,13 @@ async function persistSummary(
       action: { name: "documents.summary.persisted" },
       meta: { documentId: target.documentId, stored: written.count > 0 },
     });
+    return written.count > 0 ? "stored" : "failed";
   } catch {
     annotate({
       action: { name: "documents.summary.persistFailed" },
       meta: { documentId: target.documentId },
     });
+    return blocked ? "withheld" : "failed";
   }
 }
 
@@ -200,6 +220,14 @@ export const POST = apiHandler(
     }
 
     const mode = resolveMode(request);
+    const persist: SummaryPersistenceTarget | null =
+      mode === "summary" && resolvePersistRequested(request)
+        ? {
+            userId: user.id,
+            documentId: document.id,
+            replaceExisting: resolveReplaceExisting(request),
+          }
+        : null;
     // The outbound screen on the summary needs the reader's locale to pick its
     // pattern banks; resolve it once here and thread it into both describe legs.
     const locale = await resolveServerLocale({
@@ -208,9 +236,23 @@ export const POST = apiHandler(
     });
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
-      return handleTextSummary(request, user.id, document, mode, locale);
+      return handleTextSummary(
+        request,
+        user.id,
+        document,
+        mode,
+        locale,
+        persist,
+      );
     }
-    return handleVisionSummary(request, user.id, document, mode, locale);
+    return handleVisionSummary(
+      request,
+      user.id,
+      document,
+      mode,
+      locale,
+      persist,
+    );
   },
 );
 
@@ -241,6 +283,7 @@ async function handleTextSummary(
   document: LoadedDocument,
   mode: DocumentSummaryMode,
   locale: Locale,
+  persist: SummaryPersistenceTarget | null,
 ): Promise<Response> {
   const row = await prisma.user.findUnique({
     where: { id: userId },
@@ -315,7 +358,7 @@ async function handleTextSummary(
         ocrText: parsed.data.text,
       },
       locale,
-      { userId, documentId: document.id },
+      persist,
     );
     await reconcileSpend(
       userId,
@@ -337,6 +380,7 @@ async function handleVisionSummary(
   document: LoadedDocument,
   mode: DocumentSummaryMode,
   locale: Locale,
+  persist: SummaryPersistenceTarget | null,
 ): Promise<Response> {
   const { pick } = await resolveDocumentVisionProvider(userId);
   if (!pick) {
@@ -401,7 +445,7 @@ async function handleVisionSummary(
         documents: vision.documents,
       },
       locale,
-      { userId, documentId: document.id },
+      persist,
     );
     await reconcileSpend(
       userId,

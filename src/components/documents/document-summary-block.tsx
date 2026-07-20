@@ -27,7 +27,7 @@
  * provider call. With no AI provider configured the block renders the state
  * without an action rather than an button that would 422.
  */
-import { FileText } from "lucide-react";
+import { FileText, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
@@ -63,13 +63,42 @@ export function DocumentSummaryBlock({
 }) {
   const { t } = useTranslations();
 
-  // A stored summary wins over every state: it is shown from storage.
+  // A stored summary wins over every state: it is shown from storage. The
+  // adjacent action is explicit, so opening the sheet never spends a provider
+  // call; a successful replacement is persisted by the summary route.
   if (summary) {
     return (
-      <section className="space-y-1.5" data-slot="document-detail-summary">
-        <p className="text-sm leading-none font-medium">
-          {t("documents.detail.summary.title")}
-        </p>
+      <section className="space-y-2" data-slot="document-detail-summary">
+        <div
+          data-slot="document-detail-summary-header"
+          className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-sm leading-none font-medium">
+            {t("documents.detail.summary.title")}
+          </p>
+          {aiEnabled ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              data-slot="document-detail-summary-regenerate"
+              onClick={onGenerate}
+              disabled={isGenerating || actionsDisabled}
+            >
+              <RefreshCw
+                className={
+                  isGenerating
+                    ? "size-4 animate-spin motion-reduce:animate-none"
+                    : "size-4"
+                }
+                aria-hidden
+              />
+              {isGenerating
+                ? t("documents.detail.summary.generating")
+                : t("documents.detail.summary.regenerate")}
+            </Button>
+          ) : null}
+        </div>
         <p className="text-foreground text-sm">{summary}</p>
         {generatedAtLabel ? (
           <p className="text-muted-foreground text-xs">{generatedAtLabel}</p>

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.31.3] — 2026-07-20
+
+- **Document summaries now stay in the language you chose.** The same account
+  language is used whether a summary is created in the background or requested
+  from the document sheet. A saved summary remains visible and can be replaced
+  with **Generate again** after you switch languages.
+- **The Coach composer has more room on phones.** The writing field now gets
+  its own line, with document and conversation actions below it and Send on the
+  right. The unreliable browser dictation button and its dead-end permission
+  states are gone.
+
+No migrations. No breaking changes.
+
 ## [1.31.2] — 2026-07-20
 
 - **Provider imports now commit identity and progress atomically.** Withings,
