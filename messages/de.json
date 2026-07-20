@@ -2469,10 +2469,6 @@
       "settingsClustersHint": "Wähle, welche Datencluster der Coach lesen darf. Mehr Daten bedeuten reichhaltigere Antworten und einen größeren Prompt.",
       "settingsClusterNoData": "Noch keine Daten",
       "sourcesMemberCount": "{count} Werte",
-      "dictate": "Diktieren",
-      "dictateStop": "Diktat beenden",
-      "voiceUnsupported": "Spracheingabe wird in diesem Browser nicht unterstützt",
-      "dictateError": "Spracheingabe konnte nicht gestartet werden. Prüfe die Mikrofonberechtigung und versuche es erneut.",
       "showConversations": "Unterhaltungen anzeigen",
       "hideConversations": "Unterhaltungen ausblenden",
       "heroGreeting": "Frage mich etwas zu deinen Daten",
@@ -8536,6 +8532,7 @@
         "withheld": "Eine Zusammenfassung wurde erstellt, hat die Sicherheitsprüfung aber nicht bestanden und wird deshalb nicht angezeigt. Du kannst es erneut versuchen oder das Dokument selbst lesen.",
         "unavailable": "Für dieses Dokument konnte keine Zusammenfassung erstellt werden.",
         "generate": "Zusammenfassung erstellen",
+        "regenerate": "Neu erstellen",
         "generating": "Wird erstellt…"
       },
       "loadError": "Dieses Dokument konnte nicht geladen werden.",

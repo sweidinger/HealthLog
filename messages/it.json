@@ -2469,10 +2469,6 @@
       "settingsClustersHint": "Scegli quali gruppi di dati il Coach può leggere. Più dati significano risposte più ricche e un prompt più grande.",
       "settingsClusterNoData": "Ancora nessun dato",
       "sourcesMemberCount": "{count} metriche",
-      "dictate": "Detta",
-      "dictateStop": "Interrompi dettatura",
-      "voiceUnsupported": "L'inserimento vocale non è supportato in questo browser",
-      "dictateError": "Impossibile avviare l'inserimento vocale. Controlla l'autorizzazione del microfono e riprova.",
       "showConversations": "Mostra conversazioni",
       "hideConversations": "Nascondi conversazioni",
       "heroGreeting": "Chiedimi qualcosa sui tuoi dati",
@@ -8536,6 +8532,7 @@
         "withheld": "Un riepilogo è stato generato ma non ha superato il controllo di sicurezza, quindi non viene mostrato. Puoi riprovare o leggere il documento stesso.",
         "unavailable": "Non è stato possibile generare un riepilogo per questo documento.",
         "generate": "Genera riepilogo",
+        "regenerate": "Genera di nuovo",
         "generating": "Generazione…"
       },
       "loadError": "Impossibile caricare questo documento.",

@@ -30,8 +30,13 @@ import {
   type DocumentAiTarget,
 } from "./document-ai-transport";
 
-/** The session-only describe result — a summary XOR the raw extracted text. */
-export type DocumentDescribeResult = { summary: string } | { text: string };
+/** The describe result: raw text, or a summary plus its storage outcome. */
+export type DocumentDescribeResult =
+  | {
+      summary: string;
+      persistence?: "stored" | "withheld" | "failed";
+    }
+  | { text: string };
 
 /**
  * The document-scoped AI capability probe (`/api/documents/inbound/capability`).
@@ -95,8 +100,8 @@ export function useSuggestDetails() {
 }
 
 /**
- * On-demand, session-only summary or extracted text. The result is rendered
- * once and never persisted (P2-D4); closing the panel discards it.
+ * On-demand summary or extracted text. Both stay transient unless the document
+ * summary block explicitly requests persistence or replacement.
  */
 export function useDocumentSummary() {
   return useMutation<
@@ -106,11 +111,13 @@ export function useDocumentSummary() {
       mode: DocumentAiMode;
       target: DocumentAiTarget;
       output: DocumentSummaryMode;
+      persist?: boolean;
+      replace?: boolean;
     }
   >({
-    mutationFn: ({ mode, target, output }) =>
+    mutationFn: ({ mode, target, output, persist = false, replace = false }) =>
       runDocumentAi<DocumentDescribeResult>({
-        path: `/api/documents/inbound/${target.documentId}/summary?mode=${output}`,
+        path: `/api/documents/inbound/${target.documentId}/summary?mode=${output}${persist ? "&persist=true" : ""}${replace ? "&replace=true" : ""}`,
         mode,
         target,
       }),

@@ -6,15 +6,12 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState,
-  useSyncExternalStore,
 } from "react";
 import Link from "next/link";
 import {
   FolderOpen,
   Loader2,
   MessagesSquare,
-  Mic,
   Paperclip,
   Plus,
   Send,
@@ -23,7 +20,6 @@ import {
   Target,
   Upload,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -57,29 +53,14 @@ import { useTranslations } from "@/lib/i18n/context";
  * the guard stack (system prompt, prose-grounding check, outbound
  * refusal), not a rendered disclaimer line.
  *
- * v1.18.7 (W-coach C-UI): voice dictation returns to the web composer.
- * The earlier placeholder mic was dropped in v1.4.25 because it did
- * nothing on tap; this one is wired to the Web Speech API
- * (`SpeechRecognition`). While the user dictates, interim + final
- * transcripts append into the controlled `value`; the button toggles
- * listening on/off and is fully keyboard- and screen-reader-accessible.
- *
- * v1.25.0: the mic only renders when dictation is genuinely usable —
- * the Web Speech API exists AND the page runs in a secure context (the
- * recogniser refuses to start over plain HTTP). On SSR, an unsupported
- * browser (Firefox), a non-secure self-host, or after the user denies the
- * mic permission, the control HIDES rather than sitting as an
- * advertised-but-erroring affordance. A real failure mid-use surfaces a
- * single quiet toast and then retires the button for the session.
- *
  * v1.18.11 (W11): the composer is the conversation's control hub on the
- * full-page Coach surface — ChatGPT-style. When `showHub` is set it grows a
- * second action row INSIDE the rounded field: a leading `+` actions menu
- * (new chat + open conversations), a settings deep-link, the dictation mic,
- * and the send / stop control on the same baseline. The drawer surface omits
- * `showHub` and keeps the single-row composer (its own header carries new
- * chat + settings), so this is purely additive — the existing composer
- * behaviour and markup are untouched when the hub is off.
+ * full-page Coach surface. When `showHub` is set it includes a `+` actions menu
+ * for a new chat or conversation history. The drawer omits `showHub` because
+ * its header already carries those actions.
+ *
+ * Voice input was removed after repeated browser and permission failures made
+ * the control unreliable. The composer now exposes only actions that work
+ * consistently across supported browsers.
  */
 export interface CoachInputProps {
   value: string;
@@ -184,74 +165,6 @@ export function computeAutoGrowHeight(args: {
 
 const AUTO_GROW_MAX_LINES = 6;
 
-/**
- * v1.18.7 — resolve the browser's `SpeechRecognition` constructor
- * (prefixed `webkit` on Chromium / Safari, unprefixed on the spec
- * track). Returns `null` server-side and on browsers without the API
- * (Firefox) so the mic control hides rather than rendering dead. Kept
- * tiny + typed locally — the project ships no DOM lib entry for the
- * Web Speech API.
- */
-type SpeechRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
-  onend: (() => void) | null;
-};
-type SpeechRecognitionErrorEventLike = { error?: string };
-type SpeechRecognitionResultEventLike = {
-  resultIndex: number;
-  results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
-};
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
-function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
-// v1.18.7 — `useSyncExternalStore` resolves Web Speech API support
-// without a setState-in-effect: the server snapshot is `false` (no
-// mic at SSR) and the client snapshot reflects whether the constructor
-// exists. The store never changes after hydration, so the subscribe
-// callback is a no-op.
-//
-// v1.25.0 — the snapshot also requires a SECURE CONTEXT. `SpeechRecognition`
-// throws / fires a `not-allowed` error the instant it starts over plain HTTP,
-// so a LAN / Tailscale self-host on `http://` would otherwise advertise a mic
-// that can never work. Gating support on `window.isSecureContext` hides it
-// there cleanly instead.
-const noopSubscribe = () => () => {};
-function useVoiceSupported(): boolean {
-  return useSyncExternalStore(
-    noopSubscribe,
-    () => getSpeechRecognitionCtor() !== null && window.isSecureContext,
-    () => false,
-  );
-}
-
-// v1.25.0 — map the app locale onto a BCP-47 tag with a region the
-// recogniser accepts. The bare language subtag works in most engines, but
-// the regioned form ("de-DE", "es-ES", …) yields materially better accuracy
-// on Chromium / Safari. Unknown locales fall back to the bare subtag.
-const SPEECH_RECOGNITION_LANG: Record<string, string> = {
-  en: "en-US",
-  de: "de-DE",
-  es: "es-ES",
-  fr: "fr-FR",
-  it: "it-IT",
-  pl: "pl-PL",
-};
-
 export function CoachInput({
   value,
   onChange,
@@ -269,7 +182,7 @@ export function CoachInput({
   onPickFromVault,
   onUploadNew,
 }: CoachInputProps) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const attachFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -319,106 +232,6 @@ export function CoachInput({
     el.style.height = `${height}px`;
   }, [value]);
 
-  // v1.18.7 — voice dictation. The mic control only mounts once the
-  // client confirms the Web Speech API exists (resolved through
-  // `useSyncExternalStore`, server snapshot `false`), so SSR +
-  // unsupported browsers render no button at all — never a dead
-  // affordance. `onChange` / `value` are mirrored into refs (in an
-  // effect, never during render) so the long-lived recognition handlers
-  // always read the freshest composer state without re-subscribing.
-  const voiceSupported = useVoiceSupported();
-  const [listening, setListening] = useState(false);
-  // v1.25.0 — once the user denies the mic permission (or the engine reports
-  // it cannot serve), retire the control for the session rather than leaving a
-  // button that errors on every tap. Combined with `voiceSupported` this is
-  // the single gate the mic renders behind.
-  const [voiceBlocked, setVoiceBlocked] = useState(false);
-  const voiceAvailable = voiceSupported && !voiceBlocked;
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const onChangeRef = useRef(onChange);
-  const valueRef = useRef(value);
-  useEffect(() => {
-    onChangeRef.current = onChange;
-    valueRef.current = value;
-  });
-
-  // Tear the recogniser down on unmount so a live mic never outlives
-  // the composer (e.g. the drawer closing mid-dictation).
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.abort();
-      recognitionRef.current = null;
-    };
-  }, []);
-
-  const stopDictation = useCallback(() => {
-    recognitionRef.current?.stop();
-  }, []);
-
-  const startDictation = useCallback(() => {
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) return;
-    const recognition = new Ctor();
-    recognition.lang = SPEECH_RECOGNITION_LANG[locale] ?? locale;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    // Anchor every transcript onto the text present when dictation
-    // began so interim results replace cleanly rather than stacking.
-    const base = valueRef.current;
-    recognition.onresult = (event) => {
-      let finalText = "";
-      let interimText = "";
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        const transcript = result[0]?.transcript ?? "";
-        if (result.isFinal) finalText += transcript;
-        else interimText += transcript;
-      }
-      const spoken = (finalText + interimText).trim();
-      if (!spoken) return;
-      const joiner = base && !base.endsWith(" ") ? " " : "";
-      onChangeRef.current(`${base}${joiner}${spoken}`);
-    };
-    recognition.onerror = (event) => {
-      setListening(false);
-      // `aborted` / `no-speech` are the benign codes that fire on a normal
-      // stop or a quiet pause — stay silent.
-      const code = event?.error;
-      if (!code || code === "aborted" || code === "no-speech") return;
-      // v1.25.0 — a permission refusal (or an engine that reports it cannot
-      // serve) is terminal: surface one quiet toast and HIDE the mic for the
-      // session so the user is not left tapping a control that always errors.
-      if (code === "not-allowed" || code === "service-not-allowed") {
-        setVoiceBlocked(true);
-      }
-      toast.error(t("insights.coach.dictateError"));
-    };
-    recognition.onend = () => {
-      setListening(false);
-      recognitionRef.current = null;
-    };
-    recognitionRef.current = recognition;
-    try {
-      recognition.start();
-      setListening(true);
-    } catch {
-      // start() throws if already running; treat as a no-op.
-      setListening(false);
-    }
-  }, [locale, t]);
-
-  const toggleDictation = useCallback(() => {
-    if (!voiceAvailable) return;
-    if (listening) stopDictation();
-    else startDictation();
-  }, [voiceAvailable, listening, startDictation, stopDictation]);
-
-  // The mic only renders when dictation is available, so the label tracks the
-  // two live states: listening (tap to stop) and idle (tap to dictate).
-  const micLabel = listening
-    ? t("insights.coach.dictateStop")
-    : t("insights.coach.dictate");
-
   const canSubmit = !disabled && value.trim().length > 0;
 
   const handleKeyDown = useCallback(
@@ -439,42 +252,7 @@ export function CoachInput({
     [canSubmit, onSubmit],
   );
 
-  // v1.18.11 — the dictation mic. Lifted to a const so it can sit in the
-  // single-row composer (drawer) OR in the hub action row (page) without
-  // duplicating the wiring. v1.25.0 — `null` when dictation is unavailable
-  // (no API, non-secure context, or a denied permission) so the surface hides
-  // the control rather than advertising a button that errors on tap.
-  const micButton = voiceAvailable ? (
-    <Button
-      type="button"
-      size="icon"
-      variant="ghost"
-      onClick={toggleDictation}
-      disabled={disabled}
-      data-slot="coach-input-mic"
-      data-listening={listening ? "true" : undefined}
-      aria-label={micLabel}
-      aria-pressed={listening}
-      title={micLabel}
-      className={cn(
-        "size-11 shrink-0 rounded-xl transition-colors sm:size-9",
-        listening
-          ? "text-brand-pink bg-brand-pink/10 hover:text-brand-pink"
-          : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <Mic
-        className={cn(
-          "size-4",
-          listening && "animate-pulse motion-reduce:animate-none",
-        )}
-        aria-hidden="true"
-      />
-    </Button>
-  ) : null;
-
-  // v1.18.11 — the send / stop control. Same const-lift rationale as the
-  // mic: one definition, two mount points.
+  // Shared send / stop control for both page and drawer surfaces.
   const sendButton =
     isStreaming && onCancel ? (
       // While a reply streams, swap the send button for a Stop control bound
@@ -513,11 +291,9 @@ export function CoachInput({
       </Button>
     );
 
-  // v1.21.0 — the leading `+` actions menu (page surface only). Opens the
-  // attachment/scope menu: new chat + open conversations. The settings gear
-  // no longer lives here — it moved to the page toolbar's top-right corner,
-  // so the composer's front is ONLY the `+`. Const-lifted like the mic / send
-  // so it slots into the single-row composer without forking the layout.
+  // Leading `+` actions menu for the full-page Coach surface. The settings
+  // shortcut remains in this menu while the dedicated gear stays in the page
+  // toolbar.
   const actionsButton = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -638,33 +414,16 @@ export function CoachInput({
       onSubmit={handleFormSubmit}
       className="flex flex-col"
     >
-      {/* v1.16.1 / v1.18.7 — modern chat-app composer: a single rounded
-          field, ONE baseline row. The drawer surface flanks the textarea with
-          the mic (left) and send / stop (right). The page surface (`showHub`)
-          leads with a `+` actions menu (new chat + open conversations), then
-          the textarea, then the mic + send — same row, vertically centred.
-          The settings gear is NOT in the composer; it lives in the page
-          toolbar's top-right corner. `items-end` keeps the flanking controls
-          pinned to the input's last line as it grows. Enter sends,
-          Shift+Enter inserts a newline. */}
       <div
         className={cn(
           "border-border/60 bg-muted/40 group rounded-2xl border",
           "shadow-sm transition-colors",
           "focus-within:border-primary/50 focus-within:ring-primary/50 focus-within:bg-background focus-within:ring-2",
-          // Both surfaces share ONE baseline row: the drawer flanks the
-          // textarea with mic (left) + send (right); the page leads with a
-          // `+` actions menu, then the textarea, then mic + send. `items-end`
-          // keeps the flanking controls pinned to the input's last line as it
-          // grows.
-          "flex items-end gap-1.5 p-1.5",
+          // Mobile uses two rows. Desktop keeps the same DOM and visual order
+          // (textarea, actions, Send) so keyboard focus never jumps backwards.
+          "flex flex-col gap-1.5 p-1.5 sm:flex-row sm:items-end",
         )}
       >
-        {/* Leading controls. The document-attach paperclip (module-gated)
-            leads, then the surface control: the `+` actions menu (page) or the
-            dictation mic (drawer). */}
-        {attachButton}
-        {showHub ? actionsButton : micButton}
         <textarea
           id={inputId}
           ref={textareaRef}
@@ -674,56 +433,36 @@ export function CoachInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder ?? t("insights.coach.composerPlaceholder")}
           disabled={disabled}
-          // v1.4.27 MB3 / CF-30 — surface the "send" virtual-keyboard
-          // return on iOS / Android instead of the generic newline
-          // glyph, and lift autocapitalize to "sentences" so a
-          // question typed on phone reads as one. The submit handler
-          // still preserves Shift+Enter for explicit newlines.
           enterKeyHint="send"
           autoCapitalize="sentences"
-          // v1.4.25 W5 — single-line initial state, Claude-web-style.
-          // `rows={1}` is the SSR-stable baseline; the `useEffect`
-          // above grows the textarea up to `AUTO_GROW_MAX_LINES`. Past
-          // the cap the textarea scrolls internally (overflow-auto via
-          // `max-h-[9.5rem]`, ≈6 lines at the current line-height).
           rows={1}
           className={cn(
-            // `text-base` (16 px) on mobile so iOS Safari does not
-            // zoom-on-focus — the kerned `text-sm` (14 px) trips the
-            // 16 px floor and yanks the viewport on every Coach tap.
-            // Desktop shrinks back to `text-sm` for the compact
-            // composer.
-            "min-w-0 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none sm:text-sm",
-            // Centre the single-line state against the flanking controls so
-            // the placeholder and the icons share a baseline.
+            "order-1 w-full min-w-0 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none sm:text-sm",
             "px-2 py-1.5",
             "max-h-[9.5rem] overflow-auto",
-            // v1.18.7 — calm, thin scrollbar inside the composer when
-            // dictation overruns 6 lines (see also the thread/history
-            // scroll regions). Scoped here, not in globals.css.
             "[scrollbar-width:thin] [scrollbar-color:color-mix(in_srgb,var(--primary)_35%,transparent)_transparent]",
             "placeholder:text-muted-foreground disabled:opacity-60",
-            // Keep the placeholder a single line on narrow phones: a long
-            // hint used to wrap to two lines inside the one-row composer and
-            // read as a cramped block. Clip the PLACEHOLDER pseudo only — the
-            // textarea value still wraps and auto-grows for real typing.
             "placeholder:overflow-hidden placeholder:text-ellipsis placeholder:whitespace-nowrap",
           )}
         />
-        {showHub ? (
-          // v1.21.0 — page surface trailing cluster: mic + send / stop on the
-          // same baseline as the leading `+` and the textarea. The settings
-          // gear moved out of the composer entirely (now in the page toolbar).
+        <div
+          data-slot="coach-input-controls"
+          className="order-2 flex w-full items-center justify-between gap-1.5 sm:w-auto sm:shrink-0 sm:justify-start"
+        >
           <div
-            data-slot="coach-input-hub"
+            data-slot="coach-input-leading"
             className="flex shrink-0 items-center gap-1.5"
           >
-            {micButton}
+            {attachButton}
+            {showHub ? actionsButton : null}
+          </div>
+          <div
+            data-slot={showHub ? "coach-input-hub" : undefined}
+            className="flex shrink-0 items-center gap-1.5"
+          >
             {sendButton}
           </div>
-        ) : (
-          sendButton
-        )}
+        </div>
       </div>
     </form>
   );

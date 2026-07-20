@@ -2469,10 +2469,6 @@
       "settingsClustersHint": "Pick which clusters of your data the Coach can read. More data means richer answers and a larger prompt.",
       "settingsClusterNoData": "No data yet",
       "sourcesMemberCount": "{count} metrics",
-      "dictate": "Dictate",
-      "dictateStop": "Stop dictation",
-      "voiceUnsupported": "Voice input is not supported in this browser",
-      "dictateError": "Could not start voice input. Check microphone permission and try again.",
       "showConversations": "Show conversations",
       "hideConversations": "Hide conversations",
       "heroGreeting": "Ask me anything about your data",
@@ -8536,6 +8532,7 @@
         "withheld": "A summary was generated but did not pass the safety check, so it is not shown. You can try again, or read the document itself.",
         "unavailable": "No summary could be generated for this document.",
         "generate": "Generate summary",
+        "regenerate": "Generate again",
         "generating": "Generating…"
       },
       "loadError": "Couldn't load this document.",
