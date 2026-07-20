@@ -100,7 +100,7 @@ const handler = apiHandler(
         details: { reason: "missing_confirmation", backupId: id },
       });
       return apiError(
-        "Confirmation token missing — body must include confirm: 'RESTORE'",
+        "Confirmation token missing — restoring user data and included instance-wide settings requires confirm: 'RESTORE'",
         422,
       );
     }
@@ -403,13 +403,11 @@ const handler = apiHandler(
             unit: measurement.unit,
             source: measurement.source ?? "MANUAL",
             measuredAt: new Date(measurement.measuredAt),
-            notes: measurement.notes ?? null,
+            notes: null,
             notesEncrypted:
-              measurement.notesEncrypted !== undefined
-                ? measurement.notesEncrypted === null
-                  ? null
-                  : decodeEncryptedBytes(measurement.notesEncrypted)
-                : encryptNote(measurement.notes ?? null),
+              measurement.notesEncrypted == null
+                ? encryptNote(measurement.notes ?? null)
+                : decodeEncryptedBytes(measurement.notesEncrypted),
             externalId: measurement.externalId ?? null,
             externalSourceVersion: measurement.externalSourceVersion ?? null,
             glucoseContext: (measurement.glucoseContext ?? null) as never,

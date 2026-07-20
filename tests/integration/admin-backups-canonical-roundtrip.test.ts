@@ -159,7 +159,7 @@ describe("canonical disaster-recovery backup round-trip", () => {
         assistantHealthScoreExplainerEnabled: false,
         moduleAvailabilityJson: { insights: true, nutrients: false },
         documentMaxFileBytes: 12_345_678,
-        documentQuotaBytes: 9_876_543_210n,
+        documentQuotaBytes: BigInt("9876543210"),
       },
     });
 
@@ -917,12 +917,12 @@ describe("canonical disaster-recovery backup round-trip", () => {
           const originalCreateMany = tx.measurement.createMany.bind(
             tx.measurement,
           );
-          vi.spyOn(tx.measurement, "upsert").mockImplementation(async (args) => {
+          vi.spyOn(tx.measurement, "upsert").mockImplementation((args) => {
             stableWriteQueries += 1;
             return originalUpsert(args);
           });
           vi.spyOn(tx.measurement, "createMany").mockImplementation(
-            async (args) => {
+            (args) => {
               stableWriteQueries += 1;
               return originalCreateMany(args);
             },

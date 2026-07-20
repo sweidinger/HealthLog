@@ -6243,7 +6243,7 @@
         "restore": "Wiederherstellen",
         "restoreAria": "Backup für {username} wiederherstellen",
         "restoreTitle": "Aus Backup wiederherstellen",
-        "restoreDescription": "Dies ersetzt ALLE aktuellen Daten von {username} mit dem Snapshot von {when}. Vorhandene Messungen, Medikamente, Einnahmen, Stimmungseinträge, Benachrichtigungs-Kanäle, Push-Abos und Telegram-Lösch-Aufträge werden entfernt.",
+        "restoreDescription": "Dies ersetzt ALLE aktuellen Daten von {username} mit dem Snapshot von {when}. Vorhandene Messungen, Medikamente, Einnahmen, Stimmungseinträge, Benachrichtigungs-Kanäle, Push-Abos und Telegram-Lösch-Aufträge werden entfernt. Falls im Snapshot enthalten, überschreiben instanzweite Einstellungen die Konfiguration der gesamten Installation.",
         "restorePromptLabel": "Tippe RESTORE zum Fortfahren",
         "restoreConfirm": "Jetzt wiederherstellen",
         "restoreInProgress": "Wiederherstellung läuft…",

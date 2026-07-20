@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import de from "../../../../messages/de.json";
+import en from "../../../../messages/en.json";
 
 /**
  * v1.4.15 phase-C5 — `/admin/backups` empty state.
@@ -75,5 +77,14 @@ describe("BackupsSection — empty state", () => {
     // one occurrence.
     const matches = (html.match(/Backup now/g) ?? []).length;
     expect(matches).toBeGreaterThanOrEqual(2);
+  });
+
+  it("warns in both catalogs that restore overwrites instance-wide settings", () => {
+    expect(de.admin.section.backups.restoreDescription).toMatch(
+      /instanzweite Einstellungen/i,
+    );
+    expect(en.admin.section.backups.restoreDescription).toMatch(
+      /instance-wide settings/i,
+    );
   });
 });

@@ -76,7 +76,7 @@ const appSettings = {
   assistantHealthScoreExplainerEnabled: false,
   moduleAvailabilityJson: { nutrients: false, insights: true },
   documentMaxFileBytes: 12_345_678,
-  documentQuotaBytes: 9_876_543_210n,
+  documentQuotaBytes: BigInt("9876543210"),
 };
 
 function makePrisma() {
