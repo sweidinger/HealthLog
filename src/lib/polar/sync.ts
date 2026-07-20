@@ -12,10 +12,10 @@
  * as a 401 → `reauth_required` on the shared integration ledger (`polar` key),
  * exactly like Nightscout's token-rejected path.
  *
- * Idempotency: each row's `externalId` is `<date>:<fieldTag>` and the write is
- * an upsert keyed on `(userId, type, source = POLAR, externalId)`. Polar
- * re-scores a night for a short window after the fact, so the `update` branch
- * overwrites in place (WHOOP-style re-score), not first-write-wins.
+ * Idempotency: each row's `externalId` is `<date>:<fieldTag>`. The shared
+ * reconciler protects both external and natural identity. Polar re-scores a
+ * night for a short window after the fact, so an exact re-post overwrites in
+ * place (WHOOP-style re-score), not first-write-wins.
  *
  * The measurement-write tail (per-row upsert → rollup fold → status-insight
  * invalidate) mirrors the shared WHOOP / Nightscout sync tail; it is NOT a new
@@ -40,6 +40,10 @@ import {
   emitInsertedMeasurementArrivals,
   type InsertedMeasurementArrivalRow,
 } from "@/lib/arrivals/measurement-emit";
+import {
+  MeasurementReconciliationError,
+  reconcileExternalMeasurement,
+} from "@/lib/measurements/reconcile-external-measurement";
 import {
   fetchActivities,
   fetchCardioLoads,
@@ -187,8 +191,9 @@ export async function syncUserPolar(userId: string): Promise<number> {
 /**
  * Upsert a batch of mapped Polar readings, then fold the rollup tier +
  * invalidate status-insight caches once at the end (mirrors the WHOOP /
- * Nightscout sync tail). Idempotent: the `(userId, type, source, externalId)`
- * unique key makes a re-post overwrite in place. Best-effort on the rollup fold.
+ * Nightscout sync tail). The shared reconciler protects both external and
+ * natural identity; an exact re-post overwrites in place. Best-effort on the
+ * rollup fold.
  */
 export async function upsertPolarMeasurements(
   userId: string,
@@ -201,76 +206,46 @@ export async function upsertPolarMeasurements(
 
   let imported = 0;
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
-  let insertedRows: Array<
+  const insertedRows: Array<
     InsertedMeasurementArrivalRow & { externalId: string | null }
   > = [];
 
-  try {
-    insertedRows = await prisma.measurement.createManyAndReturn({
-      data: readings.map((r) => ({
-        userId,
-        type: r.type as MeasurementType,
-        source: "POLAR" as const,
-        value: r.value,
-        unit: r.unit,
-        measuredAt: r.measuredAt,
-        externalId: r.externalId,
-        sleepStage: r.sleepStage ?? null,
-      })),
-      skipDuplicates: true,
-      select: {
-        id: true,
-        type: true,
-        measuredAt: true,
-        externalId: true,
-      },
-    });
-    imported += insertedRows.length;
-    for (const row of insertedRows) {
-      touched.push({ type: row.type, measuredAt: row.measuredAt });
-    }
-  } catch (err) {
-    getEvent()?.addWarning(`polar: failed to create measurements: ${err}`);
-  }
-
-  const insertedIdentityCounts = new Map<string, number>();
-  for (const row of insertedRows) {
-    const key = `${row.type}:${row.externalId ?? ""}`;
-    insertedIdentityCounts.set(key, (insertedIdentityCounts.get(key) ?? 0) + 1);
-  }
-
-  for (const r of readings) {
-    const type = r.type as MeasurementType;
-    const key = `${type}:${r.externalId}`;
-    const insertedCount = insertedIdentityCounts.get(key) ?? 0;
-    if (insertedCount > 0) {
-      insertedIdentityCounts.set(key, insertedCount - 1);
-      continue;
-    }
-
-    try {
-      await prisma.measurement.update({
-        where: {
-          userId_type_source_externalId: {
-            userId,
-            type,
-            source: "POLAR",
-            externalId: r.externalId,
-          },
-        },
-        data: {
+  const verdicts = await prisma.$transaction(async (tx) => {
+    const outcomes = [];
+    for (const r of readings) {
+      const verdict = await reconcileExternalMeasurement(
+        tx,
+        {
+          userId,
+          type: r.type as MeasurementType,
+          source: "POLAR",
           value: r.value,
           unit: r.unit,
           measuredAt: r.measuredAt,
+          externalId: r.externalId,
           sleepStage: r.sleepStage ?? null,
-          deletedAt: null,
-          syncVersion: { increment: 1 },
         },
-      });
-      touched.push({ type, measuredAt: r.measuredAt });
-      imported++;
-    } catch (err) {
-      getEvent()?.addWarning(`polar: failed to update measurement: ${err}`);
+        { exactExternalMatch: "update" },
+      );
+      if (verdict.status === "failed") {
+        throw new MeasurementReconciliationError(verdict);
+      }
+      outcomes.push(verdict);
+    }
+    return outcomes;
+  }, { timeout: 60_000 });
+
+  for (let index = 0; index < readings.length; index++) {
+    const reading = readings[index]!;
+    const verdict = verdicts[index]!;
+    for (const dirty of verdict.dirtyIdentities ?? []) {
+      touched.push(dirty);
+    }
+    const type = reading.type as MeasurementType;
+    imported++;
+    touched.push({ type, measuredAt: reading.measuredAt });
+    if (verdict.status === "inserted") {
+      insertedRows.push(verdict.row);
     }
   }
 

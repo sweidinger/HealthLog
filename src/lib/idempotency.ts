@@ -411,7 +411,11 @@ export function withIdempotency<
       throw err;
     }
 
-    if (isCachableStatus(response.status)) {
+    const noStore = response.headers
+      .get("Cache-Control")
+      ?.split(",")
+      .some((directive) => directive.trim().toLowerCase() === "no-store");
+    if (isCachableStatus(response.status) && !noStore) {
       // Defence-in-depth: never persist a body that carries a freshly-issued
       // bearer / refresh token or a third-party AI provider key. Auth and
       // settings routes shouldn't be wrapped in withIdempotency to begin
@@ -437,8 +441,8 @@ export function withIdempotency<
         await releaseClaim(ctx);
       }
     } else {
-      // Non-cachable status (401/403/408/429/5xx) — release the claim so a
-      // retry gets a fresh attempt rather than a stuck pending row.
+      // Non-cachable status or an explicit `no-store` response releases the
+      // claim so a retry gets a fresh attempt.
       await releaseClaim(ctx);
     }
 

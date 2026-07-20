@@ -27,9 +27,9 @@
  * Idempotency: `externalId = <resource>:<day>:<fieldTag>` for the day-keyed
  * collections; sleep rows carry a record-scoped `sleep:<record-id>:<fieldTag>`
  * key (per-segment timeline + nightly scalars) so a nap and the main sleep on
- * one day stay distinct instead of overwriting each other (B2). Upsert keyed on
- * `(userId, type, source = OURA, externalId)`. Oura finalises a day's scores
- * after the night, so the `update` branch overwrites in place (re-score).
+ * one day stay distinct instead of overwriting each other (B2). The shared
+ * reconciler protects both external and natural identity. Oura finalises a
+ * day's scores after the night, so an exact re-post overwrites in place.
  *
  * The measurement-write tail mirrors the shared WHOOP / Nightscout sync tail.
  */
@@ -56,6 +56,10 @@ import {
   sweepStaleSleepSegments,
   type SleepSegmentSweep,
 } from "@/lib/sleep/sweep-stale-segments";
+import {
+  MeasurementReconciliationError,
+  reconcileExternalMeasurement,
+} from "@/lib/measurements/reconcile-external-measurement";
 import {
   fetchCardiovascularAge,
   fetchDailyActivity,
@@ -453,76 +457,46 @@ export async function upsertOuraMeasurements(
 
   let imported = 0;
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
-  let insertedRows: Array<
+  const insertedRows: Array<
     InsertedMeasurementArrivalRow & { externalId: string | null }
   > = [];
 
-  try {
-    insertedRows = await prisma.measurement.createManyAndReturn({
-      data: readings.map((r) => ({
-        userId,
-        type: r.type as MeasurementType,
-        source: "OURA" as const,
-        value: r.value,
-        unit: r.unit,
-        measuredAt: r.measuredAt,
-        externalId: r.externalId,
-        sleepStage: r.sleepStage ?? null,
-      })),
-      skipDuplicates: true,
-      select: {
-        id: true,
-        type: true,
-        measuredAt: true,
-        externalId: true,
-      },
-    });
-    imported += insertedRows.length;
-    for (const row of insertedRows) {
-      touched.push({ type: row.type, measuredAt: row.measuredAt });
-    }
-  } catch (err) {
-    getEvent()?.addWarning(`oura: failed to create measurements: ${err}`);
-  }
-
-  const insertedIdentityCounts = new Map<string, number>();
-  for (const row of insertedRows) {
-    const key = `${row.type}:${row.externalId ?? ""}`;
-    insertedIdentityCounts.set(key, (insertedIdentityCounts.get(key) ?? 0) + 1);
-  }
-
-  for (const r of readings) {
-    const type = r.type as MeasurementType;
-    const key = `${type}:${r.externalId}`;
-    const insertedCount = insertedIdentityCounts.get(key) ?? 0;
-    if (insertedCount > 0) {
-      insertedIdentityCounts.set(key, insertedCount - 1);
-      continue;
-    }
-
-    try {
-      await prisma.measurement.update({
-        where: {
-          userId_type_source_externalId: {
-            userId,
-            type,
-            source: "OURA",
-            externalId: r.externalId,
-          },
-        },
-        data: {
+  const verdicts = await prisma.$transaction(async (tx) => {
+    const outcomes = [];
+    for (const r of readings) {
+      const verdict = await reconcileExternalMeasurement(
+        tx,
+        {
+          userId,
+          type: r.type as MeasurementType,
+          source: "OURA",
           value: r.value,
           unit: r.unit,
           measuredAt: r.measuredAt,
+          externalId: r.externalId,
           sleepStage: r.sleepStage ?? null,
-          deletedAt: null,
-          syncVersion: { increment: 1 },
         },
-      });
-      touched.push({ type, measuredAt: r.measuredAt });
-      imported++;
-    } catch (err) {
-      getEvent()?.addWarning(`oura: failed to update measurement: ${err}`);
+        { exactExternalMatch: "update" },
+      );
+      if (verdict.status === "failed") {
+        throw new MeasurementReconciliationError(verdict);
+      }
+      outcomes.push(verdict);
+    }
+    return outcomes;
+  }, { timeout: 60_000 });
+
+  for (let index = 0; index < readings.length; index++) {
+    const reading = readings[index]!;
+    const verdict = verdicts[index]!;
+    for (const dirty of verdict.dirtyIdentities ?? []) {
+      touched.push(dirty);
+    }
+    const type = reading.type as MeasurementType;
+    imported++;
+    touched.push({ type, measuredAt: reading.measuredAt });
+    if (verdict.status === "inserted") {
+      insertedRows.push(verdict.row);
     }
   }
 

@@ -16,6 +16,7 @@ const {
   recordSyncSuccess,
   isReauthRequired,
   emitArrivalMock,
+  reconcileMock,
 } = vi.hoisted(() => ({
   prismaMock: {
     whoopConnection: {
@@ -30,6 +31,7 @@ const {
       findMany: vi.fn(),
     },
     $executeRaw: vi.fn(),
+    $transaction: vi.fn(),
   },
   refreshAccessTokenMock: vi.fn(),
   fetchRecoveriesMock: vi.fn(),
@@ -38,6 +40,7 @@ const {
   isReauthRequired: vi.fn<(...a: unknown[]) => Promise<boolean>>(
     async () => false,
   ),
+  reconcileMock: vi.fn(),
   emitArrivalMock: vi.fn(),
 }));
 
@@ -56,6 +59,11 @@ vi.mock("../client", async (orig) => {
     fetchRecoveries: (...a: unknown[]) => fetchRecoveriesMock(...a),
   };
 });
+
+vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
+  reconcileExternalMeasurement: reconcileMock,
+  MeasurementReconciliationError: class extends Error {},
+}));
 
 vi.mock("../credentials", () => ({
   getUserWhoopCredentials: vi.fn(async () => ({
@@ -105,6 +113,20 @@ import { syncUserRecovery } from "../sync-recovery";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prismaMock.$transaction.mockImplementation(async (run: (tx: unknown) => unknown) =>
+    run({}),
+  );
+  reconcileMock.mockImplementation(
+    async (_tx: unknown, input: { type: string; measuredAt: Date; externalId: string }) => ({
+      status: "inserted",
+      row: {
+        id: `inserted:${input.externalId}`,
+        type: input.type,
+        measuredAt: input.measuredAt,
+        externalId: input.externalId,
+      },
+    }),
+  );
   isReauthRequired.mockResolvedValue(false);
   emitArrivalMock.mockResolvedValue(undefined);
 });
@@ -371,8 +393,17 @@ describe("upsertWhoopMeasurements — exact insertion results", () => {
       measuredAt,
       externalId: readings[0].externalId,
     };
-    prismaMock.measurement.createManyAndReturn.mockResolvedValue([inserted]);
-    prismaMock.measurement.update.mockResolvedValue({});
+    reconcileMock
+      .mockResolvedValueOnce({ status: "inserted", row: inserted })
+      .mockResolvedValueOnce({
+        status: "updated",
+        row: {
+          id: "existing-2",
+          type: "HRV_RMSSD",
+          measuredAt,
+          externalId: readings[1].externalId,
+        },
+      });
     const onInserted = vi.fn();
 
     expect(
@@ -381,11 +412,7 @@ describe("upsertWhoopMeasurements — exact insertion results", () => {
 
     expect(onInserted).toHaveBeenCalledWith([inserted]);
     expect(emitArrivalMock).toHaveBeenCalledWith("user1", [inserted], "whoop");
-    expect(prismaMock.measurement.update).toHaveBeenCalledTimes(1);
-    expect(
-      prismaMock.measurement.update.mock.calls[0]![0].where
-        .userId_type_source_externalId,
-    ).toEqual({
+    expect(reconcileMock.mock.calls[1]![1]).toMatchObject({
       userId: "user1",
       type: "HRV_RMSSD",
       source: "WHOOP",
@@ -403,7 +430,7 @@ describe("upsertWhoopMeasurements — exact insertion results", () => {
       measuredAt,
       externalId: readings[0].externalId,
     };
-    prismaMock.measurement.createManyAndReturn.mockResolvedValue([inserted]);
+    reconcileMock.mockResolvedValueOnce({ status: "inserted", row: inserted });
 
     await upsertWhoopMeasurements("user1", [readings[0]]);
 
@@ -412,20 +439,23 @@ describe("upsertWhoopMeasurements — exact insertion results", () => {
   });
 
   it("updates a re-post in place without reporting another insert", async () => {
-    prismaMock.measurement.createManyAndReturn.mockResolvedValue([]);
-    prismaMock.measurement.update.mockResolvedValue({});
+    reconcileMock.mockResolvedValueOnce({
+      status: "updated",
+      row: {
+        id: "existing-1",
+        type: "RECOVERY_SCORE",
+        measuredAt,
+        externalId: readings[0].externalId,
+      },
+    });
 
     expect(await upsertWhoopMeasurements("user1", [readings[0]])).toBe(1);
 
     expect(emitArrivalMock).toHaveBeenCalledWith("user1", [], "whoop");
-    expect(prismaMock.measurement.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          value: 71,
-          syncVersion: { increment: 1 },
-        }),
-      }),
-    );
+    expect(reconcileMock.mock.calls[0]![1]).toMatchObject({
+      value: 71,
+      externalId: readings[0].externalId,
+    });
   });
 });
 

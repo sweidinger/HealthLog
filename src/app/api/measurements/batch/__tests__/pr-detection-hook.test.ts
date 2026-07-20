@@ -8,6 +8,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+const reconcileOverrideMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: {
@@ -20,6 +22,26 @@ vi.mock("@/lib/db", () => ({
         return (fn as any)(prisma as unknown as { measurement: unknown });
       }
     }),
+  },
+}));
+
+vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
+  reconcileExternalMeasurement: async (
+    tx: {
+      measurement: {
+        createManyAndReturn: (args: {
+          data: Record<string, unknown>;
+        }) => Promise<Array<Record<string, unknown>>>;
+      };
+    },
+    input: Record<string, unknown>,
+  ) => {
+    const override = await reconcileOverrideMock(tx, input);
+    if (override !== undefined) return override;
+    const [inserted] = await tx.measurement.createManyAndReturn({ data: input });
+    return inserted
+      ? { status: "inserted", row: inserted }
+      : { status: "duplicate" };
   },
 }));
 
@@ -116,6 +138,29 @@ describe("POST /api/measurements/batch — PR detection enqueue (v1.4.25 W16c)",
     expect(enqueuePrDetection).toHaveBeenCalledWith("user-1", {
       silent: false,
     });
+  });
+
+  it("surfaces a hard reconciliation failure without checkpointing it", async () => {
+    reconcileOverrideMock.mockResolvedValueOnce({
+      status: "failed",
+      error: { message: "write rejected", code: "P2002" },
+    });
+
+    const res = await POST(makeRequest({ entries: [validStepEntry("ext-a")] }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toContain("no-store");
+    expect(await res.json()).toMatchObject({
+      data: {
+        processed: 1,
+        inserted: 0,
+        updated: 0,
+        duplicates: 0,
+        failed: 1,
+        entries: [{ index: 0, status: "failed", reason: "P2002" }],
+      },
+      error: null,
+    });
+    expect(enqueuePrDetection).not.toHaveBeenCalled();
   });
 
   it("sets silent=true once the batch crosses the 50-entry threshold", async () => {
