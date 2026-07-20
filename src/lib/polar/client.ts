@@ -180,7 +180,7 @@ export interface PolarNightlyRecharge {
   ans_charge?: number | null;
   ans_charge_status?: number | null;
   heart_rate_avg?: number | null;
-  hrv_avg?: number | null;
+  heart_rate_variability_avg?: number | null;
   breathing_rate_avg?: number | null;
 }
 
@@ -226,6 +226,7 @@ export interface PolarCardioLoad {
 /** One Polar SpO2 (Elixir pulse-ox) test result. `test_time` is a Unix
  * timestamp in seconds; `blood_oxygen_percent` is the recorded percentage. */
 export interface PolarSpo2 {
+  source_device_id?: string;
   test_time?: number;
   blood_oxygen_percent?: number | null;
 }
@@ -395,10 +396,13 @@ export function mapNightlyRecharge(
       fieldTag: "recovery",
     });
   }
-  if (typeof r.hrv_avg === "number" && r.hrv_avg > 0) {
+  if (
+    typeof r.heart_rate_variability_avg === "number" &&
+    r.heart_rate_variability_avg > 0
+  ) {
     out.push({
       type: "HRV_RMSSD",
-      value: round2(r.hrv_avg),
+      value: round2(r.heart_rate_variability_avg),
       unit: "ms",
       measuredAt,
       fieldTag: "hrv_rmssd",
@@ -634,6 +638,7 @@ export function mapSpo2(r: PolarSpo2): MappedMeasurement[] {
       unit: "%",
       measuredAt,
       fieldTag: "spo2",
+      externalId: `spo2:${r.test_time}:${r.source_device_id ?? "unknown"}`,
     },
   ];
 }

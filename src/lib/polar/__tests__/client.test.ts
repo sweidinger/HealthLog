@@ -203,7 +203,7 @@ describe("mapNightlyRecharge", () => {
     const rec: PolarNightlyRecharge = {
       date: "2026-06-10",
       nightly_recharge_status: 6,
-      hrv_avg: 55,
+      heart_rate_variability_avg: 55,
       heart_rate_avg: 52.4,
       breathing_rate_avg: 14.2,
     };
@@ -448,6 +448,7 @@ describe("mapSpo2", () => {
     const r: PolarSpo2 = {
       test_time: 1_781_059_600,
       blood_oxygen_percent: 96,
+      source_device_id: "device-1",
     };
     const mapped = mapSpo2(r);
     expect(mapped[0]?.type).toBe("OXYGEN_SATURATION");
@@ -456,6 +457,7 @@ describe("mapSpo2", () => {
     expect(mapped[0]?.measuredAt.toISOString()).toBe(
       "2026-06-10T02:46:40.000Z",
     );
+    expect(mapped[0]?.externalId).toBe("spo2:1781059600:device-1");
   });
   it("rejects out-of-range readings", () => {
     expect(mapSpo2({ test_time: 1_781_059_600, blood_oxygen_percent: 0 })).toEqual(
