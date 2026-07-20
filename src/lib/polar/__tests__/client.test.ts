@@ -460,9 +460,9 @@ describe("mapSpo2", () => {
     expect(mapped[0]?.externalId).toBe("spo2:1781059600:device-1");
   });
   it("rejects out-of-range readings", () => {
-    expect(mapSpo2({ test_time: 1_781_059_600, blood_oxygen_percent: 0 })).toEqual(
-      [],
-    );
+    expect(
+      mapSpo2({ test_time: 1_781_059_600, blood_oxygen_percent: 0 }),
+    ).toEqual([]);
     expect(
       mapSpo2({ test_time: 1_781_059_600, blood_oxygen_percent: 120 }),
     ).toEqual([]);

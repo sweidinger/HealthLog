@@ -268,10 +268,7 @@ async function fetchCollection<T>(
   // 204 No Content — a window with no records. Polar returns an empty body.
   if (res.status === 204) return [];
   const json = (await res.json().catch(() => null)) as
-    | CollectionResult<T>
-    | Record<string, T[]>
-    | T[]
-    | null;
+    CollectionResult<T> | Record<string, T[]> | T[] | null;
   if (!json) return [];
   if (Array.isArray(json)) return json;
   if (!recordsKey) return [];
