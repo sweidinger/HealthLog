@@ -18,6 +18,7 @@ import { execSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { TestProject } from "vitest/node";
 import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
@@ -29,7 +30,9 @@ const PROJECT_ROOT = resolve(__dirname, "..", "..");
 
 let container: StartedPostgreSqlContainer | null = null;
 
-export default async function setup(): Promise<() => Promise<void>> {
+export default async function setup(
+  project: TestProject,
+): Promise<() => Promise<void>> {
   container = await new PostgreSqlContainer("postgres:16-alpine")
     .withDatabase("healthlog_test")
     .withUsername("healthlog")
@@ -38,10 +41,9 @@ export default async function setup(): Promise<() => Promise<void>> {
 
   const url = container.getConnectionUri() + "?schema=public&pgbouncer=false";
   process.env.DATABASE_URL = url;
+  project.provide("integrationDatabaseUrl", url);
 
-  // Provided so child processes (e.g. Prisma's CLI) inherit the URL.
-  // Vitest also forwards process.env to test workers, so the
-  // application Prisma singleton sees this URL when it loads.
+  // The explicit child environment keeps Prisma CLI on the same container.
   execSync("pnpm db:migrate:deploy", {
     cwd: PROJECT_ROOT,
     stdio: "inherit",

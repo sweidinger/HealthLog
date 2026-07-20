@@ -24,7 +24,7 @@
   "private": true,
   "packageManager": "pnpm@10.31.0",
   "scripts": {
-    "prepare": "lefthook install || echo 'lefthook install skipped (no git repo or binary unavailable)'",
+    "prepare": "node scripts/prepare.mjs",
     "dev": "next dev",
     "predev": "node scripts/generate-i18n-boot.mjs",
     "prebuild": "node scripts/generate-sw-version.mjs && node scripts/generate-i18n-boot.mjs",
@@ -142,6 +142,9 @@
       "@prisma/engines"
     ],
     "overrides": {
+      "dompurify@<=3.4.10": "^3.4.11",
+      "postcss@<8.5.10": "^8.5.10",
+      "@hono/node-server@<1.19.13": "^1.19.13",
       "hono@<4.12.25": "^4.12.25",
       "picomatch@<4.0.4": "^4.0.4"
     }
