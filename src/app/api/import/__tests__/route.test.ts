@@ -17,7 +17,7 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(),
       upsert: vi.fn(),
     },
-    moodEntry: { create: vi.fn(), upsert: vi.fn() },
+    moodEntry: { create: vi.fn(), findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
 
@@ -77,6 +77,7 @@ import { auditLog } from "@/lib/auth/audit";
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurement.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue(null);
   vi.mocked(emitInsertedMeasurementArrivals).mockResolvedValue(undefined);
   vi.mocked(maybeEnqueueMorningRefresh).mockResolvedValue(undefined);
   encryptNoteMock.mockImplementation((note: string | null) =>
@@ -809,6 +810,20 @@ describe("POST /api/import — write failure classification", () => {
     vi.mocked(prisma.moodEntry.create).mockImplementation(({ data }) =>
       writeMood(data as LegacyMoodWrite, committedKeys),
     );
+    vi.mocked(prisma.moodEntry.findUnique).mockImplementation(
+      async ({ where }) => {
+        const key = `${where.userId_date_moodLoggedAt.date}:${where.userId_date_moodLoggedAt.moodLoggedAt.toISOString()}`;
+        if (!committedKeys.has(key)) return null;
+        const isFirstDay = where.userId_date_moodLoggedAt.date === "2026-05-01";
+        return {
+          source: "IMPORT",
+          mood: isFirstDay ? "GUT" : "OKAY",
+          score: isFirstDay ? 4 : 3,
+          tags: null,
+          externalId: null,
+        } as never;
+      },
+    );
 
     const payload = {
       moodEntries: [
@@ -896,16 +911,98 @@ describe("POST /api/import — write failure classification", () => {
       expect(response.status).toBe(200);
       const moodLoggedAt = vi.mocked(prisma.moodEntry.create).mock.calls[0][0]
         .data.moodLoggedAt;
-      expect(moodLoggedAt.toISOString().slice(0, 10)).toBe("2026-05-01");
       expect(moodLoggedAt.getTime()).toBeGreaterThanOrEqual(
-        Date.parse("2026-05-01T00:00:00.000Z"),
+        Date.parse("2026-04-30T22:00:00.000Z"),
       );
       expect(moodLoggedAt.getTime()).toBeLessThan(
-        Date.parse("2026-05-01T00:05:00.000Z"),
+        Date.parse("2026-04-30T22:05:00.000Z"),
       );
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("accepts the current Berlin day shortly after local midnight", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-10T22:30:00.000Z"));
+      vi.mocked(prisma.moodEntry.create).mockResolvedValue({} as never);
+
+      const response = await POST(
+        request({
+          moodEntries: [{ date: "2026-05-11", mood: "GUT", score: 4 }],
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const moodLoggedAt = vi.mocked(prisma.moodEntry.create).mock.calls[0][0]
+        .data.moodLoggedAt;
+      expect(moodLoggedAt.getTime()).toBeGreaterThanOrEqual(
+        Date.parse("2026-05-10T22:00:00.000Z"),
+      );
+      expect(moodLoggedAt.getTime()).toBeLessThan(
+        Date.parse("2026-05-10T22:05:00.000Z"),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("probes past a persisted fallback timestamp collision", async () => {
+    type StoredMood = {
+      date: string;
+      mood: string;
+      score: number;
+      tags: string | null;
+      externalId?: string | null;
+      moodLoggedAt: Date;
+    };
+
+    const persisted = new Map<string, StoredMood>();
+    vi.mocked(prisma.moodEntry.create).mockImplementation(async ({ data }) => {
+      const key = `${data.date}:${data.moodLoggedAt.toISOString()}`;
+      if (persisted.has(key)) {
+        throw new Prisma.PrismaClientKnownRequestError(
+          "Unique constraint failed",
+          {
+            code: "P2002",
+            clientVersion: "test",
+            meta: { target: ["userId", "date", "moodLoggedAt"] },
+          },
+        );
+      }
+      persisted.set(key, data as StoredMood);
+      return {} as never;
+    });
+    vi.mocked(prisma.moodEntry.findUnique).mockImplementation(async ({ where }) => {
+      const key = `${where.userId_date_moodLoggedAt.date}:${where.userId_date_moodLoggedAt.moodLoggedAt.toISOString()}`;
+      return (persisted.get(key) ?? null) as never;
+    });
+
+    const firstPayload = {
+      moodEntries: [
+        { date: "2026-05-01", mood: "GUT", score: 4, tags: "tag-250" },
+      ],
+    };
+    const collidingPayload = {
+      moodEntries: [
+        { date: "2026-05-01", mood: "GUT", score: 4, tags: "tag-421" },
+      ],
+    };
+
+    await POST(request(firstPayload));
+    const collisionResponse = await POST(request(collidingPayload));
+    const retryResponse = await POST(request(collidingPayload));
+
+    expect(await collisionResponse.json()).toEqual({
+      data: { measurements: 0, moodEntries: 1, skipped: 0 },
+      error: null,
+    });
+    expect(await retryResponse.json()).toEqual({
+      data: { measurements: 0, moodEntries: 0, skipped: 1 },
+      error: null,
+    });
+    expect(persisted.size).toBe(2);
   });
 
   it("keeps a generated timestamp stable when upserting an external ID", async () => {

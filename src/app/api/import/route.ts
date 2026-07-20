@@ -33,6 +33,8 @@ import type { MeasurementType } from "@/generated/prisma/client";
 import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
 import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 import { isP2002, isP2025 } from "@/lib/prisma-errors";
+import { DEFAULT_TIMEZONE, moodDateKey } from "@/lib/mood/date-key";
+import { zonedWallClockToUtc } from "@/lib/tz/wall-clock";
 
 // Derived from canonical enum so round-trip export → import covers every
 // type. Previous hardcoded subset silently dropped 4 of 11 types
@@ -65,6 +67,16 @@ const measurementSchema = z
     "Wert ausserhalb des plausiblen Bereichs",
   );
 
+function fallbackMoodDateStart(date: string): Date | null {
+  const [year, month, day] = date.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const instant = zonedWallClockToUtc(
+    { year, month, day, hour: 0, minute: 0 },
+    DEFAULT_TIMEZONE,
+  );
+  return moodDateKey(instant, DEFAULT_TIMEZONE) === date ? instant : null;
+}
+
 const moodEntrySchema = z
   .object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -84,14 +96,8 @@ const moodEntrySchema = z
   })
   .superRefine((entry, ctx) => {
     if (entry.loggedAt) return;
-    const dateStart = Date.parse(`${entry.date}T00:00:00.000Z`);
-    const isCalendarDate =
-      !Number.isNaN(dateStart) &&
-      new Date(dateStart).toISOString().slice(0, 10) === entry.date;
-    if (
-      !isCalendarDate ||
-      !isPlausibleEntryInstant(new Date(dateStart))
-    ) {
+    const dateStart = fallbackMoodDateStart(entry.date);
+    if (!dateStart || !isPlausibleEntryInstant(dateStart)) {
       ctx.addIssue({
         code: "custom",
         path: ["date"],
@@ -115,20 +121,18 @@ function fallbackMoodIdentity(entry: MoodEntryInput): string {
 function stableFallbackMoodInstant(
   entry: MoodEntryInput,
   occurrence: number,
-  reservedInstants: Set<number>,
+  probe: number,
 ): Date {
   const digest = createHash("sha256")
     .update(`${fallbackMoodIdentity(entry)}:${occurrence}`)
     .digest();
-  let offset = digest.readUInt32BE(0) % ENTRY_INSTANT_CLOCK_SKEW_MS;
-  const dateStart = Date.parse(`${entry.date}T00:00:00.000Z`);
-  let instant = dateStart + offset;
-  while (reservedInstants.has(instant)) {
-    offset = (offset + 1) % ENTRY_INSTANT_CLOCK_SKEW_MS;
-    instant = dateStart + offset;
-  }
-  reservedInstants.add(instant);
-  return new Date(instant);
+  const initialOffset =
+    digest.readUInt32BE(0) % ENTRY_INSTANT_CLOCK_SKEW_MS;
+  const offset =
+    (initialOffset + probe) % ENTRY_INSTANT_CLOCK_SKEW_MS;
+  const dateStart = fallbackMoodDateStart(entry.date);
+  if (!dateStart) throw new Error("Invalid mood date");
+  return new Date(dateStart.getTime() + offset);
 }
 
 const importSchema = z.object({
@@ -295,74 +299,116 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // Import mood entries
   if (!writeFailed && data.moodEntries?.length) {
     const fallbackOccurrences = new Map<string, number>();
-    const reservedFallbackInstants = new Set<number>();
     for (const e of data.moodEntries) {
-      try {
-        let loggedAt = e.loggedAt;
-        if (!loggedAt) {
-          const identity = fallbackMoodIdentity(e);
-          const occurrence = fallbackOccurrences.get(identity) ?? 0;
-          fallbackOccurrences.set(identity, occurrence + 1);
-          loggedAt = stableFallbackMoodInstant(
-            e,
-            occurrence,
-            reservedFallbackInstants,
-          );
-        }
+      const identity = e.loggedAt ? null : fallbackMoodIdentity(e);
+      const occurrence =
+        identity === null ? 0 : (fallbackOccurrences.get(identity) ?? 0);
+      if (identity !== null) {
+        fallbackOccurrences.set(identity, occurrence + 1);
+      }
 
-        if (e.externalId) {
-          // v1.12.1 — idempotent re-import keyed on the source-stable id.
-          // A second import of the same export updates the row in place
-          // rather than skipping it as a duplicate, so an upstream edit
-          // (re-scored mood, added tag) is reflected.
-          await prisma.moodEntry.upsert({
-            where: {
-              userId_source_externalId: {
+      for (
+        let probe = 0;
+        probe < ENTRY_INSTANT_CLOCK_SKEW_MS;
+        probe++
+      ) {
+        const loggedAt =
+          e.loggedAt ?? stableFallbackMoodInstant(e, occurrence, probe);
+        try {
+          if (e.externalId) {
+            // v1.12.1 — idempotent re-import keyed on the source-stable id.
+            // A second import of the same export updates the row in place
+            // rather than skipping it as a duplicate, so an upstream edit
+            // (re-scored mood, added tag) is reflected.
+            await prisma.moodEntry.upsert({
+              where: {
+                userId_source_externalId: {
+                  userId,
+                  source: "IMPORT",
+                  externalId: e.externalId,
+                },
+              },
+              update: {
+                date: e.date,
+                mood: e.mood,
+                score: e.score,
+                tags: e.tags || null,
+                moodLoggedAt: loggedAt,
+              },
+              create: {
                 userId,
+                date: e.date,
+                mood: e.mood,
+                score: e.score,
+                tags: e.tags || null,
                 source: "IMPORT",
                 externalId: e.externalId,
+                moodLoggedAt: loggedAt,
               },
-            },
-            update: {
-              date: e.date,
-              mood: e.mood,
-              score: e.score,
-              tags: e.tags || null,
-              moodLoggedAt: loggedAt,
-            },
-            create: {
-              userId,
-              date: e.date,
-              mood: e.mood,
-              score: e.score,
-              tags: e.tags || null,
-              source: "IMPORT",
-              externalId: e.externalId,
-              moodLoggedAt: loggedAt,
-            },
-          });
-        } else {
-          await prisma.moodEntry.create({
-            data: {
-              userId,
-              date: e.date,
-              mood: e.mood,
-              score: e.score,
-              tags: e.tags || null,
-              source: "IMPORT",
-              moodLoggedAt: loggedAt,
-            },
-          });
+            });
+          } else {
+            await prisma.moodEntry.create({
+              data: {
+                userId,
+                date: e.date,
+                mood: e.mood,
+                score: e.score,
+                tags: e.tags || null,
+                source: "IMPORT",
+                moodLoggedAt: loggedAt,
+              },
+            });
+          }
+          stats.moodEntries++;
+          break;
+        } catch (err) {
+          if (!isP2002(err)) {
+            writeFailed = true;
+            break;
+          }
+          if (e.loggedAt) {
+            stats.skipped++;
+            break;
+          }
+          if (!e.externalId) {
+            try {
+              const existing = await prisma.moodEntry.findUnique({
+                where: {
+                  userId_date_moodLoggedAt: {
+                    userId,
+                    date: e.date,
+                    moodLoggedAt: loggedAt,
+                  },
+                },
+                select: {
+                  source: true,
+                  mood: true,
+                  score: true,
+                  tags: true,
+                  externalId: true,
+                },
+              });
+              if (
+                existing?.source === "IMPORT" &&
+                existing.mood === e.mood &&
+                existing.score === e.score &&
+                existing.tags === (e.tags || null) &&
+                (existing.externalId ?? null) === null
+              ) {
+                stats.skipped++;
+                break;
+              }
+            } catch {
+              writeFailed = true;
+              break;
+            }
+          }
+          if (probe === ENTRY_INSTANT_CLOCK_SKEW_MS - 1) {
+            writeFailed = true;
+          }
         }
-        stats.moodEntries++;
-      } catch (err) {
-        if (isP2002(err)) {
-          stats.skipped++;
-          continue;
-        }
-        writeFailed = true;
-        break;
       }
+      if (writeFailed) break;
     }
   }
 
