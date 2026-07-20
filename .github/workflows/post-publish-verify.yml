@@ -1,33 +1,42 @@
 name: Post-publish verify
 
-# Informational reachability gate that runs AFTER `Build & Publish Docker
-# Image` finishes a `main` (or tag) build. Pulls the just-published image
-# from GHCR and probes:
-#   - the image manifest is fetchable (i.e. the push actually completed)
-#   - the container starts and `/api/version` returns the expected version
-#   - the container's `/api/health` endpoint reports OK
-#
-# Does NOT block deploys — `continue-on-error` is set on every probe step
-# so a transient registry blip doesn't go red. This is a smoke gate the
-# v1.4.14 release would have caught: the main push appeared to "succeed"
-# from the deploy host's POV, but the host had to pull the tag image
-# because main's manifest never finished pushing.
-#
-# Triggered by `workflow_run` so it only runs after the build workflow
-# actually completes — chaining via `needs:` would force the build into
-# the same workflow file.
-
 on:
-  workflow_run:
-    workflows: ["Build & Publish Docker Image"]
-    types: [completed]
-    branches: [main]
+  workflow_call:
+    inputs:
+      image_ref:
+        description: Exact registry repository to verify
+        required: true
+        type: string
+      image_tag:
+        description: Exact published release tag
+        required: true
+        type: string
+      image_digest:
+        description: Exact published multi-arch manifest digest
+        required: true
+        type: string
+      build_sha:
+        description: Expected short source commit SHA
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
+      image_ref:
+        description: Exact registry repository to verify
+        required: true
+        type: string
       image_tag:
-        description: "GHCR image tag to verify (defaults to `main`)"
-        required: false
-        default: "main"
+        description: Exact published release tag
+        required: true
+        type: string
+      image_digest:
+        description: Exact published multi-arch manifest digest
+        required: true
+        type: string
+      build_sha:
+        description: Expected short source commit SHA
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -35,14 +44,15 @@ permissions:
 
 jobs:
   verify:
-    name: Pull + smoke-test published image
+    name: Pull and smoke-test exact published image
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Skip if the upstream build itself failed — there's nothing to verify.
-    # Manual dispatch always runs.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+    env:
+      IMAGE_REF: ${{ inputs.image_ref }}
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      IMAGE_DIGEST: ${{ inputs.image_digest }}
+      BUILD_SHA: ${{ inputs.build_sha }}
+      DATABASE_URL: postgresql://healthlog:healthlog@localhost:5432/healthlog?schema=public
 
     services:
       postgres:
@@ -60,15 +70,6 @@ jobs:
           --health-retries 10
 
     steps:
-      - name: Resolve image tag
-        id: tag
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=main" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Log in to GHCR
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
@@ -76,24 +77,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull image
-        id: pull
-        continue-on-error: true
+      - name: Pull exact image
         run: |
-          IMAGE="ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.tag }}"
-          echo "Pulling $IMAGE"
-          docker pull "$IMAGE"
-          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          TAG_REF="${IMAGE_REF}:${IMAGE_TAG}"
+          DIGEST_REF="${IMAGE_REF}@${IMAGE_DIGEST}"
 
-      - name: Start container
-        if: steps.pull.outcome == 'success'
-        id: run
-        continue-on-error: true
+          echo "Pulling published tag $TAG_REF"
+          docker pull "$TAG_REF"
+          resolved_digest="$(docker buildx imagetools inspect "$TAG_REF" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          if [ "$resolved_digest" != "$IMAGE_DIGEST" ]; then
+            echo "::error::Published tag digest mismatch: $TAG_REF resolved to '$resolved_digest', expected '$IMAGE_DIGEST'." >&2
+            exit 1
+          fi
+
+          echo "Pulling immutable image $DIGEST_REF"
+          docker pull "$DIGEST_REF"
+
+      - name: Run migrations
         run: |
-          # Minimal env to satisfy the strict-env validators on boot.
+          DIGEST_REF="${IMAGE_REF}@${IMAGE_DIGEST}"
+          docker run --rm \
+            --network host \
+            --entrypoint node \
+            -e DATABASE_URL="$DATABASE_URL" \
+            "$DIGEST_REF" \
+            /opt/prisma-cli/node_modules/prisma/build/index.js migrate deploy
+
+      - name: Start exact image
+        run: |
+          DIGEST_REF="${IMAGE_REF}@${IMAGE_DIGEST}"
           docker run -d --name healthlog-verify \
             --network host \
-            -e DATABASE_URL='postgresql://healthlog:healthlog@localhost:5432/healthlog?schema=public' \
+            -e DATABASE_URL="$DATABASE_URL" \
             -e ENCRYPTION_KEYS='{"v1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}' \
             -e ENCRYPTION_ACTIVE_KEY_ID=v1 \
             -e API_TOKEN_HMAC_KEY=verify-hmac-key-32-bytes-padding-x \
@@ -101,44 +116,57 @@ jobs:
             -e AUTH_RP_ID=localhost \
             -e AUTH_RP_ORIGIN=http://localhost:3000 \
             -e NODE_ENV=production \
-            -e HEALTHLOG_PROCESS_TYPE=web \
             -e PORT=3000 \
-            "${{ steps.pull.outputs.image }}"
+            "$DIGEST_REF"
 
-          # Wait up to 60 s for the server to start answering.
+      - name: Verify exact version
+        run: |
+          body=""
           for i in $(seq 1 30); do
-            if curl -sf -o /dev/null http://localhost:3000/api/version; then
-              echo "ready after ${i}*2s"
+            if body="$(curl -sf http://localhost:3000/api/version)"; then
+              echo "Version endpoint ready after $((i * 2))s"
+              break
+            fi
+            sleep 2
+          done
+          if [ -z "$body" ]; then
+            echo "::error::Exact image did not expose /api/version within 60 seconds." >&2
+            docker logs healthlog-verify || true
+            exit 1
+          fi
+
+          echo "$body" | jq .
+          if ! jq -e --arg expected "$IMAGE_TAG" '.data.version == $expected' <<< "$body" >/dev/null; then
+            actual="$(jq -r '.data.version // "<missing>"' <<< "$body")"
+            echo "::error::Version mismatch: exact image reports '$actual', expected '$IMAGE_TAG'." >&2
+            exit 1
+          fi
+          if ! jq -e --arg expected "$BUILD_SHA" '.data.buildSha == $expected' <<< "$body" >/dev/null; then
+            actual="$(jq -r '.data.buildSha // "<missing>"' <<< "$body")"
+            echo "::error::Build SHA mismatch: exact image reports '$actual', expected '$BUILD_SHA'." >&2
+            exit 1
+          fi
+
+      - name: Verify health
+        run: |
+          for i in $(seq 1 30); do
+            if body="$(curl -sf http://localhost:3000/api/health)" && jq -e '.status == "ok"' <<< "$body" >/dev/null; then
+              echo "$body" | jq .
+              echo "Health endpoint ready after $((i * 2))s"
               exit 0
             fi
             sleep 2
           done
-          echo "::warning::Container did not become ready within 60 s"
+          echo "::error::Exact image did not report healthy within 60 seconds." >&2
           docker logs healthlog-verify || true
           exit 1
 
-      - name: Probe /api/version
-        if: steps.run.outcome == 'success'
+      - name: Container logs
+        if: always()
         continue-on-error: true
-        run: |
-          set -e
-          BODY=$(curl -sf http://localhost:3000/api/version)
-          echo "$BODY" | jq .
-          VER=$(echo "$BODY" | jq -r '.data.version // .version')
-          echo "::notice::published image ${{ steps.tag.outputs.tag }} reports version=$VER"
-
-      - name: Probe /api/health
-        if: steps.run.outcome == 'success'
-        continue-on-error: true
-        run: |
-          curl -sf http://localhost:3000/api/health | jq .
-
-      - name: Container logs (always)
-        if: always() && steps.run.outcome == 'success'
-        continue-on-error: true
-        run: docker logs healthlog-verify | tail -100
+        run: docker logs healthlog-verify
 
       - name: Tear down
         if: always()
         continue-on-error: true
-        run: docker rm -f healthlog-verify || true
+        run: docker rm -f healthlog-verify

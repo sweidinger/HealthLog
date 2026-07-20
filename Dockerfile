@@ -1,14 +1,14 @@
 # ── Stage 1: Dependencies ──────────────────────────────────
-FROM node:22-alpine AS deps
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS deps
+RUN corepack enable && corepack prepare pnpm@10.31.0 --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod=false
 
 # ── Stage 2: Build ─────────────────────────────────────────
-FROM node:22-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS builder
+RUN corepack enable && corepack prepare pnpm@10.31.0 --activate
 WORKDIR /app
 
 # v1.4.43 B11 — version build-arg threaded into the layer cache key.
@@ -45,17 +45,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
 # ── Stage 3: Production runner ─────────────────────────────
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS runner
 # `tzdata` is required so Europe/Berlin schedules (pg-boss cron, locale-aware
 # timestamp formatting) resolve to the actual offset instead of silently
 # falling back to UTC on Alpine images that ship without it.
 RUN apk add --no-cache tzdata && \
-    corepack enable && corepack prepare pnpm@latest --activate
+    corepack enable && corepack prepare pnpm@10.31.0 --activate
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_PATH="/opt/pg-boss/node_modules"
 ENV TZ=Europe/Berlin
 
 # v1.4.43 B11 — forward NEXT_PUBLIC_APP_VERSION from the builder stage
@@ -80,6 +79,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Next's standalone output must carry every externalized worker dependency.
+# Fail the image build here if output tracing ever stops shipping one rather
+# than compensating with a second, independently versioned npm installation.
+RUN node -e "require.resolve('pg-boss'); require.resolve('@prisma/adapter-pg'); require.resolve('pg'); require.resolve('@prisma/client')"
 
 # @napi-rs/canvas (document PDF rasterization): Next's file tracer copies the
 # native binary's package into the standalone tree but NOT the pnpm symlinks that
@@ -122,15 +125,6 @@ RUN set -e; \
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/src/generated ./src/generated
-
-# Install all worker runtime dependencies in a shared prefix.
-# NODE_PATH makes them available to Node.js module resolution.
-# These packages are listed in next.config.ts serverExternalPackages
-# and are NOT bundled by Next.js — they must exist at runtime.
-RUN mkdir -p /opt/pg-boss && \
-    cd /opt/pg-boss && \
-    npm init -y && \
-    npm install --omit=dev pg-boss@12.18 @prisma/adapter-pg@7.8 pg@8.20
 
 # Install Prisma CLI + engines for runtime migrations (isolated from Next standalone tree)
 RUN mkdir -p /opt/prisma-cli && \
