@@ -28,7 +28,9 @@ const { updateManyMock, upsertMeasurementsMock, morningRefreshMock } =
         return 1;
       },
     ),
-    morningRefreshMock: vi.fn(async () => {}),
+    morningRefreshMock: vi.fn<(...args: unknown[]) => Promise<void>>(
+      async () => {},
+    ),
   }));
 
 vi.mock("@/lib/daily/morning-refresh-trigger", () => ({
