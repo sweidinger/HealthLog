@@ -603,7 +603,7 @@ describe("syncUserRecovery — durable cursor ordering", () => {
     expect(prismaMock.$transaction.mock.calls.length).toBeGreaterThan(1);
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
     expect(recomputeBucketsMock).toHaveBeenCalled();
-    expect(invalidateStatusMock).toHaveBeenCalled();
+    expect(invalidateStatusMock).toHaveBeenCalledTimes(1);
 
     failLaterChunk = false;
     await expect(syncUserRecovery("user1")).resolves.toBe(105);
@@ -625,6 +625,7 @@ describe("syncUserRecovery — durable cursor ordering", () => {
     expect(committedInsertCount).toBe(105);
     expect([...committedRows.keys()]).toEqual(expectedExternalIds);
     expect(emittedExternalIds).toEqual(expectedExternalIds);
+    expect(invalidateStatusMock).toHaveBeenCalledTimes(2);
     expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
   });
 

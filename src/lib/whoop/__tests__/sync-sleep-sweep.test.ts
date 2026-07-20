@@ -164,6 +164,47 @@ describe("syncUserSleep — record-scoped stale-segment sweep", () => {
     expect(upsertMeasurementsMock).toHaveBeenCalledTimes(1);
   });
 
+  it("enqueues one refresh after every committed chunk settles", async () => {
+    fetchSleepsMock.mockResolvedValue([NIGHT]);
+    const firstMeasuredAt = new Date("2026-06-01T06:30:00.000Z");
+    const secondMeasuredAt = new Date("2026-06-01T07:00:00.000Z");
+    upsertMeasurementsMock.mockImplementationOnce(
+      async (
+        _userId: string,
+        _readings: Array<{ type: string; measuredAt: Date }>,
+        opts?: {
+          onInserted?: (
+            rows: Array<{ id: string; type: string; measuredAt: Date }>,
+          ) => void;
+        },
+      ) => {
+        opts?.onInserted?.([
+          {
+            id: "first-committed-segment",
+            type: "SLEEP_DURATION",
+            measuredAt: firstMeasuredAt,
+          },
+        ]);
+        opts?.onInserted?.([
+          {
+            id: "second-committed-segment",
+            type: "SLEEP_DURATION",
+            measuredAt: secondMeasuredAt,
+          },
+        ]);
+        return 2;
+      },
+    );
+
+    await expect(syncUserSleep("user-1")).resolves.toBe(2);
+
+    expect(morningRefreshMock).toHaveBeenCalledTimes(1);
+    expect(morningRefreshMock).toHaveBeenCalledWith("user-1", [
+      firstMeasuredAt,
+      secondMeasuredAt,
+    ]);
+  });
+
   it("enqueues refreshes for a committed chunk before a later chunk fails", async () => {
     fetchSleepsMock.mockResolvedValue([NIGHT]);
     const measuredAt = new Date("2026-06-01T07:00:00.000Z");

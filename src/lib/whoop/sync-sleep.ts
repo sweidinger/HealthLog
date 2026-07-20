@@ -40,15 +40,11 @@ import {
 } from "./sync";
 import { prisma } from "@/lib/db";
 
-function enqueueMorningRefreshForInsertedSleepRows(
+function enqueueMorningRefreshForMeasuredAts(
   userId: string,
-  rows: ReadonlyArray<{ type: string; measuredAt: Date }>,
+  measuredAts: Date[],
 ): void {
-  const measuredAts = rows
-    .filter((row) => row.type === "SLEEP_DURATION")
-    .map((row) => row.measuredAt);
   if (measuredAts.length === 0) return;
-
   void maybeEnqueueMorningRefresh(userId, measuredAts).catch(() => {});
 }
 
@@ -106,13 +102,24 @@ export async function syncUserSleep(
   // the fresh set upserts (mirrors Google Health's replace-by-window order).
   await sweepStaleSleepSegments(userId, "WHOOP", sweeps);
 
-  // Each committed chunk triggers independently; a later chunk failure cannot
-  // strand inserted sleep rows without their debounced morning refresh.
-  const imported = await upsertWhoopMeasurements(userId, readings, {
-    onInserted: (rows) => {
-      enqueueMorningRefreshForInsertedSleepRows(userId, rows);
-    },
-  });
+  // Accumulate committed chunks, then trigger once after the write pass settles.
+  // The finally path also covers a later chunk failure without generating from
+  // an intermediate prefix while more chunks are still being written.
+  const insertedSleepMeasuredAts: Date[] = [];
+  let imported: number;
+  try {
+    imported = await upsertWhoopMeasurements(userId, readings, {
+      onInserted: (rows) => {
+        insertedSleepMeasuredAts.push(
+          ...rows
+            .filter((row) => row.type === "SLEEP_DURATION")
+            .map((row) => row.measuredAt),
+        );
+      },
+    });
+  } finally {
+    enqueueMorningRefreshForMeasuredAts(userId, insertedSleepMeasuredAts);
+  }
   await markResourceSynced(userId, "sleep");
 
   return imported;
@@ -162,12 +169,16 @@ export async function syncWhoopSleepById(
     { prefix: `${record.id}:`, keepIds },
   ]);
 
-  // Dispatch the targeted refresh as soon as its insert commits, matching the
-  // chunked collection path above.
+  const insertedSleepMeasuredAts: Date[] = [];
   const imported = await upsertWhoopMeasurements(userId, readings, {
     onInserted: (rows) => {
-      enqueueMorningRefreshForInsertedSleepRows(userId, rows);
+      insertedSleepMeasuredAts.push(
+        ...rows
+          .filter((row) => row.type === "SLEEP_DURATION")
+          .map((row) => row.measuredAt),
+      );
     },
   });
+  enqueueMorningRefreshForMeasuredAts(userId, insertedSleepMeasuredAts);
   return imported;
 }
