@@ -367,8 +367,7 @@ const handler = apiHandler(
               adminCodexConnectedAt: settings.adminCodexConnectedAt
                 ? new Date(settings.adminCodexConnectedAt)
                 : null,
-              adminCodexConnectionStatus:
-                settings.adminCodexConnectionStatus,
+              adminCodexConnectionStatus: settings.adminCodexConnectionStatus,
               adminAiInsightsFeedbackSummary:
                 settings.adminAiInsightsFeedbackSummary as never,
               defaultUserTimezone: settings.defaultUserTimezone,
@@ -381,8 +380,7 @@ const handler = apiHandler(
                 settings.assistantCorrelationsEnabled,
               assistantHealthScoreExplainerEnabled:
                 settings.assistantHealthScoreExplainerEnabled,
-              moduleAvailabilityJson:
-                settings.moduleAvailabilityJson as never,
+              moduleAvailabilityJson: settings.moduleAvailabilityJson as never,
               documentMaxFileBytes: settings.documentMaxFileBytes,
               documentQuotaBytes: BigInt(settings.documentQuotaBytes),
             };
@@ -492,9 +490,7 @@ const handler = apiHandler(
                 active: m.active ?? true,
                 notificationsEnabled: m.notificationsEnabled ?? true,
                 pausedAt: m.pausedAt ? new Date(m.pausedAt) : null,
-                snoozedUntil: m.snoozedUntil
-                  ? new Date(m.snoozedUntil)
-                  : null,
+                snoozedUntil: m.snoozedUntil ? new Date(m.snoozedUntil) : null,
                 startsOn: m.startsOn ? new Date(m.startsOn) : null,
                 endsOn: m.endsOn ? new Date(m.endsOn) : null,
                 oneShot: m.oneShot ?? false,

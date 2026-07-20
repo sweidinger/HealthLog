@@ -80,11 +80,9 @@ describe("buildCycleBackupSection disaster-recovery mode", () => {
       },
     };
 
-    const section = await buildCycleBackupSection(
-      prisma as never,
-      "user-1",
-      { purpose: "disaster-recovery" },
-    );
+    const section = await buildCycleBackupSection(prisma as never, "user-1", {
+      purpose: "disaster-recovery",
+    });
 
     expect(prisma.menstrualCycle.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: "user-1" } }),

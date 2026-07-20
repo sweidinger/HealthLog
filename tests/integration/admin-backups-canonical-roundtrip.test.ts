@@ -280,9 +280,7 @@ describe("canonical disaster-recovery backup round-trip", () => {
             scheduleType: "CYCLIC",
             cyclicOnWeeks: 3,
             cyclicOffWeeks: 1,
-            doseWindows: [
-              { timeOfDay: "08:00", start: "07:30", end: "09:00" },
-            ],
+            doseWindows: [{ timeOfDay: "08:00", start: "07:30", end: "09:00" }],
           },
         },
       },
@@ -340,8 +338,7 @@ describe("canonical disaster-recovery backup round-trip", () => {
         deletedAt: tombstoneDeletedAt,
       },
     });
-    const cycleCategory =
-      await prisma.cycleSymptomCategory.findFirstOrThrow();
+    const cycleCategory = await prisma.cycleSymptomCategory.findFirstOrThrow();
     const cycleSymptom = await prisma.cycleSymptom.create({
       data: {
         id: "cycle-symptom-dr",
@@ -542,7 +539,9 @@ describe("canonical disaster-recovery backup round-trip", () => {
     );
 
     await prisma.appSettings.deleteMany();
-    await prisma.medicationIntakeEvent.deleteMany({ where: { userId: ownerId } });
+    await prisma.medicationIntakeEvent.deleteMany({
+      where: { userId: ownerId },
+    });
     await prisma.medication.deleteMany({ where: { userId: ownerId } });
     await prisma.cycleDayLog.deleteMany({ where: { userId: ownerId } });
     await prisma.menstrualCycle.deleteMany({ where: { userId: ownerId } });
@@ -880,9 +879,7 @@ describe("canonical disaster-recovery backup round-trip", () => {
       type: "PULSE" as const,
       value: 60 + (index % 20),
       unit: "bpm",
-      measuredAt: new Date(
-        Date.UTC(2026, 6, 10, 0, 0, 0, index),
-      ).toISOString(),
+      measuredAt: new Date(Date.UTC(2026, 6, 10, 0, 0, 0, index)).toISOString(),
       source: "IMPORT" as const,
       externalId: `external-${index}`,
       syncVersion: 3,
@@ -907,29 +904,25 @@ describe("canonical disaster-recovery backup round-trip", () => {
       options?: { maxWait?: number; timeout?: number },
     ) => Promise<unknown>;
     const transactionSpy = vi.spyOn(prisma, "$transaction");
-    transactionSpy.mockImplementation(
-      (async (
-        callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
-        options?: { maxWait?: number; timeout?: number },
-      ) =>
-        originalTransaction(async (tx) => {
-          const originalUpsert = tx.measurement.upsert.bind(tx.measurement);
-          const originalCreateMany = tx.measurement.createMany.bind(
-            tx.measurement,
-          );
-          vi.spyOn(tx.measurement, "upsert").mockImplementation((args) => {
-            stableWriteQueries += 1;
-            return originalUpsert(args);
-          });
-          vi.spyOn(tx.measurement, "createMany").mockImplementation(
-            (args) => {
-              stableWriteQueries += 1;
-              return originalCreateMany(args);
-            },
-          );
-          return callback(tx);
-        }, options)) as never,
-    );
+    transactionSpy.mockImplementation((async (
+      callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
+      options?: { maxWait?: number; timeout?: number },
+    ) =>
+      originalTransaction(async (tx) => {
+        const originalUpsert = tx.measurement.upsert.bind(tx.measurement);
+        const originalCreateMany = tx.measurement.createMany.bind(
+          tx.measurement,
+        );
+        vi.spyOn(tx.measurement, "upsert").mockImplementation((args) => {
+          stableWriteQueries += 1;
+          return originalUpsert(args);
+        });
+        vi.spyOn(tx.measurement, "createMany").mockImplementation((args) => {
+          stableWriteQueries += 1;
+          return originalCreateMany(args);
+        });
+        return callback(tx);
+      }, options)) as never);
 
     const response = await POST(
       makeRequest(backup.id) as unknown as Parameters<typeof POST>[0],

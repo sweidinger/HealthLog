@@ -126,10 +126,8 @@ function stableFallbackMoodInstant(
   const digest = createHash("sha256")
     .update(`${fallbackMoodIdentity(entry)}:${occurrence}`)
     .digest();
-  const initialOffset =
-    digest.readUInt32BE(0) % ENTRY_INSTANT_CLOCK_SKEW_MS;
-  const offset =
-    (initialOffset + probe) % ENTRY_INSTANT_CLOCK_SKEW_MS;
+  const initialOffset = digest.readUInt32BE(0) % ENTRY_INSTANT_CLOCK_SKEW_MS;
+  const offset = (initialOffset + probe) % ENTRY_INSTANT_CLOCK_SKEW_MS;
   const dateStart = fallbackMoodDateStart(entry.date);
   if (!dateStart) throw new Error("Invalid mood date");
   return new Date(dateStart.getTime() + offset);
@@ -308,17 +306,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
         fallbackOccurrences.set(identity, occurrence + 1);
       }
 
-      for (
-        let probe = 0;
-        probe < ENTRY_INSTANT_CLOCK_SKEW_MS;
-        probe++
-      ) {
+      for (let probe = 0; probe < ENTRY_INSTANT_CLOCK_SKEW_MS; probe++) {
         const loggedAt =
           e.loggedAt ?? stableFallbackMoodInstant(e, occurrence, probe);
-        if (
-          !e.loggedAt &&
-          reservedFallbackInstants.has(loggedAt.getTime())
-        ) {
+        if (!e.loggedAt && reservedFallbackInstants.has(loggedAt.getTime())) {
           continue;
         }
         try {

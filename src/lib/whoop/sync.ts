@@ -367,37 +367,39 @@ export async function upsertWhoopMeasurements(
       chunkStart + WHOOP_MEASUREMENT_TRANSACTION_CHUNK_SIZE,
       readings.length,
     );
-    const verdicts = await prisma.$transaction(
-      async (tx) => {
-        const outcomes = [];
-        for (let index = chunkStart; index < chunkEnd; index++) {
-          const reading = readings[index]!;
-          const verdict = await reconcileExternalMeasurement(
-            tx,
-            {
-              userId,
-              type: reading.type as MeasurementType,
-              source: "WHOOP",
-              value: reading.value,
-              unit: reading.unit,
-              measuredAt: reading.measuredAt,
-              externalId: reading.externalId,
-              sleepStage: reading.sleepStage ?? null,
-            },
-            { exactExternalMatch: "update" },
-          );
-          if (verdict.status === "failed") {
-            throw new MeasurementReconciliationError(verdict);
+    const verdicts = await prisma
+      .$transaction(
+        async (tx) => {
+          const outcomes = [];
+          for (let index = chunkStart; index < chunkEnd; index++) {
+            const reading = readings[index]!;
+            const verdict = await reconcileExternalMeasurement(
+              tx,
+              {
+                userId,
+                type: reading.type as MeasurementType,
+                source: "WHOOP",
+                value: reading.value,
+                unit: reading.unit,
+                measuredAt: reading.measuredAt,
+                externalId: reading.externalId,
+                sleepStage: reading.sleepStage ?? null,
+              },
+              { exactExternalMatch: "update" },
+            );
+            if (verdict.status === "failed") {
+              throw new MeasurementReconciliationError(verdict);
+            }
+            outcomes.push(verdict);
           }
-          outcomes.push(verdict);
-        }
-        return outcomes;
-      },
-      { maxWait: 10_000, timeout: 60_000 },
-    ).catch((err) => {
-      invalidateTouchedTypes();
-      throw err;
-    });
+          return outcomes;
+        },
+        { maxWait: 10_000, timeout: 60_000 },
+      )
+      .catch((err) => {
+        invalidateTouchedTypes();
+        throw err;
+      });
 
     const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
     const insertedRows: Array<
