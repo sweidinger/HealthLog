@@ -3,8 +3,8 @@
  *
  * Native-client device registration. The iOS app calls this on login,
  * on APNs token rotation, and whenever a fresh `apnsToken` arrives from
- * `application:didRegisterForRemoteNotificationsWithDeviceToken:`. We
- * upsert by `token` (the legacy generic identifier).
+ * `application:didRegisterForRemoteNotificationsWithDeviceToken:`. Both the
+ * legacy `token` and `apnsToken` resolve to one canonical device.
  *
  * Cross-user-hijack guard:
  *   * A device `token` belongs to exactly one user. Re-registering the
@@ -162,109 +162,143 @@ export const POST = apiHandler(async (request: NextRequest) => {
     liveActivityPushToken,
   } = parsed.data;
 
-  // APNs-token collision lookup. Two cases:
-  //   * A row for ANOTHER user owns this token → 409 hijack guard.
-  //     APNs tokens aren't secrets, so accepting wire input that
-  //     references another user's token would let anyone who learns
-  //     one redirect that user's pushes.
-  //   * A row for THIS user already owns it → idempotent fall-through.
-  //     The upsert below either updates the matching legacy `token`
-  //     row in place, or creates a fresh legacy `token` row that the
-  //     migration-0041 partial unique index now blocks (the upsert
-  //     branch will hit the unique constraint and the request will
-  //     fail with a 500 — but that's a programmer-error path the
-  //     iOS client should never trigger; same-user re-registration
-  //     keeps the same legacy `token`).
-  // The `NOT: { userId }` clause was removed in v1.4.23 W6 reconcile —
-  // it skipped the same-user collision and let `findMany({ apnsToken })`
-  // fan a single push out to two Device rows, double-charging the APNs
-  // quota.
-  if (apnsToken) {
-    const existingApns = await prisma.device.findFirst({
-      where: { apnsToken },
-      select: { id: true, userId: true },
-    });
-    if (existingApns && existingApns.userId !== user.id) {
-      await auditLog("device.register.denied", {
-        userId: user.id,
-        details: {
-          reason: "apns_token_owned_by_other_user",
-          deviceId: existingApns.id,
+  const registration = await prisma.$transaction(async (tx) => {
+    // Token ownership is decided from one database snapshot. Advisory
+    // transaction locks serialize registrations that share either identity,
+    // including cross-user attempts and the first-create race. Sorting avoids
+    // deadlocks when concurrent requests present the same pair in reverse.
+    const lockKeys = [
+      `device-token:${token}`,
+      ...(apnsToken ? [`device-apns:${apnsToken}`] : []),
+    ].sort();
+    for (const lockKey of lockKeys) {
+      // `pg_advisory_xact_lock` returns void, which Prisma cannot deserialize
+      // directly. Selecting through FROM yields a plain integer row.
+      await tx.$queryRaw`
+        SELECT 1 AS locked
+        FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
+      `;
+    }
+
+    const [legacyDevice, apnsDevice] = await Promise.all([
+      tx.device.findUnique({
+        where: { token },
+        select: {
+          id: true,
+          userId: true,
+          token: true,
+          medicationDelivery: true,
+          liveActivityPushToken: true,
         },
-      });
-      return apiError("APNs token already registered to another account", 409);
+      }),
+      apnsToken
+        ? tx.device.findFirst({
+            where: { apnsToken },
+            select: {
+              id: true,
+              userId: true,
+              token: true,
+              medicationDelivery: true,
+              liveActivityPushToken: true,
+            },
+          })
+        : null,
+    ]);
+
+    if (apnsDevice && apnsDevice.userId !== user.id) {
+      return {
+        conflict: "apns_token_owned_by_other_user" as const,
+        deviceId: apnsDevice.id,
+      };
     }
+    if (legacyDevice && legacyDevice.userId !== user.id) {
+      return {
+        conflict: "token_owned_by_other_user" as const,
+        deviceId: legacyDevice.id,
+      };
+    }
+
+    // RefreshToken.deviceId stores the client-supplied Device.token value,
+    // not the database row id. Keep this user's token family aligned when
+    // APNs identifies an existing device under a changed legacy token.
+    if (apnsDevice && apnsDevice.token !== token) {
+      await tx.refreshToken.updateMany({
+        where: { userId: user.id, deviceId: apnsDevice.token },
+        data: { deviceId: token },
+      });
+    }
+
+    // An APNs match is the canonical physical-device identity. If the newly
+    // presented legacy token already has a second same-user row, carry its
+    // explicit per-device state (including null clears), remove it, and update
+    // the APNs row with the newly presented metadata.
+    let canonicalDevice = apnsDevice ?? legacyDevice;
+    let duplicateDevice: typeof legacyDevice = null;
+    if (
+      apnsDevice &&
+      legacyDevice &&
+      apnsDevice.id !== legacyDevice.id
+    ) {
+      duplicateDevice = legacyDevice;
+      await tx.device.deleteMany({
+        where: { id: legacyDevice.id, userId: user.id },
+      });
+      canonicalDevice = apnsDevice;
+    }
+
+    const deviceData = {
+      platform: "ios",
+      token,
+      bundleId,
+      locale: locale ?? null,
+      appVersion: appVersion ?? null,
+      model: model ?? null,
+      apnsToken: apnsToken ?? null,
+      apnsEnvironment: apnsEnvironment ?? null,
+      ...(medicationDelivery !== undefined
+        ? { medicationDelivery }
+        : duplicateDevice
+          ? { medicationDelivery: duplicateDevice.medicationDelivery }
+          : {}),
+      ...(liveActivityPushToken !== undefined
+        ? { liveActivityPushToken }
+        : duplicateDevice
+          ? { liveActivityPushToken: duplicateDevice.liveActivityPushToken }
+          : {}),
+    };
+
+    const device = canonicalDevice
+      ? await tx.device.update({
+          where: { id: canonicalDevice.id, userId: user.id },
+          data: { ...deviceData, lastSeen: new Date() },
+          select: { id: true },
+        })
+      : await tx.device.create({
+          data: { userId: user.id, ...deviceData },
+          select: { id: true },
+        });
+
+    return { id: device.id };
+  });
+
+  if ("conflict" in registration) {
+    await auditLog("device.register.denied", {
+      userId: user.id,
+      details: {
+        reason: registration.conflict,
+        deviceId: registration.deviceId,
+      },
+    });
+    return registration.conflict === "apns_token_owned_by_other_user"
+      ? apiError("APNs token already registered to another account", 409)
+      : apiError("Device token already registered to another account", 409);
   }
 
-  const existing = await prisma.device.findUnique({ where: { token } });
-  let id: string;
-  if (existing) {
-    // Cross-user-hijack guard: a device-token belongs to exactly one user.
-    // Re-registering the same token under a different account is rejected
-    // — APNs tokens aren't a secret, so trusting the wire input would let
-    // anyone who learns/guesses a token redirect another user's pushes.
-    if (existing.userId !== user.id) {
-      await auditLog("device.register.denied", {
-        userId: user.id,
-        details: { reason: "token_owned_by_other_user", deviceId: existing.id },
-      });
-      return apiError(
-        "Device token already registered to another account",
-        409,
-      );
-    }
-    const updated = await prisma.device.update({
-      where: { token },
-      data: {
-        platform: "ios",
-        bundleId,
-        locale: locale ?? null,
-        appVersion: appVersion ?? null,
-        model: model ?? null,
-        apnsToken: apnsToken ?? null,
-        apnsEnvironment: apnsEnvironment ?? null,
-        // v1.7.0 — only touch the override when the client sends the
-        // field, so a re-register that omits it keeps the prior value.
-        ...(medicationDelivery !== undefined && { medicationDelivery }),
-        // v1.17.1 (#22) — same omit-keeps-prior rule; `null` explicitly
-        // clears the token when the Activity ends.
-        ...(liveActivityPushToken !== undefined && { liveActivityPushToken }),
-        lastSeen: new Date(),
-      },
-      select: { id: true },
-    });
-    id = updated.id;
-  } else {
-    const created = await prisma.device.create({
-      data: {
-        userId: user.id,
-        platform: "ios",
-        token,
-        bundleId,
-        locale: locale ?? null,
-        appVersion: appVersion ?? null,
-        model: model ?? null,
-        apnsToken: apnsToken ?? null,
-        apnsEnvironment: apnsEnvironment ?? null,
-        // v1.7.0 — per-device delivery override (null = inherit default).
-        ...(medicationDelivery !== undefined && { medicationDelivery }),
-        // v1.17.1 (#22) — Live Activity push token (null = no Activity).
-        ...(liveActivityPushToken !== undefined && { liveActivityPushToken }),
-      },
-      select: { id: true },
-    });
-    id = created.id;
-  }
+  const { id } = registration;
 
-  // Auto-create the APNS NotificationChannel row when the device
-  // registers with an apnsToken. Without this row the dispatcher's APNS
-  // branch (`dispatcher.ts:41-49`) never fires for the user — every
-  // production iOS install would otherwise need a manual settings
-  // toggle that doesn't exist. Mirrors the legacy Telegram on-first-
-  // dispatch auto-migration, but eager so the very first reminder
-  // after device registration already routes through APNs. Config is
-  // an encrypted empty record by design — the per-device token +
-  // environment live on the Device row.
+  // Reconcile APNs channel state only after the canonical device transaction
+  // commits. Config is an encrypted empty record by design — the per-device
+  // token and environment live on the Device row.
   if (apnsToken) {
     await prisma.notificationChannel.upsert({
       where: { userId_type: { userId: user.id, type: "APNS" } },

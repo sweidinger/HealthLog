@@ -8,7 +8,13 @@ vi.mock("@/lib/db", () => ({
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      deleteMany: vi.fn(),
     },
+    refreshToken: {
+      updateMany: vi.fn(),
+    },
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn(),
     notificationChannel: {
       upsert: vi.fn(),
     },
@@ -76,6 +82,12 @@ beforeEach(() => {
   vi.mocked(prisma.device.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.device.create).mockResolvedValue({ id: "dev-1" } as never);
   vi.mocked(prisma.device.update).mockResolvedValue({ id: "dev-1" } as never);
+  vi.mocked(prisma.device.deleteMany).mockResolvedValue({ count: 0 });
+  vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({ count: 0 });
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([] as never);
+  vi.mocked(prisma.$transaction).mockImplementation(
+    async (callback) => callback(prisma as never),
+  );
   vi.mocked(prisma.notificationChannel.upsert).mockResolvedValue({
     id: "ch-1",
   } as never);
@@ -228,27 +240,76 @@ describe("POST /api/devices", () => {
     expect(prisma.device.update).not.toHaveBeenCalled();
   });
 
-  it("falls through idempotently when the apnsToken already belongs to the same user", async () => {
-    // v1.4.23 W6 reconcile (HIGH 3): the cross-user-hijack guard used
-    // to filter `NOT: { userId }` so it skipped same-user collisions
-    // entirely, letting `findMany({ apnsToken })` fan a single push
-    // out to two Device rows. The guard now reads `userId` and only
-    // rejects cross-user collisions; same-user collisions fall
-    // through to the legacy-token upsert path.
+  it("reconciles a changed legacy token onto the same user's APNs device", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.device.findFirst).mockResolvedValue({
       id: "self-dev",
       userId: "user-1",
+      token: "original-legacy-token",
     } as never);
     const res = await POST(
       req({
-        token: "abcd1234efgh5678",
+        token: "changed-legacy-token",
         bundleId: "io.healthlog.app",
         apnsToken: "deadbeef".repeat(8),
         apnsEnvironment: "sandbox",
       }),
     );
     expect(res.status).toBe(201);
+    expect(prisma.device.create).not.toHaveBeenCalled();
+    expect(prisma.device.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "self-dev", userId: "user-1" },
+        data: expect.objectContaining({ token: "changed-legacy-token" }),
+      }),
+    );
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", deviceId: "original-legacy-token" },
+      data: { deviceId: "changed-legacy-token" },
+    });
+  });
+
+  it("merges two same-user identities and migrates owned refresh tokens", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.device.findUnique).mockResolvedValue({
+      id: "legacy-dev",
+      userId: "user-1",
+      token: "changed-legacy-token",
+      medicationDelivery: "client",
+      liveActivityPushToken: "cafebabe".repeat(8),
+    } as never);
+    vi.mocked(prisma.device.findFirst).mockResolvedValue({
+      id: "apns-dev",
+      userId: "user-1",
+      token: "original-legacy-token",
+    } as never);
+
+    const res = await POST(
+      req({
+        token: "changed-legacy-token",
+        bundleId: "io.healthlog.app",
+        apnsToken: "deadbeef".repeat(8),
+        apnsEnvironment: "production",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", deviceId: "original-legacy-token" },
+      data: { deviceId: "changed-legacy-token" },
+    });
+    expect(prisma.device.deleteMany).toHaveBeenCalledWith({
+      where: { id: "legacy-dev", userId: "user-1" },
+    });
+    expect(prisma.device.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "apns-dev", userId: "user-1" },
+        data: expect.objectContaining({
+          medicationDelivery: "client",
+          liveActivityPushToken: "cafebabe".repeat(8),
+        }),
+      }),
+    );
   });
 
   // v1.17.1 (#22) — Live Activity push-token registration.
