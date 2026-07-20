@@ -32,6 +32,10 @@ import {
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { invalidateUserDashboardSnapshot } from "@/lib/cache/invalidate";
+import {
+  acquireProviderTokenRefreshLock,
+  PROVIDER_REFRESH_TRANSACTION_OPTIONS,
+} from "@/lib/integrations/oauth-refresh";
 
 /**
  * Build the callback URL handed to Withings at `Notify.subscribe` time.
@@ -74,35 +78,58 @@ export async function getValidToken(userId: string): Promise<{
 
   if (!connection) return null;
 
-  const accessToken = decrypt(connection.accessToken);
-  const refreshToken = decrypt(connection.refreshToken);
+  if (connection.tokenExpiresAt.getTime() - 5 * 60 * 1000 >= Date.now()) {
+    return {
+      accessToken: decrypt(connection.accessToken),
+      connection: {
+        id: connection.id,
+        withingsUserId: connection.withingsUserId,
+      },
+    };
+  }
 
-  // Check if token is expired (with 5 min buffer)
-  if (connection.tokenExpiresAt.getTime() - 5 * 60 * 1000 < Date.now()) {
-    try {
-      const creds = await getUserWithingsCredentials(userId);
-      if (!creds) {
-        getEvent()?.addWarning(
-          `No credentials found for user ${userId} during token refresh`,
-        );
-        // Without credentials we cannot refresh OR re-authenticate — the
-        // user has to re-enter the client_id/secret. Mark as reauth so
-        // scheduled syncs back off.
-        await recordSyncFailure({
-          userId,
-          integration: "withings",
-          kind: "reauth_required",
-          message: "Withings credentials missing — token refresh skipped",
-          errorCode: "credentials_missing",
-        });
-        return null;
+  const creds = await getUserWithingsCredentials(userId);
+  if (!creds) {
+    getEvent()?.addWarning(
+      `No credentials found for user ${userId} during token refresh`,
+    );
+    await recordSyncFailure({
+      userId,
+      integration: "withings",
+      kind: "reauth_required",
+      message: "Withings credentials missing — token refresh skipped",
+      errorCode: "credentials_missing",
+    });
+    return null;
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await acquireProviderTokenRefreshLock(tx, "withings", userId);
+
+      const current = await tx.withingsConnection.findUnique({
+        where: { userId },
+      });
+      if (!current) return null;
+
+      if (current.tokenExpiresAt.getTime() - 5 * 60 * 1000 >= Date.now()) {
+        return {
+          accessToken: decrypt(current.accessToken),
+          connection: {
+            id: current.id,
+            withingsUserId: current.withingsUserId,
+          },
+        };
       }
 
-      const newTokens = await refreshAccessToken(refreshToken, creds);
-
+      const newTokens = await refreshAccessToken(
+        decrypt(current.refreshToken),
+        creds,
+      );
       const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
-      await prisma.withingsConnection.update({
-        where: { id: connection.id },
+
+      await tx.withingsConnection.update({
+        where: { id: current.id },
         data: {
           accessToken: encrypt(newTokens.access_token),
           refreshToken: encrypt(newTokens.refresh_token),
@@ -113,24 +140,16 @@ export async function getValidToken(userId: string): Promise<{
       return {
         accessToken: newTokens.access_token,
         connection: {
-          id: connection.id,
-          withingsUserId: connection.withingsUserId,
+          id: current.id,
+          withingsUserId: current.withingsUserId,
         },
       };
-    } catch (err) {
-      getEvent()?.addWarning(`Token refresh failed for user ${userId}: ${err}`);
-      await recordWithingsSyncFailure(userId, err);
-      return null;
-    }
+    }, PROVIDER_REFRESH_TRANSACTION_OPTIONS);
+  } catch (err) {
+    getEvent()?.addWarning(`Token refresh failed for user ${userId}: ${err}`);
+    await recordWithingsSyncFailure(userId, err);
+    return null;
   }
-
-  return {
-    accessToken,
-    connection: {
-      id: connection.id,
-      withingsUserId: connection.withingsUserId,
-    },
-  };
 }
 
 /**

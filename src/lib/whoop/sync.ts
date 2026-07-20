@@ -6,9 +6,9 @@
  *   - `getValidToken` decrypts the stored pair, refreshes at
  *     `tokenExpiresAt - 5 min`, and persists BOTH rotated tokens (WHOOP
  *     invalidates the prior access AND refresh token on every refresh — the
- *     same discipline Withings uses for its rotating refresh token). The persist
- *     is a compare-and-swap on the stored ciphertext so two overlapping syncs
- *     cannot park the connection at reauth (see `persistRotatedToken`).
+ *     same discipline Withings uses for its rotating refresh token). A
+ *     provider/user advisory lock serializes refresh, and token state is
+ *     re-read inside the transaction before the one-time token is spent.
  *   - Each per-resource sync (`sync-recovery` / `sync-sleep` / `sync-cycle` /
  *     `sync-workout`) upserts into `Measurement` / `Workout` keyed on
  *     `(userId, type, source = WHOOP, externalId)` so a re-post (WHOOP
@@ -44,7 +44,10 @@ import {
   emitInsertedMeasurementArrivals,
   type InsertedMeasurementArrivalRow,
 } from "@/lib/arrivals/measurement-emit";
-import { persistRotatedToken } from "@/lib/integrations/oauth-refresh";
+import {
+  acquireProviderTokenRefreshLock,
+  PROVIDER_REFRESH_TRANSACTION_OPTIONS,
+} from "@/lib/integrations/oauth-refresh";
 import {
   MeasurementReconciliationError,
   reconcileExternalMeasurement,
@@ -202,91 +205,86 @@ export async function getValidToken(
   });
   if (!connection) return null;
 
-  const accessToken = decrypt(connection.accessToken);
-  const refreshToken = decrypt(connection.refreshToken);
-
   if (
-    connection.tokenExpiresAt.getTime() - TOKEN_REFRESH_BUFFER_MS <
+    connection.tokenExpiresAt.getTime() - TOKEN_REFRESH_BUFFER_MS >=
     Date.now()
   ) {
-    try {
-      const creds = await getUserWhoopCredentials(userId);
-      if (!creds) {
-        getEvent()?.addWarning(
-          `No WHOOP credentials found for user ${userId} during token refresh`,
-        );
-        await recordSyncFailure({
-          userId,
-          integration: "whoop",
-          kind: "reauth_required",
-          message: "WHOOP credentials missing — token refresh skipped",
-          errorCode: "credentials_missing",
-        });
-        return null;
-      }
-
-      const newTokens = await refreshAccessToken(refreshToken, creds);
-      const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
-
-      // WHOOP rotates the refresh token on every refresh. Persist BOTH the new
-      // access token AND the new refresh token with a compare-and-swap on the
-      // stored ciphertext: a concurrent sync that already rotated the token is
-      // not clobbered, and THIS caller — if it lost the race — reuses the peer's
-      // rotated access token instead of dropping the connection to reauth.
-      const persistedAccessToken = await persistRotatedToken(
-        newTokens.access_token,
-        {
-          conditionalUpdate: async () => {
-            const { count } = await prisma.whoopConnection.updateMany({
-              // `connection.refreshToken` is the exact ciphertext we read +
-              // spent; matching it is the CAS guard (a re-encrypt would differ).
-              where: {
-                id: connection.id,
-                refreshToken: connection.refreshToken,
-              },
-              data: {
-                accessToken: encrypt(newTokens.access_token),
-                refreshToken: encrypt(newTokens.refresh_token),
-                tokenExpiresAt: expiresAt,
-              },
-            });
-            return count;
-          },
-          readPeerAccessToken: async () => {
-            const fresh = await prisma.whoopConnection.findUnique({
-              where: { id: connection.id },
-              select: { accessToken: true },
-            });
-            return fresh ? decrypt(fresh.accessToken) : null;
-          },
-        },
-      );
-
-      if (!persistedAccessToken) return null;
-
-      return {
-        accessToken: persistedAccessToken,
-        connection: {
-          id: connection.id,
-          whoopUserId: connection.whoopUserId,
-        },
-      };
-    } catch (err) {
-      getEvent()?.addWarning(
-        `WHOOP token refresh failed for user ${userId}: ${err}`,
-      );
-      await recordWhoopSyncFailure(userId, err);
-      return null;
-    }
+    return {
+      accessToken: decrypt(connection.accessToken),
+      connection: {
+        id: connection.id,
+        whoopUserId: connection.whoopUserId,
+      },
+    };
   }
 
-  return {
-    accessToken,
-    connection: {
-      id: connection.id,
-      whoopUserId: connection.whoopUserId,
-    },
-  };
+  const creds = await getUserWhoopCredentials(userId);
+  if (!creds) {
+    getEvent()?.addWarning(
+      `No WHOOP credentials found for user ${userId} during token refresh`,
+    );
+    await recordSyncFailure({
+      userId,
+      integration: "whoop",
+      kind: "reauth_required",
+      message: "WHOOP credentials missing — token refresh skipped",
+      errorCode: "credentials_missing",
+    });
+    return null;
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await acquireProviderTokenRefreshLock(tx, "whoop", userId);
+
+      const current = await tx.whoopConnection.findUnique({
+        where: { userId },
+      });
+      if (!current) return null;
+
+      if (
+        current.tokenExpiresAt.getTime() - TOKEN_REFRESH_BUFFER_MS >=
+        Date.now()
+      ) {
+        return {
+          accessToken: decrypt(current.accessToken),
+          connection: {
+            id: current.id,
+            whoopUserId: current.whoopUserId,
+          },
+        };
+      }
+
+      const newTokens = await refreshAccessToken(
+        decrypt(current.refreshToken),
+        creds,
+      );
+      const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
+
+      await tx.whoopConnection.update({
+        where: { id: current.id },
+        data: {
+          accessToken: encrypt(newTokens.access_token),
+          refreshToken: encrypt(newTokens.refresh_token),
+          tokenExpiresAt: expiresAt,
+        },
+      });
+
+      return {
+        accessToken: newTokens.access_token,
+        connection: {
+          id: current.id,
+          whoopUserId: current.whoopUserId,
+        },
+      };
+    }, PROVIDER_REFRESH_TRANSACTION_OPTIONS);
+  } catch (err) {
+    getEvent()?.addWarning(
+      `WHOOP token refresh failed for user ${userId}: ${err}`,
+    );
+    await recordWhoopSyncFailure(userId, err);
+    return null;
+  }
 }
 
 /**
@@ -350,30 +348,33 @@ export async function upsertWhoopMeasurements(
     InsertedMeasurementArrivalRow & { externalId: string | null }
   > = [];
 
-  const verdicts = await prisma.$transaction(async (tx) => {
-    const outcomes = [];
-    for (const r of readings) {
-      const verdict = await reconcileExternalMeasurement(
-        tx,
-        {
-          userId,
-          type: r.type as MeasurementType,
-          source: "WHOOP",
-          value: r.value,
-          unit: r.unit,
-          measuredAt: r.measuredAt,
-          externalId: r.externalId,
-          sleepStage: r.sleepStage ?? null,
-        },
-        { exactExternalMatch: "update" },
-      );
-      if (verdict.status === "failed") {
-        throw new MeasurementReconciliationError(verdict);
+  const verdicts = await prisma.$transaction(
+    async (tx) => {
+      const outcomes = [];
+      for (const r of readings) {
+        const verdict = await reconcileExternalMeasurement(
+          tx,
+          {
+            userId,
+            type: r.type as MeasurementType,
+            source: "WHOOP",
+            value: r.value,
+            unit: r.unit,
+            measuredAt: r.measuredAt,
+            externalId: r.externalId,
+            sleepStage: r.sleepStage ?? null,
+          },
+          { exactExternalMatch: "update" },
+        );
+        if (verdict.status === "failed") {
+          throw new MeasurementReconciliationError(verdict);
+        }
+        outcomes.push(verdict);
       }
-      outcomes.push(verdict);
-    }
-    return outcomes;
-  }, { timeout: 60_000 });
+      return outcomes;
+    },
+    { maxWait: 10_000, timeout: 60_000 },
+  );
 
   for (let index = 0; index < readings.length; index++) {
     const reading = readings[index]!;
