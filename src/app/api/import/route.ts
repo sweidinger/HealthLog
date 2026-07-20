@@ -240,9 +240,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // Import mood entries
   if (!writeFailed && data.moodEntries?.length) {
-    for (const e of data.moodEntries) {
+    for (const [index, e] of data.moodEntries.entries()) {
       try {
-        const loggedAt = e.loggedAt ?? new Date();
+        // Keep legacy rows retry-stable while preserving distinct rows per payload.
+        const loggedAt =
+          e.loggedAt ??
+          new Date(Date.parse(`${e.date}T12:00:00.000Z`) + index);
         if (e.externalId) {
           // v1.12.1 — idempotent re-import keyed on the source-stable id.
           // A second import of the same export updates the row in place
