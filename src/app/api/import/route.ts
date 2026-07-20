@@ -11,13 +11,18 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
+import { createHash } from "node:crypto";
 
 import {
   validateMeasurementRange,
   measurementTypeEnum,
   glucoseContextEnum,
 } from "@/lib/validations/measurement";
-import { validateEntryInstant } from "@/lib/validations/entry-instant";
+import {
+  ENTRY_INSTANT_CLOCK_SKEW_MS,
+  isPlausibleEntryInstant,
+  validateEntryInstant,
+} from "@/lib/validations/entry-instant";
 import { encryptNote } from "@/lib/crypto/note-cipher";
 import { recomputeUserMoodRollups } from "@/lib/rollups/mood-rollups";
 import {
@@ -60,22 +65,71 @@ const measurementSchema = z
     "Wert ausserhalb des plausiblen Bereichs",
   );
 
-const moodEntrySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  mood: z.enum(["SUPER_GUT", "GUT", "OKAY", "SCHLECHT", "LAUSIG"]),
-  score: z.number().int().min(1).max(5),
-  tags: z.string().optional(),
-  // v1.17.1 — same entry-instant bound as measurements; an imported mood
-  // log cannot be forward-dated. Optional + transforms to a `Date` when set.
-  loggedAt: validateEntryInstant(
-    z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
-  ).optional(),
-  // v1.12.1 — optional source-stable id (e.g. a Daylio row id). When
-  // present, the import upserts on `(userId, source, externalId)` so a
-  // re-import of the same export is idempotent rather than minting a
-  // duplicate; absent → the legacy first-write-wins create path.
-  externalId: z.string().min(1).max(120).optional(),
-});
+const moodEntrySchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    mood: z.enum(["SUPER_GUT", "GUT", "OKAY", "SCHLECHT", "LAUSIG"]),
+    score: z.number().int().min(1).max(5),
+    tags: z.string().optional(),
+    // v1.17.1 — same entry-instant bound as measurements; an imported mood
+    // log cannot be forward-dated. Optional + transforms to a `Date` when set.
+    loggedAt: validateEntryInstant(
+      z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+    ).optional(),
+    // v1.12.1 — optional source-stable id (e.g. a Daylio row id). When
+    // present, the import upserts on `(userId, source, externalId)` so a
+    // re-import of the same export is idempotent rather than minting a
+    // duplicate; absent → the legacy first-write-wins create path.
+    externalId: z.string().min(1).max(120).optional(),
+  })
+  .superRefine((entry, ctx) => {
+    if (entry.loggedAt) return;
+    const dateStart = Date.parse(`${entry.date}T00:00:00.000Z`);
+    const isCalendarDate =
+      !Number.isNaN(dateStart) &&
+      new Date(dateStart).toISOString().slice(0, 10) === entry.date;
+    if (
+      !isCalendarDate ||
+      !isPlausibleEntryInstant(new Date(dateStart))
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["date"],
+        message: "Mood date must be between 1900 and today",
+      });
+    }
+  });
+
+type MoodEntryInput = z.infer<typeof moodEntrySchema>;
+
+function fallbackMoodIdentity(entry: MoodEntryInput): string {
+  return JSON.stringify([
+    entry.date,
+    entry.mood,
+    entry.score,
+    entry.tags ?? null,
+    entry.externalId ?? null,
+  ]);
+}
+
+function stableFallbackMoodInstant(
+  entry: MoodEntryInput,
+  occurrence: number,
+  reservedInstants: Set<number>,
+): Date {
+  const digest = createHash("sha256")
+    .update(`${fallbackMoodIdentity(entry)}:${occurrence}`)
+    .digest();
+  let offset = digest.readUInt32BE(0) % ENTRY_INSTANT_CLOCK_SKEW_MS;
+  const dateStart = Date.parse(`${entry.date}T00:00:00.000Z`);
+  let instant = dateStart + offset;
+  while (reservedInstants.has(instant)) {
+    offset = (offset + 1) % ENTRY_INSTANT_CLOCK_SKEW_MS;
+    instant = dateStart + offset;
+  }
+  reservedInstants.add(instant);
+  return new Date(instant);
+}
 
 const importSchema = z.object({
   measurements: z.array(measurementSchema).max(10000).optional(),
@@ -238,18 +292,24 @@ export const POST = apiHandler(async (request: NextRequest) => {
       .map((row) => row.measuredAt),
   ).catch(() => {});
 
-  // Import mood entries with stable identities first. Rows without either
-  // identity are committed together so a retry cannot replay a partial batch.
+  // Import mood entries
   if (!writeFailed && data.moodEntries?.length) {
-    const retryUnsafeEntries = [];
+    const fallbackOccurrences = new Map<string, number>();
+    const reservedFallbackInstants = new Set<number>();
     for (const e of data.moodEntries) {
-      if (!e.loggedAt && !e.externalId) {
-        retryUnsafeEntries.push(e);
-        continue;
-      }
-
       try {
-        const loggedAt = e.loggedAt ?? new Date();
+        let loggedAt = e.loggedAt;
+        if (!loggedAt) {
+          const identity = fallbackMoodIdentity(e);
+          const occurrence = fallbackOccurrences.get(identity) ?? 0;
+          fallbackOccurrences.set(identity, occurrence + 1);
+          loggedAt = stableFallbackMoodInstant(
+            e,
+            occurrence,
+            reservedFallbackInstants,
+          );
+        }
+
         if (e.externalId) {
           // v1.12.1 — idempotent re-import keyed on the source-stable id.
           // A second import of the same export updates the row in place
@@ -302,32 +362,6 @@ export const POST = apiHandler(async (request: NextRequest) => {
         }
         writeFailed = true;
         break;
-      }
-    }
-
-    if (!writeFailed && retryUnsafeEntries.length > 0) {
-      const loggedAtBase = Date.now();
-      let importedMoodEntries = 0;
-      try {
-        await prisma.$transaction(async (tx) => {
-          for (const [index, e] of retryUnsafeEntries.entries()) {
-            await tx.moodEntry.create({
-              data: {
-                userId,
-                date: e.date,
-                mood: e.mood,
-                score: e.score,
-                tags: e.tags || null,
-                source: "IMPORT",
-                moodLoggedAt: new Date(loggedAtBase + index),
-              },
-            });
-            importedMoodEntries++;
-          }
-        });
-        stats.moodEntries += importedMoodEntries;
-      } catch {
-        writeFailed = true;
       }
     }
   }
