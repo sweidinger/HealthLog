@@ -16,6 +16,9 @@ vi.mock("@/lib/db", () => ({
     ecgRecording: {
       upsert: vi.fn(),
     },
+    withingsConnection: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -68,6 +71,8 @@ import {
   recordSyncFailure,
   recordSyncSuccess,
 } from "@/lib/integrations/status";
+import { getValidToken, recordWithingsSyncFailure } from "../sync";
+import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 
 import {
   fetchWithingsHeartList,
@@ -112,6 +117,12 @@ function installFetchMock(
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(isReauthRequired).mockResolvedValue(false);
+  vi.mocked(getValidToken).mockResolvedValue({
+    accessToken: "token",
+  } as never);
+  vi.mocked(prisma.withingsConnection.findUnique).mockResolvedValue({
+    id: "connection-1",
+  } as never);
   vi.mocked(prisma.measurement.upsert).mockResolvedValue({
     id: "m-1",
   } as never);
@@ -120,6 +131,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("mapWithingsAfib", () => {
@@ -205,6 +217,30 @@ describe("syncUserEcg", () => {
       externalId: "withings:ecg:user-1:111",
     });
     expect(recordSyncSuccess).toHaveBeenCalledWith("user-1", "withings");
+  });
+
+  it("never narrows the broad catch-up to an ordinary webhook window", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-20T12:00:00.000Z"));
+    const fetchMock = installFetchMock([]);
+    const recentStart = Math.floor(
+      new Date("2026-07-19T12:00:00.000Z").getTime() / 1000,
+    );
+    const recentEnd = Math.floor(
+      new Date("2026-07-20T12:00:00.000Z").getTime() / 1000,
+    );
+
+    await syncUserEcg("user-1", {
+      startdate: recentStart,
+      enddate: recentEnd,
+    });
+
+    const init = fetchMock.mock.calls[0][1] as { body: string };
+    const broadStart = Math.floor(
+      new Date("2026-06-20T12:00:00.000Z").getTime() / 1000,
+    );
+    expect(init.body).toContain(`startdate=${broadStart}`);
+    expect(init.body).toContain(`enddate=${recentEnd}`);
   });
 
   it("skips a heart entry that carries no ECG / afib verdict", async () => {
@@ -319,6 +355,58 @@ describe("syncUserEcg", () => {
       .mocked(prisma.ecgRecording.upsert)
       .mock.calls.map((c) => c[0].where);
     expect(keys[0]).toEqual(keys[1]);
+  });
+
+  it("retries token acquisition failures while the owned connection still exists", async () => {
+    installFetchMock([]);
+    vi.mocked(getValidToken).mockResolvedValue(null);
+
+    await expect(syncUserEcg("user-1")).rejects.toThrow(
+      "Withings ECG token unavailable",
+    );
+    expect(prisma.withingsConnection.findUnique).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+      select: { id: true },
+    });
+    expect(recordSyncSuccess).not.toHaveBeenCalled();
+  });
+
+  it("does not mark the source complete when an ECG event write fails", async () => {
+    installFetchMock([
+      { timestamp: 1715000000, ecg: { signalid: 111, afib: 1 } },
+    ]);
+    vi.mocked(prisma.measurement.upsert).mockRejectedValue(
+      new Error("source write failed"),
+    );
+
+    await expect(syncUserEcg("user-1")).rejects.toThrow("source write failed");
+    expect(recordSyncSuccess).not.toHaveBeenCalled();
+    expect(recordWithingsSyncFailure).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ message: "source write failed" }),
+    );
+  });
+
+  it("continues later ECG rows before retrying a failed source write", async () => {
+    installFetchMock([
+      { timestamp: 1715000000, ecg: { signalid: 111, afib: 1 } },
+      { timestamp: 1715003600, ecg: { signalid: 222, afib: 0 } },
+    ]);
+    const poison = new Error("poison row");
+    vi.mocked(prisma.measurement.upsert)
+      .mockRejectedValueOnce(poison)
+      .mockResolvedValueOnce({ id: "m-2" } as never);
+
+    await expect(syncUserEcg("user-1")).rejects.toThrow("poison row");
+
+    expect(prisma.measurement.upsert).toHaveBeenCalledTimes(2);
+    expect(recomputeBucketsForMeasurement).toHaveBeenCalledWith(
+      "user-1",
+      "IRREGULAR_RHYTHM_NOTIFICATION",
+      new Date("2024-05-06T00:00:00.000Z"),
+    );
+    expect(recordWithingsSyncFailure).toHaveBeenCalledWith("user-1", poison);
+    expect(recordSyncSuccess).not.toHaveBeenCalled();
   });
 
   it("still captures the AFib verdict when the waveform fetch fails", async () => {

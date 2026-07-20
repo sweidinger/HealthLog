@@ -340,14 +340,19 @@ async function captureEcgWaveform(params: {
 }
 
 /**
- * Sync ECG / AFib recordings for a single user. Walks the trailing 30-day
- * window, writing one `IRREGULAR_RHYTHM_NOTIFICATION` row per ECG recording
- * tagged with the device's AFib verdict. Returns the number of upserted rows.
+ * Sync ECG / AFib recordings for a single user. Always walks at least the
+ * trailing 30 days and widens that catch-up to include an older webhook source
+ * window when supplied. Writes
+ * one `IRREGULAR_RHYTHM_NOTIFICATION` row per ECG recording tagged with the
+ * device's AFib verdict. Returns the number of upserted rows.
  *
  * Park behaviour mirrors the other Withings syncs — a connection at
  * `error_reauth` short-circuits before the upstream call.
  */
-export async function syncUserEcg(userId: string): Promise<number> {
+export async function syncUserEcg(
+  userId: string,
+  options: { startdate?: number; enddate?: number } = {},
+): Promise<number> {
   if (await isReauthRequired(userId, "withings")) {
     getEvent()?.addWarning(
       `withings ecg sync skipped for ${userId}: parked at error_reauth`,
@@ -356,14 +361,32 @@ export async function syncUserEcg(userId: string): Promise<number> {
   }
 
   const tokenInfo = await getValidToken(userId);
-  if (!tokenInfo) return 0;
+  if (!tokenInfo) {
+    if (await isReauthRequired(userId, "withings")) return 0;
+    const connection = await prisma.withingsConnection.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!connection) return 0;
+    throw new Error("Withings ECG token unavailable");
+  }
 
   const now = new Date();
-  const start = new Date(
-    now.getTime() - ECG_BACKFILL_DAYS * 24 * 60 * 60 * 1000,
+  const defaultStartUnix = Math.floor(
+    (now.getTime() - ECG_BACKFILL_DAYS * 24 * 60 * 60 * 1000) / 1000,
   );
-  const startUnix = Math.floor(start.getTime() / 1000);
-  const endUnix = Math.floor(now.getTime() / 1000);
+  const defaultEndUnix = Math.floor(now.getTime() / 1000);
+  const hasProviderWindow =
+    Number.isSafeInteger(options.startdate) &&
+    Number.isSafeInteger(options.enddate) &&
+    options.startdate! >= 0 &&
+    options.startdate! <= options.enddate!;
+  const startUnix = hasProviderWindow
+    ? Math.min(defaultStartUnix, options.startdate!)
+    : defaultStartUnix;
+  const endUnix = hasProviderWindow
+    ? Math.max(defaultEndUnix, options.enddate!)
+    : defaultEndUnix;
 
   let entries: WithingsHeartEntry[];
   try {
@@ -395,6 +418,7 @@ export async function syncUserEcg(userId: string): Promise<number> {
   let imported = 0;
   let waveformsCaptured = 0;
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+  let sourceWriteError: { cause: unknown } | null = null;
 
   for (const entry of entries) {
     const classification = mapWithingsAfib(entry.ecg?.afib);
@@ -444,6 +468,7 @@ export async function syncUserEcg(userId: string): Promise<number> {
       getEvent()?.addWarning(
         `withings ecg: failed to upsert recording (${classification}, ${measuredAt.toISOString()}): ${err}`,
       );
+      sourceWriteError ??= { cause: err };
       continue;
     }
 
@@ -470,6 +495,7 @@ export async function syncUserEcg(userId: string): Promise<number> {
       }
     }
   }
+
 
   annotate({
     action: { name: "withings.ecg.sync" },
@@ -498,6 +524,11 @@ export async function syncUserEcg(userId: string): Promise<number> {
     getEvent()?.addWarning(
       `withings ecg: rollup recompute failed for ${userId}: ${err}`,
     );
+  }
+
+  if (sourceWriteError) {
+    await recordWithingsSyncFailure(userId, sourceWriteError.cause);
+    throw sourceWriteError.cause;
   }
 
   await recordSyncSuccess(userId, "withings");

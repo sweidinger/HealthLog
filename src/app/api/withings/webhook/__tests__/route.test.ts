@@ -69,9 +69,9 @@ beforeEach(() => {
     addWarning: vi.fn(),
   } as never);
   vi.mocked(syncUserMeasurements).mockResolvedValue(undefined as never);
-  // Default: pg-boss not available → activity / sleep paths fall back
-  // to inline sync. Individual tests override with a fake boss.
-  vi.mocked(getGlobalBoss).mockReturnValue(null);
+  vi.mocked(getGlobalBoss).mockReturnValue({
+    send: vi.fn().mockResolvedValue("ecg-job"),
+  } as never);
   vi.mocked(syncUserActivity).mockResolvedValue(0 as never);
   vi.mocked(syncUserSleep).mockResolvedValue(0 as never);
 });
@@ -301,7 +301,7 @@ describe("POST /api/withings/webhook — appli dispatch (W17b/c)", () => {
       userId: "user-act-inline",
       withingsUserId: "wu-act-inline",
     } as never);
-    // Default beforeEach already sets `getGlobalBoss → null`.
+    vi.mocked(getGlobalBoss).mockReturnValue(null);
 
     const res = await POST(
       formRequest(
@@ -319,6 +319,7 @@ describe("POST /api/withings/webhook — appli dispatch (W17b/c)", () => {
       userId: "user-sleep-inline",
       withingsUserId: "wu-sleep-inline",
     } as never);
+    vi.mocked(getGlobalBoss).mockReturnValue(null);
 
     const res = await POST(
       formRequest(
@@ -363,6 +364,78 @@ describe("POST /api/withings/webhook — appli dispatch (W17b/c)", () => {
     );
     expect(res.status).toBe(200);
     expect(syncUserMeasurements).toHaveBeenCalledWith("user-legacy");
+  });
+  it("returns retryable non-2xx when the ECG event cannot be durably enqueued", async () => {
+    vi.mocked(prisma.withingsConnection.findFirst).mockResolvedValue({
+      userId: "user-ecg",
+      withingsUserId: "wu-ecg",
+    } as never);
+    const send = vi.fn().mockRejectedValue(new Error("queue unavailable"));
+    vi.mocked(getGlobalBoss).mockReturnValue({ send } as never);
+
+    const res = await POST(
+      formRequest(
+        {
+          userid: "wu-ecg",
+          appli: "1",
+          startdate: "1715000000",
+          enddate: "1715000060",
+        },
+        { "x-withings-webhook-secret": "test-secret" },
+      ),
+    );
+
+    expect(res.status).toBe(503);
+    expect(syncUserMeasurements).not.toHaveBeenCalled();
+  });
+
+  it("uses one logical ECG job identity for a provider replay", async () => {
+    vi.mocked(prisma.withingsConnection.findFirst).mockResolvedValue({
+      userId: "user-ecg",
+      withingsUserId: "wu-ecg",
+    } as never);
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce("job-1")
+      .mockResolvedValueOnce(null);
+    vi.mocked(getGlobalBoss).mockReturnValue({ send } as never);
+    const delivery = {
+      userid: "wu-ecg",
+      appli: "1",
+      startdate: "1715000000",
+      enddate: "1715000060",
+    };
+
+    const first = await POST(
+      formRequest(delivery, {
+        "x-withings-webhook-secret": "test-secret",
+      }),
+    );
+    const replay = await POST(
+      formRequest(delivery, {
+        "x-withings-webhook-secret": "test-secret",
+      }),
+    );
+
+    expect(first.status).toBe(200);
+    expect(replay.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0][0]).toBe("withings-ecg-sync");
+    expect(send.mock.calls[1][0]).toBe("withings-ecg-sync");
+    expect(send.mock.calls[0][1]).toMatchObject({
+      userId: "user-ecg",
+      startdate: 1715000000,
+      enddate: 1715000060,
+    });
+    expect(send.mock.calls[0][2]).toMatchObject({
+      singletonKey: expect.any(String),
+      retryLimit: 3,
+      retryDelay: 60,
+      retryBackoff: true,
+    });
+    expect(send.mock.calls[0][2].singletonKey).toBe(
+      send.mock.calls[1][2].singletonKey,
+    );
   });
 });
 
