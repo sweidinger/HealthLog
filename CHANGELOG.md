@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [1.31.2] — 2026-07-20
+
+- **Provider imports now commit identity and progress atomically.** Withings,
+  WHOOP, Oura, Polar, Strava, and Apple Health reconcile external and natural
+  measurement identities under database locks, preserve tombstones, emit
+  arrivals only for genuine inserts, and advance cursors only after durable
+  writes. OAuth refresh-token rotation is serialized per user and provider.
+- **Webhook success now means the source data is durable.** moodLog writes
+  before acknowledging delivery, while Withings ECG callbacks enter a durable
+  queue with bounded retry and replay-safe processing. Operational JSON import
+  failures are reported as failures instead of misleading duplicate skips.
+- **Recovery is complete and owner-safe.** Canonical backups round-trip every
+  supported record class, including encrypted document content and soft-deleted
+  measurements. Restore rejects account mismatches before writing, validates
+  backup enums at the boundary, and preserves recovery integrity across both
+  uploaded and off-host payloads.
+- **Device and mood edits no longer lose related state.** Same-user APNs
+  registrations merge transactionally without crossing account boundaries,
+  refresh-token bindings follow the surviving device, and mood edits preserve
+  rated factors unless the caller explicitly replaces them.
+
+No migrations. No breaking changes.
+
 ## [1.31.1] — 2026-07-19
 
 - **Arrival events now follow committed inserts across every writer.** Provider
