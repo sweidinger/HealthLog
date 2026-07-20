@@ -43,9 +43,11 @@ describe("rasterizePdf PDF.js lifecycle", () => {
   });
 
   it("destroys the loading task after rendering", async () => {
-    await expect(rasterizePdf(Buffer.from("synthetic"))).resolves.toMatchObject({
-      ok: true,
-    });
+    await expect(rasterizePdf(Buffer.from("synthetic"))).resolves.toMatchObject(
+      {
+        ok: true,
+      },
+    );
     expect(destroyLoadingTask).toHaveBeenCalledOnce();
   });
 });
