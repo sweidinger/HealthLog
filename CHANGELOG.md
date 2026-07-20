@@ -9,15 +9,19 @@
   measurement identities under database locks, preserve tombstones, emit
   arrivals only for genuine inserts, and advance cursors only after durable
   writes. OAuth refresh-token rotation is serialized per user and provider.
-- **Webhook success now means the source data is durable.** moodLog writes
-  before acknowledging delivery, while Withings ECG callbacks enter a durable
-  queue with bounded retry and replay-safe processing. Operational JSON import
-  failures are reported as failures instead of misleading duplicate skips.
-- **Recovery is complete and owner-safe.** Canonical backups round-trip every
-  supported record class, including encrypted document content and soft-deleted
-  measurements. Restore rejects account mismatches before writing, validates
-  backup enums at the boundary, and preserves recovery integrity across both
-  uploaded and off-host payloads.
+- **Webhook and import success now means the source data is durable.** moodLog
+  writes before acknowledging delivery, while Withings ECG callbacks enter a
+  durable queue with bounded retry and replay-safe processing. WHOOP backfills
+  commit bounded chunks without advancing failed resource cursors, and legacy
+  mood imports use deterministic, collision-free retry identities. Operational
+  JSON import failures are reported as failures instead of misleading
+  duplicate skips.
+- **Recovery is complete, exact, and owner-safe.** Canonical backups round-trip
+  every supported record class, including encrypted document content,
+  measurement reconciliation identities, and tombstones. Restore rejects
+  account mismatches before writing, validates backup enums at the boundary,
+  processes stable measurement IDs in bounded batches, and preserves recovery
+  integrity across both uploaded and off-host payloads.
 - **Device and mood edits no longer lose related state.** Same-user APNs
   registrations merge transactionally without crossing account boundaries,
   refresh-token bindings follow the surviving device, and mood edits preserve
