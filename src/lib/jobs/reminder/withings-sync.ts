@@ -11,8 +11,11 @@ import { withBackgroundEvent } from "@/lib/logging/background";
 import { syncUserMeasurements } from "@/lib/withings/sync";
 import { syncUserActivity } from "@/lib/withings/sync-activity";
 import { syncUserSleep } from "@/lib/withings/sync-sleep";
+import { syncUserEcg } from "@/lib/withings/sync-ecg";
+import type { WithingsEcgSyncPayload } from "@/lib/jobs/withings-ecg-queue";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { getWorkerPrisma } from "./shared";
+export type { WithingsEcgSyncPayload } from "@/lib/jobs/withings-ecg-queue";
 
 export interface WithingsSyncPayload {
   triggeredAt: string;
@@ -86,6 +89,37 @@ export async function handleWithingsFallbackSync(
           users_synced: usersSynced,
           total: connections.length,
           measurements_imported: measurementsImported,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+/**
+ * Drain webhook-owned ECG events. A failed source read or write is allowed to
+ * reject the handler so pg-boss retains the job and applies its retry policy.
+ */
+export async function handleWithingsEcgSync(
+  jobs: Job<WithingsEcgSyncPayload>[],
+) {
+  await withBackgroundEvent("job.withings_ecg_sync", async (evt) => {
+    try {
+      let recordingsImported = 0;
+      for (const job of jobs) {
+        recordingsImported += await syncUserEcg(job.data.userId, {
+          startdate: job.data.startdate,
+          enddate: job.data.enddate,
+        });
+      }
+      evt.setBackground({
+        task_name: "job.withings_ecg_sync",
+        result: {
+          events_processed: jobs.length,
+          recordings_imported: recordingsImported,
         },
       });
     } catch (err) {

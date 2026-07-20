@@ -145,6 +145,24 @@ describe("withIdempotency", () => {
     expect(handler).toHaveBeenCalledTimes(1); // not called again
   });
 
+  it("does not cache a successful response marked no-store", async () => {
+    const handler = vi.fn(async () =>
+      NextResponse.json(
+        { data: { failed: 1 }, error: null },
+        { headers: { "Cache-Control": "private, no-store" } },
+      ),
+    );
+    const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
+
+    const response = await wrapped(
+      makeRequest("POST", { "idempotency-key": "abc-12345678" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(prisma.idempotencyKey.updateMany).not.toHaveBeenCalled();
+    expect(prisma.idempotencyKey.deleteMany).toHaveBeenCalled();
+  });
+
   it("ignores expired cache rows and re-runs the handler", async () => {
     const handler = vi.fn(async () =>
       NextResponse.json({ data: "fresh", error: null }, { status: 200 }),

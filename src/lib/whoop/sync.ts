@@ -6,9 +6,9 @@
  *   - `getValidToken` decrypts the stored pair, refreshes at
  *     `tokenExpiresAt - 5 min`, and persists BOTH rotated tokens (WHOOP
  *     invalidates the prior access AND refresh token on every refresh — the
- *     same discipline Withings uses for its rotating refresh token). The persist
- *     is a compare-and-swap on the stored ciphertext so two overlapping syncs
- *     cannot park the connection at reauth (see `persistRotatedToken`).
+ *     same discipline Withings uses for its rotating refresh token). A
+ *     provider/user advisory lock serializes refresh, and token state is
+ *     re-read inside the transaction before the one-time token is spent.
  *   - Each per-resource sync (`sync-recovery` / `sync-sleep` / `sync-cycle` /
  *     `sync-workout`) upserts into `Measurement` / `Workout` keyed on
  *     `(userId, type, source = WHOOP, externalId)` so a re-post (WHOOP
@@ -44,7 +44,14 @@ import {
   emitInsertedMeasurementArrivals,
   type InsertedMeasurementArrivalRow,
 } from "@/lib/arrivals/measurement-emit";
-import { persistRotatedToken } from "@/lib/integrations/oauth-refresh";
+import {
+  acquireProviderTokenRefreshLock,
+  PROVIDER_REFRESH_TRANSACTION_OPTIONS,
+} from "@/lib/integrations/oauth-refresh";
+import {
+  MeasurementReconciliationError,
+  reconcileExternalMeasurement,
+} from "@/lib/measurements/reconcile-external-measurement";
 import { refreshAccessToken } from "./client";
 import { getUserWhoopCredentials } from "./credentials";
 import {
@@ -198,91 +205,86 @@ export async function getValidToken(
   });
   if (!connection) return null;
 
-  const accessToken = decrypt(connection.accessToken);
-  const refreshToken = decrypt(connection.refreshToken);
-
   if (
-    connection.tokenExpiresAt.getTime() - TOKEN_REFRESH_BUFFER_MS <
+    connection.tokenExpiresAt.getTime() - TOKEN_REFRESH_BUFFER_MS >=
     Date.now()
   ) {
-    try {
-      const creds = await getUserWhoopCredentials(userId);
-      if (!creds) {
-        getEvent()?.addWarning(
-          `No WHOOP credentials found for user ${userId} during token refresh`,
-        );
-        await recordSyncFailure({
-          userId,
-          integration: "whoop",
-          kind: "reauth_required",
-          message: "WHOOP credentials missing — token refresh skipped",
-          errorCode: "credentials_missing",
-        });
-        return null;
-      }
-
-      const newTokens = await refreshAccessToken(refreshToken, creds);
-      const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
-
-      // WHOOP rotates the refresh token on every refresh. Persist BOTH the new
-      // access token AND the new refresh token with a compare-and-swap on the
-      // stored ciphertext: a concurrent sync that already rotated the token is
-      // not clobbered, and THIS caller — if it lost the race — reuses the peer's
-      // rotated access token instead of dropping the connection to reauth.
-      const persistedAccessToken = await persistRotatedToken(
-        newTokens.access_token,
-        {
-          conditionalUpdate: async () => {
-            const { count } = await prisma.whoopConnection.updateMany({
-              // `connection.refreshToken` is the exact ciphertext we read +
-              // spent; matching it is the CAS guard (a re-encrypt would differ).
-              where: {
-                id: connection.id,
-                refreshToken: connection.refreshToken,
-              },
-              data: {
-                accessToken: encrypt(newTokens.access_token),
-                refreshToken: encrypt(newTokens.refresh_token),
-                tokenExpiresAt: expiresAt,
-              },
-            });
-            return count;
-          },
-          readPeerAccessToken: async () => {
-            const fresh = await prisma.whoopConnection.findUnique({
-              where: { id: connection.id },
-              select: { accessToken: true },
-            });
-            return fresh ? decrypt(fresh.accessToken) : null;
-          },
-        },
-      );
-
-      if (!persistedAccessToken) return null;
-
-      return {
-        accessToken: persistedAccessToken,
-        connection: {
-          id: connection.id,
-          whoopUserId: connection.whoopUserId,
-        },
-      };
-    } catch (err) {
-      getEvent()?.addWarning(
-        `WHOOP token refresh failed for user ${userId}: ${err}`,
-      );
-      await recordWhoopSyncFailure(userId, err);
-      return null;
-    }
+    return {
+      accessToken: decrypt(connection.accessToken),
+      connection: {
+        id: connection.id,
+        whoopUserId: connection.whoopUserId,
+      },
+    };
   }
 
-  return {
-    accessToken,
-    connection: {
-      id: connection.id,
-      whoopUserId: connection.whoopUserId,
-    },
-  };
+  const creds = await getUserWhoopCredentials(userId);
+  if (!creds) {
+    getEvent()?.addWarning(
+      `No WHOOP credentials found for user ${userId} during token refresh`,
+    );
+    await recordSyncFailure({
+      userId,
+      integration: "whoop",
+      kind: "reauth_required",
+      message: "WHOOP credentials missing — token refresh skipped",
+      errorCode: "credentials_missing",
+    });
+    return null;
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await acquireProviderTokenRefreshLock(tx, "whoop", userId);
+
+      const current = await tx.whoopConnection.findUnique({
+        where: { userId },
+      });
+      if (!current) return null;
+
+      if (
+        current.tokenExpiresAt.getTime() - TOKEN_REFRESH_BUFFER_MS >=
+        Date.now()
+      ) {
+        return {
+          accessToken: decrypt(current.accessToken),
+          connection: {
+            id: current.id,
+            whoopUserId: current.whoopUserId,
+          },
+        };
+      }
+
+      const newTokens = await refreshAccessToken(
+        decrypt(current.refreshToken),
+        creds,
+      );
+      const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
+
+      await tx.whoopConnection.update({
+        where: { id: current.id },
+        data: {
+          accessToken: encrypt(newTokens.access_token),
+          refreshToken: encrypt(newTokens.refresh_token),
+          tokenExpiresAt: expiresAt,
+        },
+      });
+
+      return {
+        accessToken: newTokens.access_token,
+        connection: {
+          id: current.id,
+          whoopUserId: current.whoopUserId,
+        },
+      };
+    }, PROVIDER_REFRESH_TRANSACTION_OPTIONS);
+  } catch (err) {
+    getEvent()?.addWarning(
+      `WHOOP token refresh failed for user ${userId}: ${err}`,
+    );
+    await recordWhoopSyncFailure(userId, err);
+    return null;
+  }
 }
 
 /**
@@ -321,11 +323,13 @@ export interface WhoopMeasurementUpsert {
   sleepStage?: "CORE" | "DEEP" | "REM" | "AWAKE" | "IN_BED" | null;
 }
 
+const WHOOP_MEASUREMENT_TRANSACTION_CHUNK_SIZE = 100;
+
 /**
- * Upsert a batch of mapped WHOOP readings for one user and fold the rollup
- * tier + invalidate status-insight caches once at the end (mirrors the
- * Withings sync tail). Idempotent: the `(userId, type, source, externalId)`
- * unique key makes a re-post (WHOOP re-score) overwrite in place. Returns the
+ * Upsert mapped WHOOP readings for one user in bounded transactions, then fold
+ * the rollup tier + invalidate status-insight caches once at the end (mirrors
+ * the Withings sync tail). The shared reconciler protects both external and
+ * natural identity; an exact WHOOP re-score overwrites in place. Returns the
  * count of rows written.
  *
  * Best-effort on the rollup fold + insight invalidate — a populator hiccup
@@ -341,102 +345,99 @@ export async function upsertWhoopMeasurements(
   if (readings.length === 0) return 0;
 
   let imported = 0;
-  const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
-  let insertedRows: Array<
-    InsertedMeasurementArrivalRow & { externalId: string | null }
-  > = [];
+  const touchedTypes = new Set<MeasurementType>();
+  const invalidateTouchedTypes = (): void => {
+    if (touchedTypes.size === 0) return;
 
-  try {
-    insertedRows = await prisma.measurement.createManyAndReturn({
-      data: readings.map((r) => ({
-        userId,
-        type: r.type as MeasurementType,
-        source: "WHOOP" as const,
-        value: r.value,
-        unit: r.unit,
-        measuredAt: r.measuredAt,
-        externalId: r.externalId,
-        sleepStage: r.sleepStage ?? null,
-      })),
-      skipDuplicates: true,
-      select: {
-        id: true,
-        type: true,
-        measuredAt: true,
-        externalId: true,
+    void invalidateStatusInsightsForTypes(userId, [...touchedTypes]).catch(
+      (err) => {
+        getEvent()?.addWarning(
+          `whoop: status-insight invalidate failed for ${userId}: ${err}`,
+        );
       },
-    });
-    imported += insertedRows.length;
-    for (const row of insertedRows) {
-      touched.push({ type: row.type, measuredAt: row.measuredAt });
-    }
-  } catch (err) {
-    getEvent()?.addWarning(`WHOOP: failed to create measurements: ${err}`);
-  }
-
-  const insertedIdentityCounts = new Map<string, number>();
-  for (const row of insertedRows) {
-    const key = `${row.type}:${row.externalId ?? ""}`;
-    insertedIdentityCounts.set(key, (insertedIdentityCounts.get(key) ?? 0) + 1);
-  }
-
-  for (const r of readings) {
-    const type = r.type as MeasurementType;
-    const key = `${type}:${r.externalId}`;
-    const insertedCount = insertedIdentityCounts.get(key) ?? 0;
-    if (insertedCount > 0) {
-      insertedIdentityCounts.set(key, insertedCount - 1);
-      continue;
-    }
-
-    try {
-      await prisma.measurement.update({
-        where: {
-          userId_type_source_externalId: {
-            userId,
-            type,
-            source: "WHOOP",
-            externalId: r.externalId,
-          },
-        },
-        data: {
-          value: r.value,
-          unit: r.unit,
-          measuredAt: r.measuredAt,
-          sleepStage: r.sleepStage ?? null,
-          deletedAt: null,
-          syncVersion: { increment: 1 },
-        },
-      });
-      touched.push({ type, measuredAt: r.measuredAt });
-      imported++;
-    } catch (err) {
-      getEvent()?.addWarning(`WHOOP: failed to update measurement: ${err}`);
-    }
-  }
-
-  opts.onInserted?.(insertedRows);
-  void emitInsertedMeasurementArrivals(userId, insertedRows, "whoop").catch(
-    () => {},
-  );
-  try {
-    const keys = collapseToTypeDayKeys(touched);
-    for (const k of keys) {
-      await recomputeBucketsForMeasurement(userId, k.type, k.measuredAt);
-    }
-    invalidateStatusInsightsForTypes(
-      userId,
-      keys.map((k) => k.type),
-    ).catch((err) => {
-      getEvent()?.addWarning(
-        `whoop: status-insight invalidate failed for ${userId}: ${err}`,
-      );
-    });
-  } catch (err) {
-    getEvent()?.addWarning(
-      `whoop: rollup recompute failed for ${userId}: ${err}`,
     );
+  };
+
+  for (
+    let chunkStart = 0;
+    chunkStart < readings.length;
+    chunkStart += WHOOP_MEASUREMENT_TRANSACTION_CHUNK_SIZE
+  ) {
+    const chunkEnd = Math.min(
+      chunkStart + WHOOP_MEASUREMENT_TRANSACTION_CHUNK_SIZE,
+      readings.length,
+    );
+    const verdicts = await prisma
+      .$transaction(
+        async (tx) => {
+          const outcomes = [];
+          for (let index = chunkStart; index < chunkEnd; index++) {
+            const reading = readings[index]!;
+            const verdict = await reconcileExternalMeasurement(
+              tx,
+              {
+                userId,
+                type: reading.type as MeasurementType,
+                source: "WHOOP",
+                value: reading.value,
+                unit: reading.unit,
+                measuredAt: reading.measuredAt,
+                externalId: reading.externalId,
+                sleepStage: reading.sleepStage ?? null,
+              },
+              { exactExternalMatch: "update" },
+            );
+            if (verdict.status === "failed") {
+              throw new MeasurementReconciliationError(verdict);
+            }
+            outcomes.push(verdict);
+          }
+          return outcomes;
+        },
+        { maxWait: 10_000, timeout: 60_000 },
+      )
+      .catch((err) => {
+        invalidateTouchedTypes();
+        throw err;
+      });
+
+    const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+    const insertedRows: Array<
+      InsertedMeasurementArrivalRow & { externalId: string | null }
+    > = [];
+    for (let index = chunkStart; index < chunkEnd; index++) {
+      const reading = readings[index]!;
+      const verdict = verdicts[index - chunkStart]!;
+      for (const dirty of verdict.dirtyIdentities ?? []) {
+        touched.push(dirty);
+        touchedTypes.add(dirty.type);
+      }
+      const type = reading.type as MeasurementType;
+      touchedTypes.add(type);
+      imported++;
+      touched.push({ type, measuredAt: reading.measuredAt });
+      if (verdict.status === "inserted") {
+        insertedRows.push(verdict.row);
+      }
+    }
+
+    opts.onInserted?.(insertedRows);
+    void emitInsertedMeasurementArrivals(userId, insertedRows, "whoop").catch(
+      () => {},
+    );
+    try {
+      const keys = collapseToTypeDayKeys(touched);
+      for (const k of keys) {
+        await recomputeBucketsForMeasurement(userId, k.type, k.measuredAt);
+      }
+    } catch (err) {
+      getEvent()?.addWarning(
+        `whoop: rollup recompute failed for ${userId}: ${err}`,
+      );
+    }
   }
+
+  invalidateTouchedTypes();
 
   return imported;
 }

@@ -15,6 +15,60 @@ vi.mock("@/lib/db", () => ({
     }),
   },
 }));
+vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
+  reconcileExternalMeasurement: async (
+    tx: {
+      measurement: {
+        findMany: (args: unknown) => Promise<
+          Array<{
+            id?: string;
+            type?: string;
+            source?: string;
+            externalId?: string | null;
+          }>
+        >;
+        createManyAndReturn: (args: {
+          data: Record<string, unknown>;
+        }) => Promise<Array<Record<string, unknown>>>;
+        updateMany: (args: {
+          where: Record<string, unknown>;
+          data: Record<string, unknown>;
+        }) => Promise<unknown>;
+      };
+    },
+    input: Record<string, unknown> & {
+      userId: string;
+      type: string;
+      source: string;
+      externalId: string;
+    },
+    options: { exactExternalMatch?: "update" | "duplicate" } = {},
+  ) => {
+    const existing = await tx.measurement.findMany({});
+    const exact = existing.find(
+      (row: { type?: string; source?: string; externalId?: string | null }) =>
+        row.type === input.type &&
+        row.source === input.source &&
+        row.externalId === input.externalId,
+    );
+    if (exact && options.exactExternalMatch !== "update") {
+      return { status: "duplicate", row: exact };
+    }
+    if (exact) {
+      await tx.measurement.updateMany({ where: { id: exact.id }, data: input });
+      return { status: "updated", row: { ...exact, ...input } };
+    }
+    const [inserted] = await tx.measurement.createManyAndReturn({
+      data: input,
+    });
+    if (inserted) return { status: "inserted", row: inserted };
+    if (options.exactExternalMatch === "update") {
+      await tx.measurement.updateMany({ where: {}, data: input });
+      return { status: "updated", row: input };
+    }
+    return { status: "duplicate" };
+  },
+}));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
@@ -190,12 +244,7 @@ describe("POST /api/measurements/batch — exact INSERT RETURNING identity", () 
       "duplicate",
       "duplicate",
     ]);
-    expect(prisma.measurement.createManyAndReturn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        skipDuplicates: true,
-        select: { type: true, source: true, externalId: true },
-      }),
-    );
+    expect(prisma.measurement.createManyAndReturn).toHaveBeenCalledTimes(4);
     expect(maybeEnqueueMorningRefresh).toHaveBeenCalledWith("user-1", [
       new Date(insertedSleepAt),
     ]);

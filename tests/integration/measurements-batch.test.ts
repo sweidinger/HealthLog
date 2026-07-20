@@ -326,27 +326,17 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
     expect(stored.every((r) => r.unit === "minutes")).toBe(true);
   });
 
-  // v1.4.25 W10 reconcile (senior-dev H-1): under contention the
-  // per-entry envelope MUST stay in sync with the aggregate
-  // `inserted` / `duplicate` counts. The previous reconciliation
-  // block was an effective no-op (it looked for rows that were
-  // "marked inserted but missing from the DB" — an impossibility
-  // because the raced row IS in the DB, written by the other
-  // batch). The corrected block downgrades enough "inserted"
-  // statuses to "duplicate" so the per-entry envelope and the
-  // aggregate counts agree, which the iOS sync cursor depends on
-  // to checkpoint correctly.
+  // Under contention every per-entry verdict must stay in sync with its
+  // aggregate counter. Inserted, updated, duplicate, skipped, and failed are
+  // all explicit because only the hard failure verdict must block checkpoint
+  // advancement.
   it("keeps per-entry status in sync with aggregate counts under a concurrent-write race", async () => {
     const { POST } = await import("@/app/api/measurements/batch/route");
 
-    // Two batches with overlapping externalIds posted in parallel.
-    // The composite unique index ensures only one row per
-    // (user, type, source, externalId) lands; `skipDuplicates`
-    // absorbs duplicate-key conflicts. The exact split between
-    // "won the race" and "got absorbed" depends on Postgres's
-    // commit order, so we assert only the invariant the iOS sync
-    // cursor relies on: per-entry envelope sums equal the aggregate
-    // counts for each response.
+    // Two batches with overlapping external ids and the same natural identity
+    // are posted in parallel. The reconciler serializes both identity indexes;
+    // the exact inserted/updated split depends on commit order, but every
+    // response must remain internally consistent.
     const sharedEntries = () =>
       Array.from({ length: 6 }, (_, i) => ({
         hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
@@ -368,6 +358,8 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
       data: {
         processed: number;
         inserted: number;
+        updated: number;
+        failed: number;
         duplicates: number;
         entries: Array<{ status: string }>;
       };
@@ -379,19 +371,31 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
     // no-op reconciliation left the envelope out of sync.
     for (const json of [firstJson, secondJson]) {
       const insertedEntries = json.data.entries.filter(
-        (e) => e.status === "inserted",
+        (entry) => entry.status === "inserted",
+      ).length;
+      const updatedEntries = json.data.entries.filter(
+        (entry) => entry.status === "updated",
       ).length;
       const duplicateEntries = json.data.entries.filter(
-        (e) => e.status === "duplicate",
+        (entry) => entry.status === "duplicate",
       ).length;
       const skippedEntries = json.data.entries.filter(
-        (e) => e.status === "skipped",
+        (entry) => entry.status === "skipped",
+      ).length;
+      const failedEntries = json.data.entries.filter(
+        (entry) => entry.status === "failed",
       ).length;
       expect(insertedEntries).toBe(json.data.inserted);
+      expect(updatedEntries).toBe(json.data.updated);
       expect(duplicateEntries).toBe(json.data.duplicates);
-      expect(insertedEntries + duplicateEntries + skippedEntries).toBe(
-        json.data.processed,
-      );
+      expect(failedEntries).toBe(json.data.failed);
+      expect(
+        insertedEntries +
+          updatedEntries +
+          duplicateEntries +
+          skippedEntries +
+          failedEntries,
+      ).toBe(json.data.processed);
     }
 
     // Invariant 2 — aggregate counts are non-negative. The previous
@@ -400,14 +404,12 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
     expect(firstJson.data.inserted).toBeGreaterThanOrEqual(0);
     expect(secondJson.data.inserted).toBeGreaterThanOrEqual(0);
 
-    // Invariant 3 — the DB ends up with at most 6 rows because the
-    // composite unique index enforces single-copy, and the
-    // `inserted` counts across both requests cannot exceed the
-    // number of rows actually present.
+    // Invariant 3 — all samples share one natural identity, so exactly one
+    // canonical row survives and only one request can report its insertion.
     const stored = await getPrismaClient().measurement.findMany({
       where: { userId: TEST_USER_ID },
     });
-    expect(stored.length).toBeLessThanOrEqual(6);
+    expect(stored).toHaveLength(1);
     expect(firstJson.data.inserted + secondJson.data.inserted).toBe(
       stored.length,
     );

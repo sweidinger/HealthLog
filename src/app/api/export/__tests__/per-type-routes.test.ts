@@ -421,7 +421,7 @@ describe("GET /api/export/full-backup", () => {
     expect(res.headers.get("content-disposition")).toMatch(/\.json"/);
     const json = await res.json();
     expect(json).toMatchObject({
-      schemaVersion: "1",
+      schemaVersion: "2",
       userId: "user-1",
       measurements: [],
       medications: [],

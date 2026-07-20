@@ -150,11 +150,16 @@ export async function resolveRatedFactors(
  * the resolution is catalogue-only (`user_id IS NULL`), never matching any
  * custom row — the safe default, since `{ userId: undefined }` in a Prisma
  * filter would otherwise match every row.
+ *
+ * `kind` narrows resolution when a caller owns only one half of the split
+ * link contract. Edit-time `tagKeys` are binary-only; rated factors use
+ * `resolveRatedFactors` and carry their score separately.
  */
 export async function resolveTagKeysToIds(
   keys: string[],
   db: TagLinkDb = prisma,
   ownerUserId?: string,
+  kind?: "BINARY" | "RATED",
 ): Promise<string[]> {
   const unique = Array.from(new Set(keys));
   if (unique.length === 0) return [];
@@ -162,7 +167,12 @@ export async function resolveTagKeysToIds(
     ? { OR: [{ userId: null }, { userId: ownerUserId }] }
     : { userId: null };
   const rows = await db.moodTag.findMany({
-    where: { key: { in: unique }, isActive: true, ...ownerClause },
+    where: {
+      key: { in: unique },
+      isActive: true,
+      ...(kind ? { kind } : {}),
+      ...ownerClause,
+    },
     select: { id: true },
   });
   return rows.map((row) => row.id);
@@ -221,12 +231,12 @@ export async function createTagLinks(
 }
 
 /**
- * Replace the structured-tag link set for an entry. `keys` is the desired
- * set; the helper deletes links no longer present and inserts the new
- * ones, leaving unchanged links in place. Passing an empty array clears
- * every ACTIVE link. Asserts the entry belongs to `userId` before
- * touching links — a defensive guard against editing links on an entry
- * the acting session does not own.
+ * Replace the active BINARY structured-tag link set for an entry. `keys` is
+ * the desired binary set; RATED links are owned by
+ * `replaceRatedFactorLinks` and remain untouched. Passing an empty array
+ * clears every active binary link. Asserts the entry belongs to `userId`
+ * before touching links — a defensive guard against editing links on an
+ * entry the acting session does not own.
  *
  * The submitted keys govern ACTIVE tag links only. `resolveTagKeysToIds`
  * pins `isActive: true`, so an archived tag's key can never resolve back
@@ -246,15 +256,25 @@ export async function replaceTagLinks(
   db: TagLinkDb = prisma,
 ): Promise<void> {
   await assertEntryOwnership(moodEntryId, userId, db);
-  const desiredIds = new Set(await resolveTagKeysToIds(keys, db, userId));
+  const desiredIds = new Set(
+    await resolveTagKeysToIds(keys, db, userId, "BINARY"),
+  );
   const existing = await db.moodEntryTagLink.findMany({
     where: { moodEntryId },
-    select: { moodTagId: true, moodTag: { select: { isActive: true } } },
+    select: {
+      moodTagId: true,
+      moodTag: { select: { isActive: true, kind: true } },
+    },
   });
   const existingIds = new Set(existing.map((row) => row.moodTagId));
 
   const toDelete = existing
-    .filter((row) => row.moodTag.isActive && !desiredIds.has(row.moodTagId))
+    .filter(
+      (row) =>
+        row.moodTag.isActive &&
+        row.moodTag.kind === "BINARY" &&
+        !desiredIds.has(row.moodTagId),
+    )
     .map((row) => row.moodTagId);
   const toCreate = [...desiredIds].filter((id) => !existingIds.has(id));
 
@@ -273,16 +293,13 @@ export async function replaceTagLinks(
 
 /**
  * v1.12.0 — replace the full rated-factor link set for an entry. A
- * changed rating on the same factor is a real change (not a no-op), so
- * the simplest correct shape is "delete every RATED link for the entry,
- * re-insert the desired set". Binary links are left untouched. Passing an
- * empty array clears every rated link. Throws `RatedFactorOutOfRangeError`
- * (→ route 422) before any write when a rating is out of scale.
- *
- * Not wired into a route yet (the POST + bulk ingestion contract is the
- * v1.12.0 scope); exported for the PATCH edit path a later wave adds.
- * Asserts the entry belongs to `userId` before any write — a defensive
- * guard for that future edit route against touching another user's entry.
+ * changed rating on the same factor is a real change, so the helper deletes
+ * every active RATED link and re-inserts the desired set. This also upgrades
+ * legacy/null-rated RATED rows without colliding with their join key. Binary
+ * links are left untouched. Passing an empty array clears every rated link.
+ * Throws `RatedFactorOutOfRangeError` (→ route 422) before any write when a
+ * rating is out of scale. Asserts the entry belongs to `userId` before any
+ * write.
  */
 export async function replaceRatedFactorLinks(
   moodEntryId: string,
@@ -295,13 +312,15 @@ export async function replaceRatedFactorLinks(
   // aborts the replace cleanly.
   const resolved = await resolveRatedFactors(factors, db);
 
-  // Drop every existing RATED link for the entry (a `rating IS NOT NULL`
-  // row is, by construction, a rated-factor link). Same archive contract
-  // as `replaceTagLinks`: a link whose tag has been archived since the
-  // entry was logged is history, not editable state — it survives the
-  // replace untouched.
+  // Drop every active RATED link, including a legacy row whose rating is
+  // null. Same archive contract as `replaceTagLinks`: a link whose tag has
+  // been archived since the entry was logged is history, not editable state
+  // and survives the replacement.
   await db.moodEntryTagLink.deleteMany({
-    where: { moodEntryId, rating: { not: null }, moodTag: { isActive: true } },
+    where: {
+      moodEntryId,
+      moodTag: { isActive: true, kind: "RATED" },
+    },
   });
 
   if (resolved.length > 0) {

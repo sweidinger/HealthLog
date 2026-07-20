@@ -121,9 +121,9 @@ const batchEntryResult = z
   .object({
     index: z.number().int().nonnegative(),
     status: z
-      .enum(["inserted", "updated", "duplicate", "skipped"])
+      .enum(["inserted", "updated", "duplicate", "skipped", "failed"])
       .describe(
-        "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate (per-day cumulative total or hourly heart-rate bucket) overwrote an existing row. `skipped` — not stored (e.g. unmappable identifier, out-of-range value, or `malformed_hr_bucket_id`); see `reason`.",
+        "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate overwrote an existing row. `skipped` — validation no-op; see `reason`. `failed` — retryable database failure that must not advance the entry cursor; the response is marked `Cache-Control: no-store`.",
       ),
     reason: z.string().optional(),
   })
@@ -135,6 +135,7 @@ const batchResponse = z
     inserted: z.number().int().nonnegative(),
     updated: z.number().int().nonnegative(),
     duplicates: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
     skipped: z.array(
       z.object({
         index: z.number().int().nonnegative(),

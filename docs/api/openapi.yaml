@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.31.1
+  version: 1.31.2
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -17434,6 +17434,10 @@ components:
           type: integer
           minimum: 0
           maximum: 9007199254740991
+        failed:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
         skipped:
           type: array
           items:
@@ -17458,6 +17462,7 @@ components:
         - inserted
         - updated
         - duplicates
+        - failed
         - skipped
         - entries
       additionalProperties: false
@@ -17475,9 +17480,10 @@ components:
             - updated
             - duplicate
             - skipped
-          description: "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate (per-day
-            cumulative total or hourly heart-rate bucket) overwrote an existing row. `skipped` — not stored (e.g.
-            unmappable identifier, out-of-range value, or `malformed_hr_bucket_id`); see `reason`."
+            - failed
+          description: "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate overwrote
+            an existing row. `skipped` — validation no-op; see `reason`. `failed` — retryable database failure that must
+            not advance the entry cursor; the response is marked `Cache-Control: no-store`."
         reason:
           type: string
       required:

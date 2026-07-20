@@ -192,6 +192,23 @@ describe("POST /api/integrations/moodlog/webhook", () => {
     expect(wheres[0]).toEqual(wheres[1]);
   });
 
+  it("returns retryable failure when the source record cannot be persisted", async () => {
+    vi.mocked(prisma.moodEntry.upsert).mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+
+    const res = await POST(
+      jsonRequest(VALID_PAYLOAD, { "x-webhook-secret": "plaintext-secret" }),
+    );
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({
+      data: null,
+      error: expect.stringMatching(/persist/i),
+    });
+    expect(prisma.moodEntry.upsert).toHaveBeenCalledOnce();
+  });
+
   it("mood.deleted removes any matching entry rather than upserting", async () => {
     const deletedPayload = {
       ...VALID_PAYLOAD,

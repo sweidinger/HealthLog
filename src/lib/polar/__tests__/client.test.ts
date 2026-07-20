@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   POLAR_OAUTH_SCOPE,
   exchangeCode,
+  fetchActivities,
   fetchCardioLoads,
   fetchNightlyRecharges,
+  fetchSleeps,
   fetchSpo2,
   getAuthorizationUrl,
   getPolarCredentials,
@@ -99,6 +101,12 @@ describe("exchangeCode", () => {
     const tok = await exchangeCode("code123", CREDS);
     expect(tok.access_token).toBe("tok");
     expect(tok.x_user_id).toBe(42);
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      "https://polarremote.com/v2/oauth2/token",
+    );
+    expect(fetchMock.mock.calls[0]![1]).toEqual(
+      expect.objectContaining({ method: "POST" }),
+    );
     const [, init] = fetchMock.mock.calls[0]!;
     const headers = init!.headers as Record<string, string>;
     expect(headers.Authorization).toBe(
@@ -120,9 +128,13 @@ describe("registerUser", () => {
     installFetchMock([{ status: 409, body: {} }]);
     await expect(registerUser("tok", "42")).resolves.toBeUndefined();
   });
-  it("succeeds on a 200", async () => {
-    installFetchMock([{ status: 200, body: {} }]);
+  it("posts to the documented registration path", async () => {
+    const fetchMock = installFetchMock([{ status: 200, body: {} }]);
     await expect(registerUser("tok", "42")).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://www.polaraccesslink.com/v3/users",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
   it("throws on a 500", async () => {
     installFetchMock([{ status: 500 }]);
@@ -132,16 +144,55 @@ describe("registerUser", () => {
   });
 });
 
+describe("Polar AccessLink request paths", () => {
+  it.each([
+    {
+      resource: "nightly recharge",
+      request: () => fetchNightlyRecharges("tok"),
+      url: "https://www.polaraccesslink.com/v3/users/nightly-recharge",
+    },
+    {
+      resource: "sleep",
+      request: () => fetchSleeps("tok"),
+      url: "https://www.polaraccesslink.com/v3/users/sleep",
+    },
+    {
+      resource: "daily activity",
+      request: () => fetchActivities("tok"),
+      url: "https://www.polaraccesslink.com/v3/users/activities",
+    },
+    {
+      resource: "cardio load",
+      request: () => fetchCardioLoads("tok"),
+      url: "https://www.polaraccesslink.com/v3/users/cardio-load",
+    },
+    {
+      resource: "SpO2",
+      request: () => fetchSpo2("tok"),
+      url: "https://www.polaraccesslink.com/v3/users/biosensing/spo2",
+    },
+  ])("uses the documented GET path for $resource", async ({ request, url }) => {
+    const fetchMock = installFetchMock([{ status: 204 }]);
+
+    await request();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      url,
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+});
+
 describe("fetchNightlyRecharges", () => {
   it("returns [] on a 204 No Content", async () => {
     installFetchMock([{ status: 204 }]);
-    expect(await fetchNightlyRecharges("tok", "42")).toEqual([]);
+    expect(await fetchNightlyRecharges("tok")).toEqual([]);
   });
   it("unwraps the recharges array", async () => {
     installFetchMock([
       { status: 200, body: { recharges: [{ date: "2026-06-10" }] } },
     ]);
-    const r = await fetchNightlyRecharges("tok", "42");
+    const r = await fetchNightlyRecharges("tok");
     expect(r).toHaveLength(1);
     expect(r[0]!.date).toBe("2026-06-10");
   });
@@ -152,7 +203,7 @@ describe("mapNightlyRecharge", () => {
     const rec: PolarNightlyRecharge = {
       date: "2026-06-10",
       nightly_recharge_status: 6,
-      hrv_avg: 55,
+      heart_rate_variability_avg: 55,
       heart_rate_avg: 52.4,
       breathing_rate_avg: 14.2,
     };
@@ -364,8 +415,8 @@ describe("mapSleep", () => {
 describe("mapActivity — distance", () => {
   it("maps distance_from_steps to WALKING_RUNNING_DISTANCE in metres", () => {
     const a: PolarActivity = {
-      date: "2026-06-10",
-      "active-steps": 8000,
+      start_time: "2026-06-10T00:00:00",
+      steps: 8000,
       distance_from_steps: 4590.53,
     };
     const dist = mapActivity(a).find(
@@ -393,39 +444,69 @@ describe("mapCardioLoad", () => {
 });
 
 describe("mapSpo2", () => {
-  it("maps blood_oxygen_percentage to OXYGEN_SATURATION (percent)", () => {
-    const r: PolarSpo2 = { date: "2026-06-10", blood_oxygen_percentage: 96.4 };
+  it("maps the documented SpO2 fields to an exact-timestamp reading", () => {
+    const r: PolarSpo2 = {
+      test_time: 1_781_059_600,
+      blood_oxygen_percent: 96,
+      source_device_id: "device-1",
+    };
     const mapped = mapSpo2(r);
     expect(mapped[0]?.type).toBe("OXYGEN_SATURATION");
-    expect(mapped[0]?.value).toBe(96.4);
+    expect(mapped[0]?.value).toBe(96);
     expect(mapped[0]?.unit).toBe("%");
+    expect(mapped[0]?.measuredAt.toISOString()).toBe(
+      "2026-06-10T02:46:40.000Z",
+    );
+    expect(mapped[0]?.externalId).toBe("spo2:1781059600:device-1");
   });
   it("rejects out-of-range readings", () => {
-    expect(mapSpo2({ date: "2026-06-10", blood_oxygen_percentage: 0 })).toEqual(
-      [],
-    );
     expect(
-      mapSpo2({ date: "2026-06-10", blood_oxygen_percentage: 120 }),
+      mapSpo2({ test_time: 1_781_059_600, blood_oxygen_percent: 0 }),
+    ).toEqual([]);
+    expect(
+      mapSpo2({ test_time: 1_781_059_600, blood_oxygen_percent: 120 }),
     ).toEqual([]);
   });
 });
 
 describe("fetchCardioLoads", () => {
-  it("unwraps the cardio-loads array", async () => {
+  it("returns the documented top-level cardio-load array", async () => {
     installFetchMock([
-      { status: 200, body: { "cardio-loads": [{ date: "2026-06-10" }] } },
+      { status: 200, body: [{ date: "2026-06-10", cardio_load: 123.45 }] },
     ]);
-    const r = await fetchCardioLoads("tok", "42");
+    const r = await fetchCardioLoads("tok");
     expect(r).toHaveLength(1);
   });
 });
 
 describe("fetchSpo2", () => {
-  it("unwraps the tests array", async () => {
+  it("returns the documented top-level SpO2 array", async () => {
     installFetchMock([
-      { status: 200, body: { tests: [{ date: "2026-06-10" }] } },
+      {
+        status: 200,
+        body: [{ test_time: 1_781_059_600, blood_oxygen_percent: 96 }],
+      },
     ]);
-    const r = await fetchSpo2("tok", "42");
+    const r = await fetchSpo2("tok");
+    expect(r).toHaveLength(1);
+  });
+});
+
+describe("fetchActivities", () => {
+  it("returns the documented top-level activity array", async () => {
+    installFetchMock([
+      {
+        status: 200,
+        body: [
+          {
+            start_time: "2026-06-10T00:00:00",
+            active_calories: 540.6,
+            steps: 8123,
+          },
+        ],
+      },
+    ]);
+    const r = await fetchActivities("tok");
     expect(r).toHaveLength(1);
   });
 });
@@ -433,9 +514,9 @@ describe("fetchSpo2", () => {
 describe("mapActivity", () => {
   it("maps steps and active energy to canonical MeasurementType enum values", () => {
     const a: PolarActivity = {
-      date: "2026-06-10",
-      "active-steps": 8123,
-      "active-calories": 540.6,
+      start_time: "2026-06-10T00:00:00",
+      steps: 8123,
+      active_calories: 540.6,
       calories: 2400,
     };
     const mapped = mapActivity(a);
@@ -444,6 +525,9 @@ describe("mapActivity", () => {
     expect(mapped.find((m) => m.type === "ACTIVE_ENERGY_BURNED")?.value).toBe(
       540.6,
     );
+  });
+  it("ignores an activity when Polar omits its optional start time", () => {
+    expect(mapActivity({})).toEqual([]);
   });
 });
 

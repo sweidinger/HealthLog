@@ -8,6 +8,7 @@ import {
   recordSyncFailure,
   recordSyncSuccess,
 } from "@/lib/integrations/status";
+import { persistMoodLogSourceEntry } from "@/lib/moodlog/persistence";
 import { recomputeUserMoodRollups } from "@/lib/rollups/mood-rollups";
 
 /**
@@ -235,63 +236,26 @@ export async function syncMoodLogEntries(
           ? entry.id.slice(0, 120)
           : null;
 
-      if (externalId) {
-        await prisma.moodEntry.upsert({
-          where: {
-            userId_source_externalId: {
-              userId,
-              source: "MOODLOG",
-              externalId,
-            },
-          },
-          update: {
-            mood: entry.mood,
-            score: entry.score,
-            tags: entry.tags ? JSON.stringify(entry.tags) : null,
-            source: "MOODLOG",
-            date,
-            moodLoggedAt,
-          },
-          create: {
-            userId,
-            date,
-            mood: entry.mood,
-            score: entry.score,
-            tags: entry.tags ? JSON.stringify(entry.tags) : null,
-            source: "MOODLOG",
-            externalId,
-            moodLoggedAt,
-          },
-        });
-      } else {
-        await prisma.moodEntry.upsert({
-          where: {
-            userId_date_moodLoggedAt: {
-              userId,
-              date,
-              moodLoggedAt,
-            },
-          },
-          update: {
-            mood: entry.mood,
-            score: entry.score,
-            tags: entry.tags ? JSON.stringify(entry.tags) : null,
-            source: "MOODLOG",
-          },
-          create: {
-            userId,
-            date,
-            mood: entry.mood,
-            score: entry.score,
-            tags: entry.tags ? JSON.stringify(entry.tags) : null,
-            source: "MOODLOG",
-            moodLoggedAt,
-          },
-        });
-      }
+      await persistMoodLogSourceEntry(userId, {
+        externalId,
+        date,
+        moodLoggedAt,
+        mood: entry.mood,
+        score: entry.score,
+        tags: entry.tags,
+      });
       imported++;
     } catch (err) {
-      getEvent()?.addWarning(`Failed to upsert entry: ${err}`);
+      const message = err instanceof Error ? err.message : String(err);
+      getEvent()?.addWarning(`Failed to upsert moodLog entry: ${message}`);
+      await recordSyncFailure({
+        userId,
+        integration: "moodlog",
+        kind: "transient",
+        message,
+        errorCode: "persistence_failed",
+      });
+      throw err;
     }
   }
 

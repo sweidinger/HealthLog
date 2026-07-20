@@ -45,8 +45,12 @@ beforeEach(() => {
 });
 
 /** Existing-link row as `replaceTagLinks` selects it. */
-function link(moodTagId: string, isActive: boolean) {
-  return { moodTagId, moodTag: { isActive } };
+function link(
+  moodTagId: string,
+  isActive: boolean,
+  kind: "BINARY" | "RATED" = "BINARY",
+) {
+  return { moodTagId, moodTag: { isActive, kind } };
 }
 
 describe("resolveRatedFactors", () => {
@@ -196,6 +200,27 @@ describe("replaceTagLinks — archived-tag links survive an entry edit", () => {
     expect(linkDeleteMany).not.toHaveBeenCalled();
   });
 
+  it("preserves active RATED links while replacing binary links", async () => {
+    linkFindMany.mockResolvedValue([
+      link("mt_happy", true),
+      link("mt_factor_work", true, "RATED"),
+    ]);
+    moodTagFindMany.mockResolvedValue([]);
+
+    await replaceTagLinks("entry-1", "user-1", []);
+
+    expect(linkDeleteMany).toHaveBeenCalledWith({
+      where: { moodEntryId: "entry-1", moodTagId: { in: ["mt_happy"] } },
+    });
+    expect(linkDeleteMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          moodTagId: { in: expect.arrayContaining(["mt_factor_work"]) },
+        }),
+      }),
+    );
+  });
+
   it("createTagLinks (the bulk-ingest path) is additive — it never deletes a link", async () => {
     // The bulk route re-posts an entry via `createTagLinks`; an archived
     // key cannot resolve (isActive pinned) but no existing link is ever
@@ -213,7 +238,7 @@ describe("replaceTagLinks — archived-tag links survive an entry edit", () => {
     );
   });
 
-  it("replaceRatedFactorLinks scopes its delete to active tags", async () => {
+  it("replaceRatedFactorLinks deletes every active RATED row, including a null-rated legacy link", async () => {
     moodTagFindMany.mockResolvedValue([]);
 
     await replaceRatedFactorLinks("entry-1", "user-1", []);
@@ -221,9 +246,30 @@ describe("replaceTagLinks — archived-tag links survive an entry edit", () => {
     expect(linkDeleteMany).toHaveBeenCalledWith({
       where: {
         moodEntryId: "entry-1",
-        rating: { not: null },
-        moodTag: { isActive: true },
+        moodTag: { isActive: true, kind: "RATED" },
       },
+    });
+  });
+  it("replaces RATED scores without deleting binary links", async () => {
+    moodTagFindMany.mockResolvedValue([
+      { id: "mt_factor_work", key: "factor_work", scaleMin: 1, scaleMax: 5 },
+    ]);
+
+    await replaceRatedFactorLinks("entry-1", "user-1", [
+      { key: "factor_work", rating: 4 },
+    ]);
+
+    expect(linkDeleteMany).toHaveBeenCalledWith({
+      where: {
+        moodEntryId: "entry-1",
+        moodTag: { isActive: true, kind: "RATED" },
+      },
+    });
+    expect(linkCreateMany).toHaveBeenCalledWith({
+      data: [
+        { moodEntryId: "entry-1", moodTagId: "mt_factor_work", rating: 4 },
+      ],
+      skipDuplicates: true,
     });
   });
 });

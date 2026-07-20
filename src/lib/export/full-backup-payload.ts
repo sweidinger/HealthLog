@@ -10,6 +10,7 @@
  * The decrypted notes are surfaced here (the backup is the human-readable
  * artefact); an admin restore re-encrypts them on re-insert.
  */
+import { Buffer } from "node:buffer";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { readNote } from "@/lib/crypto/note-cipher";
 import { findMeasurementsPaged } from "@/lib/export/paged-measurements";
@@ -35,84 +36,189 @@ export interface FullBackupResult {
   counts: FullBackupCounts;
 }
 
+export interface FullBackupOptions {
+  purpose?: "portable-export" | "disaster-recovery";
+  exportedAt?: Date;
+}
 /**
- * Build the canonical full-backup payload for `userId`. Soft-deleted rows are
- * excluded so a round-trip via admin restore never resurrects deleted records.
+ * Build the canonical full-backup payload for `userId`. Portable exports omit
+ * tombstones and document ciphertext; disaster-recovery payloads preserve
+ * both so weekly and off-host snapshots share one restorable wire format.
  */
 export async function buildFullBackupPayload(
   prisma: PrismaClient,
   userId: string,
+  options: FullBackupOptions = {},
 ): Promise<FullBackupResult> {
-  const [measurements, medications, intakeEvents, moodEntries, cycle, records] =
-    await Promise.all([
-      // v1.28.25 — keyset-paginated read with a narrow select. The backup
-      // is inherently whole-history, so on a CGM / per-sample-HR account the
-      // previous single full-width `findMany` materialised a six-figure row
-      // set in one shot. The chunked read accumulates the same rows in the
-      // same `measuredAt desc` order; the payload FORMAT below is untouched
-      // (restore compatibility). The select is exactly the fields the
-      // serializer reads: type / value / unit / measuredAt / source + the
-      // note columns `readNote` decrypts + the `id` cursor key.
-      findMeasurementsPaged(
-        prisma,
-        { userId, deletedAt: null },
-        {
-          id: true,
-          type: true,
-          value: true,
-          unit: true,
-          measuredAt: true,
-          source: true,
-          notes: true,
-          notesEncrypted: true,
-        },
-      ),
-      prisma.medication.findMany({
-        where: { userId },
-        select: {
-          name: true,
-          dose: true,
-          active: true,
-          schedules: {
-            select: {
-              windowStart: true,
-              windowEnd: true,
-              label: true,
-              dose: true,
-            },
+  const disasterRecovery = options.purpose === "disaster-recovery";
+  const [
+    appSettings,
+    measurements,
+    medications,
+    intakeEvents,
+    moodEntries,
+    cycle,
+    records,
+  ] = await Promise.all([
+    disasterRecovery
+      ? prisma.appSettings.findUnique({ where: { id: "singleton" } })
+      : Promise.resolve(null),
+    findMeasurementsPaged(
+      prisma,
+      disasterRecovery ? { userId } : { userId, deletedAt: null },
+      {
+        id: true,
+        type: true,
+        value: true,
+        valueMin: true,
+        valueMax: true,
+        unit: true,
+        measuredAt: true,
+        source: true,
+        notes: true,
+        notesEncrypted: true,
+        externalId: true,
+        externalSourceVersion: true,
+        glucoseContext: true,
+        sleepStage: true,
+        rhythmClassification: true,
+        deviceType: true,
+        syncVersion: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    ),
+    prisma.medication.findMany({
+      where: { userId },
+      include: { schedules: true },
+    }),
+    prisma.medicationIntakeEvent.findMany({
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
+      include: { medication: { select: { name: true } } },
+      orderBy: { scheduledFor: "desc" },
+    }),
+    prisma.moodEntry.findMany({
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
+      orderBy: { moodLoggedAt: "desc" },
+      include: {
+        tagLinks: {
+          where: { rating: { not: null } },
+          select: {
+            rating: true,
+            moodTag: { select: { key: true } },
           },
         },
-      }),
-      prisma.medicationIntakeEvent.findMany({
-        where: { userId, deletedAt: null },
-        include: { medication: { select: { name: true } } },
-        orderBy: { scheduledFor: "desc" },
-      }),
-      prisma.moodEntry.findMany({
-        where: { userId, deletedAt: null },
-        orderBy: { moodLoggedAt: "desc" },
-      }),
-      buildCycleBackupSection(prisma, userId),
-      buildRecordsBackupSection(prisma, userId),
-    ]);
+      },
+    }),
+    buildCycleBackupSection(prisma, userId, {
+      purpose: disasterRecovery ? "disaster-recovery" : "portable-export",
+    }),
+    buildRecordsBackupSection(prisma, userId, {
+      purpose: disasterRecovery ? "disaster-recovery" : "portable-export",
+    }),
+  ]);
 
   const payload = {
     schemaVersion: BACKUP_SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
+    exportedAt: (options.exportedAt ?? new Date()).toISOString(),
     userId,
-    measurements: measurements.map((m) => ({
-      type: m.type,
-      value: m.value,
-      unit: m.unit,
-      measuredAt: m.measuredAt.toISOString(),
-      source: m.source,
-      notes: readNote(m.notesEncrypted, m.notes),
-    })),
+    appSettings:
+      disasterRecovery && appSettings
+        ? {
+            ...appSettings,
+            adminCodexTokenExpiresAt:
+              appSettings.adminCodexTokenExpiresAt?.toISOString() ?? null,
+            adminCodexConnectedAt:
+              appSettings.adminCodexConnectedAt?.toISOString() ?? null,
+            documentQuotaBytes: appSettings.documentQuotaBytes.toString(),
+          }
+        : null,
+    measurements: measurements.map((m) =>
+      disasterRecovery
+        ? {
+            id: m.id,
+            type: m.type,
+            value: m.value,
+            valueMin: m.valueMin,
+            valueMax: m.valueMax,
+            unit: m.unit,
+            measuredAt: m.measuredAt.toISOString(),
+            source: m.source,
+            notes: m.notes,
+            notesEncrypted: m.notesEncrypted
+              ? Buffer.from(m.notesEncrypted).toString("base64")
+              : null,
+            externalId: m.externalId,
+            externalSourceVersion: m.externalSourceVersion,
+            glucoseContext: m.glucoseContext,
+            sleepStage: m.sleepStage,
+            rhythmClassification: m.rhythmClassification,
+            deviceType: m.deviceType,
+            syncVersion: m.syncVersion,
+            deletedAt: m.deletedAt?.toISOString() ?? null,
+            createdAt: m.createdAt.toISOString(),
+            updatedAt: m.updatedAt.toISOString(),
+          }
+        : {
+            id: m.id,
+            type: m.type,
+            value: m.value,
+            unit: m.unit,
+            measuredAt: m.measuredAt.toISOString(),
+            source: m.source,
+            notes: readNote(m.notesEncrypted, m.notes),
+            deletedAt: m.deletedAt?.toISOString() ?? null,
+          },
+    ),
     medications: medications.map((m) => ({
+      ...(disasterRecovery
+        ? {
+            id: m.id,
+            treatmentClass: m.treatmentClass,
+            dosesPerUnit: m.dosesPerUnit,
+            unitsPerDose: m.unitsPerDose.toString(),
+            notificationsEnabled: m.notificationsEnabled,
+            pausedAt: m.pausedAt?.toISOString() ?? null,
+            snoozedUntil: m.snoozedUntil?.toISOString() ?? null,
+            startsOn: m.startsOn?.toISOString() ?? null,
+            endsOn: m.endsOn?.toISOString() ?? null,
+            oneShot: m.oneShot,
+            asNeeded: m.asNeeded,
+            deliveryForm: m.deliveryForm,
+            trackInjectionSites: m.trackInjectionSites,
+            allowedInjectionSites: m.allowedInjectionSites,
+            liveActivityEnabled: m.liveActivityEnabled,
+            criticalAlarmEnabled: m.criticalAlarmEnabled,
+            atcCode: m.atcCode,
+            rxNormCode: m.rxNormCode,
+            lowStockNotifiedAt: m.lowStockNotifiedAt?.toISOString() ?? null,
+            lowStockNotifiedThresholdDays: m.lowStockNotifiedThresholdDays,
+            reorderLeadDays: m.reorderLeadDays,
+            externalSource: m.externalSource,
+            externalId: m.externalId,
+            createdAt: m.createdAt.toISOString(),
+            updatedAt: m.updatedAt.toISOString(),
+          }
+        : {}),
       name: m.name,
       dose: m.dose,
       active: m.active,
       schedules: m.schedules.map((s) => ({
+        ...(disasterRecovery
+          ? {
+              id: s.id,
+              daysOfWeek: s.daysOfWeek,
+              timesOfDay: s.timesOfDay,
+              reminderGraceMinutes: s.reminderGraceMinutes,
+              rrule: s.rrule,
+              rollingIntervalDays: s.rollingIntervalDays,
+              scheduleType: s.scheduleType,
+              cyclicOnWeeks: s.cyclicOnWeeks,
+              cyclicOffWeeks: s.cyclicOffWeeks,
+              doseWindows: s.doseWindows,
+            }
+          : {}),
         windowStart: s.windowStart,
         windowEnd: s.windowEnd,
         label: s.label,
@@ -120,6 +226,23 @@ export async function buildFullBackupPayload(
       })),
     })),
     intakeEvents: intakeEvents.map((e) => ({
+      ...(disasterRecovery
+        ? {
+            id: e.id,
+            medicationId: e.medicationId,
+            autoMissed: e.autoMissed,
+            attributionSource: e.attributionSource,
+            idempotencyKey: e.idempotencyKey,
+            createdAt: e.createdAt.toISOString(),
+            injectionSite: e.injectionSite,
+            doseTaken: e.doseTaken,
+            inventoryConsumption: e.inventoryConsumption,
+            externalId: e.externalId,
+            updatedAt: e.updatedAt.toISOString(),
+            syncVersion: e.syncVersion,
+            deletedAt: e.deletedAt?.toISOString() ?? null,
+          }
+        : {}),
       medication: e.medication.name,
       scheduledFor: e.scheduledFor.toISOString(),
       takenAt: e.takenAt?.toISOString() ?? null,
@@ -127,12 +250,19 @@ export async function buildFullBackupPayload(
       source: e.source,
     })),
     moodEntries: moodEntries.map((e) => ({
+      id: e.id,
       date: e.date,
       mood: e.mood,
       score: e.score,
       tags: e.tags,
       source: e.source,
       loggedAt: e.moodLoggedAt.toISOString(),
+      externalId: e.externalId,
+      deletedAt: e.deletedAt?.toISOString() ?? null,
+      factors: e.tagLinks.map((link) => ({
+        key: link.moodTag.key,
+        rating: link.rating!,
+      })),
     })),
     cycleProfile: cycle.cycleProfile,
     cycles: cycle.cycles,

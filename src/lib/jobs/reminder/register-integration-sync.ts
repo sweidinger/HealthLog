@@ -69,13 +69,16 @@ import {
   type QueuePolicyTable,
   type ScheduleEntry,
 } from "./registrar-shared";
+import { WITHINGS_ECG_SYNC_QUEUE } from "@/lib/jobs/withings-ecg-queue";
 import {
   WithingsSyncPayload,
   WithingsActivitySyncPayload,
   WithingsSleepSyncPayload,
+  WithingsEcgSyncPayload,
   handleWithingsFallbackSync,
   handleWithingsActivitySync,
   handleWithingsSleepSync,
+  handleWithingsEcgSync,
 } from "./withings-sync";
 import {
   WhoopSyncPayload,
@@ -242,6 +245,7 @@ const allQueues = [
   WITHINGS_SYNC_QUEUE,
   WITHINGS_ACTIVITY_QUEUE,
   WITHINGS_SLEEP_QUEUE,
+  WITHINGS_ECG_SYNC_QUEUE,
   MOODLOG_SYNC_QUEUE,
   WITHINGS_OAUTH_STATE_CLEANUP_QUEUE,
   // v1.11.0 — WHOOP sync queues. Webhook-primary + cron-safety-net for
@@ -349,6 +353,11 @@ const schedules: ScheduleEntry[] = [
  * the work is still outstanding, a suppressed send can never lose work.
  */
 const queuePolicies: QueuePolicyTable = {
+  [WITHINGS_ECG_SYNC_QUEUE]: {
+    policy: "short",
+    reason:
+      "Webhook retries share one identity while queued; once work starts, a later replay remains admissible as a rescue if the original exhausts retries.",
+  },
   [WHOOP_BACKFILL_QUEUE]: {
     policy: "exclusive",
     reason:
@@ -409,6 +418,11 @@ export async function registerIntegrationSyncQueues(
     WITHINGS_SLEEP_QUEUE,
     { localConcurrency: 1 },
     handleWithingsSleepSync,
+  );
+  await boss.work<WithingsEcgSyncPayload>(
+    WITHINGS_ECG_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleWithingsEcgSync,
   );
   await boss.work<WithingsOAuthStateCleanupPayload>(
     WITHINGS_OAUTH_STATE_CLEANUP_QUEUE,

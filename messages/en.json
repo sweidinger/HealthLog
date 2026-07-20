@@ -6243,7 +6243,7 @@
         "restore": "Restore",
         "restoreAria": "Restore from backup for {username}",
         "restoreTitle": "Restore from backup",
-        "restoreDescription": "This will replace ALL current data for {username} with the snapshot from {when}. Existing measurements, medications, intake events, mood entries, notification channels, push subscriptions and queued Telegram deletions will be deleted.",
+        "restoreDescription": "This will replace ALL current data for {username} with the snapshot from {when}. Existing measurements, medications, intake events, mood entries, notification channels, push subscriptions and queued Telegram deletions will be deleted. If included in the snapshot, instance-wide settings overwrite the configuration for the entire installation.",
         "restorePromptLabel": "Type RESTORE to continue",
         "restoreConfirm": "Restore now",
         "restoreInProgress": "Restoring…",

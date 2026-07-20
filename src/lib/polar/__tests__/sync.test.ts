@@ -15,6 +15,8 @@ const {
   recordSuccessMock,
   recordFailureMock,
   recomputeMock,
+  transactionMock,
+  reconcileMock,
   invalidateMock,
 } = vi.hoisted(() => ({
   getConnMock: vi.fn(),
@@ -31,6 +33,8 @@ const {
   recordSuccessMock: vi.fn(),
   recordFailureMock: vi.fn(),
   recomputeMock: vi.fn(),
+  transactionMock: vi.fn(),
+  reconcileMock: vi.fn(),
   invalidateMock: vi.fn(),
 }));
 
@@ -46,7 +50,13 @@ vi.mock("@/lib/db", () => ({
       findMany: findManyMock,
       updateMany: updateManyMock,
     },
+    $transaction: transactionMock,
   },
+}));
+
+vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
+  reconcileExternalMeasurement: reconcileMock,
+  MeasurementReconciliationError: class extends Error {},
 }));
 
 vi.mock("@/lib/integrations/status", async (importOriginal) => ({
@@ -93,6 +103,25 @@ beforeEach(() => {
   fetchActivitiesMock.mockReset();
   fetchCardioLoadsMock.mockReset();
   fetchSpo2Mock.mockReset();
+  transactionMock
+    .mockReset()
+    .mockImplementation(async (run: (tx: unknown) => unknown) => run({}));
+  reconcileMock
+    .mockReset()
+    .mockImplementation(
+      async (
+        _tx: unknown,
+        input: { type: string; measuredAt: Date; externalId: string },
+      ) => ({
+        status: "inserted",
+        row: {
+          id: `inserted:${input.externalId}`,
+          type: input.type,
+          measuredAt: input.measuredAt,
+          externalId: input.externalId,
+        },
+      }),
+    );
   createManyAndReturnMock.mockReset().mockImplementation(
     async ({
       data,
@@ -128,7 +157,7 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 function createdRows() {
-  return createManyAndReturnMock.mock.calls.flatMap((call) => call[0].data);
+  return reconcileMock.mock.calls.map((call) => call[1]);
 }
 
 describe("syncUserPolar", () => {
@@ -137,6 +166,18 @@ describe("syncUserPolar", () => {
     expect(await syncUserPolar("u1")).toBe(0);
     expect(createManyAndReturnMock).not.toHaveBeenCalled();
     expect(recordSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("authenticates all collection reads with the access token only", async () => {
+    getConnMock.mockResolvedValue(CONN);
+
+    await syncUserPolar("u1");
+
+    expect(fetchRechargesMock).toHaveBeenCalledWith("tok");
+    expect(fetchSleepsMock).toHaveBeenCalledWith("tok");
+    expect(fetchActivitiesMock).toHaveBeenCalledWith("tok");
+    expect(fetchCardioLoadsMock).toHaveBeenCalledWith("tok");
+    expect(fetchSpo2Mock).toHaveBeenCalledWith("tok");
   });
 
   it("maps a recharge RECOVERY_SCORE row with source POLAR + stable externalId", async () => {
@@ -245,7 +286,7 @@ describe("syncUserPolar", () => {
 
     // Replace-then-write: the sweep runs before the insert statement.
     expect(updateManyMock.mock.invocationCallOrder[0]!).toBeLessThan(
-      createManyAndReturnMock.mock.invocationCallOrder[0]!,
+      reconcileMock.mock.invocationCallOrder[0]!,
     );
   });
 
@@ -263,21 +304,29 @@ describe("syncUserPolar", () => {
     fetchRechargesMock.mockResolvedValue([
       { date: "2026-06-10", nightly_recharge_status: 3 },
     ]);
-    createManyAndReturnMock
-      .mockResolvedValueOnce([
-        {
+    reconcileMock
+      .mockResolvedValueOnce({
+        status: "inserted",
+        row: {
           id: "inserted-recharge",
           type: "RECOVERY_SCORE",
           measuredAt: new Date("2026-06-10T00:00:00.000Z"),
           externalId: "recharge:2026-06-10:recovery",
         },
-      ])
-      .mockResolvedValueOnce([]);
+      })
+      .mockResolvedValueOnce({
+        status: "updated",
+        row: {
+          id: "inserted-recharge",
+          type: "RECOVERY_SCORE",
+          measuredAt: new Date("2026-06-10T00:00:00.000Z"),
+          externalId: "recharge:2026-06-10:recovery",
+        },
+      });
     await syncUserPolar("u1");
     await syncUserPolar("u1");
-    expect(createManyAndReturnMock.mock.calls[0]![0].data[0].externalId).toBe(
-      updateMock.mock.calls[0]![0].where.userId_type_source_externalId
-        .externalId,
+    expect(reconcileMock.mock.calls[0]![1].externalId).toBe(
+      reconcileMock.mock.calls[1]![1].externalId,
     );
   });
 
@@ -330,7 +379,17 @@ describe("upsertPolarMeasurements — exact insertion results", () => {
       measuredAt,
       externalId: readings[0].externalId,
     };
-    createManyAndReturnMock.mockResolvedValue([inserted]);
+    reconcileMock
+      .mockResolvedValueOnce({ status: "inserted", row: inserted })
+      .mockResolvedValueOnce({
+        status: "updated",
+        row: {
+          id: "existing-2",
+          type: "CARDIO_LOAD",
+          measuredAt,
+          externalId: readings[1].externalId,
+        },
+      });
     const onInserted = vi.fn();
 
     expect(await upsertPolarMeasurements("u1", readings, { onInserted })).toBe(
@@ -339,10 +398,7 @@ describe("upsertPolarMeasurements — exact insertion results", () => {
 
     expect(onInserted).toHaveBeenCalledWith([inserted]);
     expect(emitArrivalMock).toHaveBeenCalledWith("u1", [inserted], "polar");
-    expect(updateMock).toHaveBeenCalledTimes(1);
-    expect(
-      updateMock.mock.calls[0]![0].where.userId_type_source_externalId,
-    ).toEqual({
+    expect(reconcileMock.mock.calls[1]![1]).toMatchObject({
       userId: "u1",
       type: "CARDIO_LOAD",
       source: "POLAR",
@@ -358,7 +414,7 @@ describe("upsertPolarMeasurements — exact insertion results", () => {
       measuredAt,
       externalId: readings[0].externalId,
     };
-    createManyAndReturnMock.mockResolvedValue([inserted]);
+    reconcileMock.mockResolvedValueOnce({ status: "inserted", row: inserted });
 
     await upsertPolarMeasurements("u1", [readings[0]]);
 

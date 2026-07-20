@@ -100,7 +100,8 @@ describe("POST /api/admin/backups/[id]/restore", () => {
           unit: "kg",
           measuredAt: "2026-05-08T07:00:00.000Z",
           source: "MANUAL",
-          notes: null,
+          notes: "private legacy note",
+          notesEncrypted: null,
         },
         {
           type: "PULSE",
@@ -221,6 +222,8 @@ describe("POST /api/admin/backups/[id]/restore", () => {
     expect(measurements[0]!.type).toBe("WEIGHT");
     expect(measurements[0]!.value).toBe(80.5);
     expect(measurements[1]!.type).toBe("PULSE");
+    expect(measurements[0]!.notes).toBeNull();
+    expect(measurements[0]!.notesEncrypted).not.toBeNull();
 
     const medications = await prisma.medication.findMany({
       where: { userId: admin.id },
@@ -303,6 +306,8 @@ describe("POST /api/admin/backups/[id]/restore", () => {
     });
 
     expect(res.status).toBe(422);
+    const error = (await res.json()) as { error: string };
+    expect(error.error).toMatch(/instance-wide settings/i);
     const denied = await prisma.auditLog.count({
       where: {
         action: "admin.backups.restore.denied",

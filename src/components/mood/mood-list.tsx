@@ -81,7 +81,7 @@ import {
   selectedCountOnPage,
 } from "@/components/data-list";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
-import { MoodTagPicker } from "./mood-tag-picker";
+import { MoodTagPicker, type RatedFactor } from "./mood-tag-picker";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
 
 // Re-export the score map under the legacy local name to keep the
@@ -97,6 +97,7 @@ interface MoodEntry {
   tags: string[];
   // v1.8.5 — structured-tag keys + free-text note.
   tagKeys: string[];
+  ratedFactors: RatedFactor[];
   note: string | null;
   source: string;
   moodLoggedAt: string;
@@ -174,6 +175,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   });
   const [editTagsInput, setEditTagsInput] = useState("");
   const [editTagKeys, setEditTagKeys] = useState<string[]>([]);
+  const [editRatedFactors, setEditRatedFactors] = useState<RatedFactor[]>([]);
   const [editNote, setEditNote] = useState("");
   const [editMoodLoggedAt, setEditMoodLoggedAt] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
@@ -182,6 +184,13 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     setEditTagKeys((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
+  }
+
+  function rateEditFactor(key: string, rating: number | null) {
+    setEditRatedFactors((prev) => {
+      const rest = prev.filter((factor) => factor.key !== key);
+      return rating === null ? rest : [...rest, { key, rating }];
+    });
   }
   const [editDeleteDialogOpen, setEditDeleteDialogOpen] = useState(false);
   // v1.4.27 R4 RC2 — Sheet-branch sticky-pinned footer slot.
@@ -357,6 +366,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       mood,
       tags,
       tagKeys,
+      ratedFactors,
       note,
       moodLoggedAt,
     }: {
@@ -364,6 +374,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       mood: string;
       tags: string[] | null;
       tagKeys: string[];
+      ratedFactors: RatedFactor[];
       note: string | null;
       moodLoggedAt: string;
     }) => {
@@ -371,6 +382,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
         mood,
         tags,
         tagKeys,
+        ratedFactors,
         note,
         moodLoggedAt,
       });
@@ -393,6 +405,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     setEditMood(entry.mood);
     setEditTagsInput(entry.tags.join(", "));
     setEditTagKeys(entry.tagKeys ?? []);
+    setEditRatedFactors(entry.ratedFactors ?? []);
     setEditNote(entry.note ?? "");
     setEditMoodLoggedAt(toDateTimeLocalValue(entry.moodLoggedAt));
     setEditError(null);
@@ -440,6 +453,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       mood: editMood,
       tags: tags.length > 0 ? tags : null,
       tagKeys: editTagKeys,
+      ratedFactors: editRatedFactors,
       note: trimmedNote.length > 0 ? trimmedNote : null,
       moodLoggedAt: measuredDate.toISOString(),
     });
@@ -909,6 +923,8 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
               <MoodTagPicker
                 selected={editTagKeys}
                 onToggle={toggleEditTagKey}
+                ratedFactors={editRatedFactors}
+                onRateFactor={rateEditFactor}
               />
             </div>
 

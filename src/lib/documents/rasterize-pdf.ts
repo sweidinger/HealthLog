@@ -102,6 +102,9 @@ interface PdfDocument {
   numPages: number;
   canvasFactory: PdfCanvasFactory;
   getPage(pageNumber: number): Promise<PdfPage>;
+}
+interface PdfLoadingTask {
+  promise: Promise<PdfDocument>;
   destroy(): Promise<void>;
 }
 interface PdfjsModule {
@@ -110,7 +113,7 @@ interface PdfjsModule {
     verbosity?: number;
     isEvalSupported?: boolean;
     useSystemFonts?: boolean;
-  }): { promise: Promise<PdfDocument> };
+  }): PdfLoadingTask;
 }
 
 /**
@@ -125,6 +128,7 @@ export async function rasterizePdf(
   maxPages: number = RASTER_MAX_PAGES,
 ): Promise<RasterResult> {
   let doc: PdfDocument | null = null;
+  let task: PdfLoadingTask | null = null;
   // CPU-feature gate: pdfjs renders through @napi-rs/canvas (Skia), whose x64
   // build uses AVX2 — an unsupported CPU dies with an uncatchable SIGILL on
   // the first render. Degrade to the existing no-raster path instead (scanned
@@ -142,7 +146,7 @@ export async function rasterizePdf(
     const pdfjs =
       (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as PdfjsModule;
 
-    const task = pdfjs.getDocument({
+    task = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       verbosity: 0, // VerbosityLevel.ERRORS — no console spam on odd PDFs.
       isEvalSupported: false, // never eval font programs (defence in depth).
@@ -205,9 +209,9 @@ export async function rasterizePdf(
     });
     return { ok: false };
   } finally {
-    if (doc) {
+    if (task) {
       try {
-        await doc.destroy();
+        await task.destroy();
       } catch {
         // Best-effort teardown; a destroy failure must not mask the result.
       }

@@ -23,6 +23,8 @@ const {
   recordFailureMock,
   recomputeMock,
   invalidateMock,
+  transactionMock,
+  reconcileMock,
 } = vi.hoisted(() => ({
   getConnMock: vi.fn(),
   storeTokensMock: vi.fn(),
@@ -46,6 +48,8 @@ const {
   recordFailureMock: vi.fn(),
   recomputeMock: vi.fn(),
   invalidateMock: vi.fn(),
+  transactionMock: vi.fn(),
+  reconcileMock: vi.fn(),
 }));
 
 vi.mock("../credentials", () => ({
@@ -62,7 +66,13 @@ vi.mock("@/lib/db", () => ({
       findMany: findManyMock,
       updateMany: updateManyMock,
     },
+    $transaction: transactionMock,
   },
+}));
+
+vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
+  reconcileExternalMeasurement: reconcileMock,
+  MeasurementReconciliationError: class extends Error {},
 }));
 
 vi.mock("@/lib/integrations/status", async (importOriginal) => ({
@@ -129,6 +139,25 @@ beforeEach(() => {
   fetchResilienceMock.mockReset().mockResolvedValue([]);
   fetchCyclePhasesMock.mockReset().mockResolvedValue([]);
   refreshMock.mockReset();
+  transactionMock
+    .mockReset()
+    .mockImplementation(async (run: (tx: unknown) => unknown) => run({}));
+  reconcileMock
+    .mockReset()
+    .mockImplementation(
+      async (
+        _tx: unknown,
+        input: { type: string; measuredAt: Date; externalId: string },
+      ) => ({
+        status: "inserted",
+        row: {
+          id: `inserted:${input.externalId}`,
+          type: input.type,
+          measuredAt: input.measuredAt,
+          externalId: input.externalId,
+        },
+      }),
+    );
   createManyAndReturnMock.mockReset().mockImplementation(
     async ({
       data,
@@ -168,7 +197,7 @@ function err401() {
 }
 
 function createdRows() {
-  return createManyAndReturnMock.mock.calls.flatMap((call) => call[0].data);
+  return reconcileMock.mock.calls.map((call) => call[1]);
 }
 
 describe("syncUserOura", () => {
@@ -327,7 +356,7 @@ describe("syncUserOura", () => {
 
     // Replace-then-write: the sweep runs before the insert statement.
     expect(updateManyMock.mock.invocationCallOrder[0]!).toBeLessThan(
-      createManyAndReturnMock.mock.invocationCallOrder[0]!,
+      reconcileMock.mock.invocationCallOrder[0]!,
     );
   });
 
@@ -408,7 +437,7 @@ describe("syncUserOura", () => {
     ]);
     const imported = await syncUserOura("u1");
     expect(imported).toBe(0);
-    expect(createManyAndReturnMock).not.toHaveBeenCalled();
+    expect(reconcileMock).not.toHaveBeenCalled();
   });
 
   it("re-sync of the same day upserts RESILIENCE in place (overwrite, not duplicate)", async () => {
@@ -421,26 +450,34 @@ describe("syncUserOura", () => {
         { id: "r", day: "2026-06-10", level: "adequate" },
       ])
       .mockResolvedValueOnce([{ id: "r", day: "2026-06-10", level: "solid" }]);
-    createManyAndReturnMock
-      .mockResolvedValueOnce([
-        {
+    reconcileMock
+      .mockResolvedValueOnce({
+        status: "inserted",
+        row: {
           id: "inserted-resilience",
           type: "RESILIENCE",
           measuredAt: new Date("2026-06-10T00:00:00.000Z"),
           externalId: "resilience:2026-06-10:resilience",
         },
-      ])
-      .mockResolvedValueOnce([]);
+      })
+      .mockResolvedValueOnce({
+        status: "updated",
+        row: {
+          id: "inserted-resilience",
+          type: "RESILIENCE",
+          measuredAt: new Date("2026-06-10T00:00:00.000Z"),
+          externalId: "resilience:2026-06-10:resilience",
+        },
+      });
     await syncUserOura("u1");
     await syncUserOura("u1");
-    const createCalls = createManyAndReturnMock.mock.calls;
-    expect(createCalls.map((call) => call[0].data[0].externalId)).toEqual([
+    const writes = reconcileMock.mock.calls.map((call) => call[1]);
+    expect(writes.map((row) => row.externalId)).toEqual([
       "resilience:2026-06-10:resilience",
       "resilience:2026-06-10:resilience",
     ]);
-    // The second sync carries the re-scored value through the update branch.
-    expect(createCalls[0]![0].data[0].value).toBe(2);
-    expect(updateMock.mock.calls[0]![0].data.value).toBe(3);
+    expect(writes[0].value).toBe(2);
+    expect(writes[1].value).toBe(3);
   });
 
   it("does NOT refresh on a 403 (not an expiry case)", async () => {
@@ -599,7 +636,17 @@ describe("upsertOuraMeasurements — exact insertion results", () => {
       measuredAt,
       externalId: readings[0].externalId,
     };
-    createManyAndReturnMock.mockResolvedValue([inserted]);
+    reconcileMock
+      .mockResolvedValueOnce({ status: "inserted", row: inserted })
+      .mockResolvedValueOnce({
+        status: "updated",
+        row: {
+          id: "existing-2",
+          type: "HRV_RMSSD",
+          measuredAt,
+          externalId: readings[1].externalId,
+        },
+      });
     const onInserted = vi.fn();
 
     expect(await upsertOuraMeasurements("u1", readings, { onInserted })).toBe(
@@ -608,10 +655,7 @@ describe("upsertOuraMeasurements — exact insertion results", () => {
 
     expect(onInserted).toHaveBeenCalledWith([inserted]);
     expect(emitArrivalMock).toHaveBeenCalledWith("u1", [inserted], "oura");
-    expect(updateMock).toHaveBeenCalledTimes(1);
-    expect(
-      updateMock.mock.calls[0]![0].where.userId_type_source_externalId,
-    ).toEqual({
+    expect(reconcileMock.mock.calls[1]![1]).toMatchObject({
       userId: "u1",
       type: "HRV_RMSSD",
       source: "OURA",
@@ -627,7 +671,7 @@ describe("upsertOuraMeasurements — exact insertion results", () => {
       measuredAt,
       externalId: readings[0].externalId,
     };
-    createManyAndReturnMock.mockResolvedValue([inserted]);
+    reconcileMock.mockResolvedValueOnce({ status: "inserted", row: inserted });
 
     await upsertOuraMeasurements("u1", [readings[0]]);
 

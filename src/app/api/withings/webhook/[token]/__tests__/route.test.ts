@@ -48,6 +48,7 @@ import { prisma } from "@/lib/db";
 import { syncUserMeasurements } from "@/lib/withings/sync";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getEvent } from "@/lib/logging/context";
+import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 
 const ORIGINAL_SECRET = process.env.WITHINGS_WEBHOOK_SECRET;
 
@@ -64,6 +65,9 @@ beforeEach(() => {
     addWarning: vi.fn(),
   } as never);
   vi.mocked(syncUserMeasurements).mockResolvedValue(undefined as never);
+  vi.mocked(getGlobalBoss).mockReturnValue({
+    send: vi.fn().mockResolvedValue("ecg-job"),
+  } as never);
 });
 
 afterEach(() => {

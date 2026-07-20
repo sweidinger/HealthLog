@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+## [1.31.2] — 2026-07-20
+
+- **Provider imports now commit identity and progress atomically.** Withings,
+  WHOOP, Oura, Polar, Strava, and Apple Health reconcile external and natural
+  measurement identities under database locks, preserve tombstones, emit
+  arrivals only for genuine inserts, and advance cursors only after durable
+  writes. OAuth refresh-token rotation is serialized per user and provider.
+- **Webhook and import success now means the source data is durable.** moodLog
+  writes before acknowledging delivery, while Withings ECG callbacks enter a
+  durable queue with bounded retry and replay-safe processing. WHOOP backfills
+  commit bounded chunks without advancing failed resource cursors, and legacy
+  mood imports use deterministic, collision-free retry identities. Operational
+  JSON import failures are reported as failures instead of misleading
+  duplicate skips.
+- **Recovery is complete, exact, and owner-safe.** Canonical backups round-trip
+  every supported record class, including encrypted document content,
+  measurement reconciliation identities, and tombstones. Restore rejects
+  account mismatches before writing, validates backup enums at the boundary,
+  processes stable measurement IDs in bounded batches, and preserves recovery
+  integrity across both uploaded and off-host payloads.
+- **Device and mood edits no longer lose related state.** Same-user APNs
+  registrations merge transactionally without crossing account boundaries,
+  refresh-token bindings follow the surviving device, and mood edits preserve
+  rated factors unless the caller explicitly replaces them.
+- **Polar sync follows the current AccessLink collection API.** Collection
+  requests no longer include the obsolete user ID path segment, and current
+  activity, Nightly Recharge, cardio-load, sleep, and SpO2 response shapes are
+  normalized without losing stable measurement identity.
+- **The July dependency bundle is included.** PDF.js 6 now releases its loading
+  task correctly; Canvas 1.0, Radix UI 1.6.2, Tailwind CSS 4.3.3, the Tailwind
+  Prettier plugin 0.8.1, and setup-node 7 are integrated.
+
+No migrations. No breaking changes.
+
 ## [1.31.1] — 2026-07-19
 
 - **Arrival events now follow committed inserts across every writer.** Provider

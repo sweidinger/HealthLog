@@ -85,3 +85,7 @@ next-env.d.ts
 
 # Local screenshot/audit harnesses (repo-root for module resolution; never committed)
 .audit-*.mjs
+
+
+# Isolated development worktrees
+/.worktrees/
