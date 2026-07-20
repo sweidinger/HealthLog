@@ -1,35 +1,18 @@
 /**
- * POST /api/admin/backups/[id]/restore — admin-only restore from backup.
+ * POST /api/admin/backups/[id]/restore — admin-only disaster recovery.
  *
- * The riskiest endpoint in the backup family. Mirroring the v1.4.14 wipe
- * scope (`DELETE /api/admin/data`), the restore replaces the **target
- * user's** personal data with the contents of the snapshot:
+ * After owner and schema validation, one transaction replaces every
+ * serialized owner-scoped class: measurements, medication history, mood and
+ * rated factors, cycle data, labs/biomarkers, illness history, allergies,
+ * family history, workout summaries, and inbound documents. Document content
+ * and summary ciphertext are decoded from base64 and persisted verbatim.
  *
- *   1. Decrypt + parse the `DataBackup.data` blob.
- *   2. In a single Prisma transaction:
- *      a. Delete the user's measurements, medications (cascades to
- *         schedules + intake events + telegram messages +
- *         reminder-phase configs), mood entries, notification channels,
- *         push subscriptions, telegram scheduled deletions.
- *      b. Re-create measurements, medications + schedules, intake
- *         events, mood entries from the payload.
- *   3. Outside the transaction, write `admin.backups.restore` to the
- *      AuditLog so the trail outlives the operation. Audit rows are
- *      intentionally NOT touched by the restore (same contract as the
- *      wipe).
- *
- * Triple-confirm: the request body must carry `confirm: "RESTORE"`.
- * The client also gates the form on a typed-string match so an
- * accidental click cannot fire this.
- *
- * Idempotency: wrapped in `withIdempotency()` so retries with the same
- * `Idempotency-Key` replay the original outcome instead of double-
- * restoring (unlikely in practice — the second run would be a no-op
- * because the user data already matches the backup — but this still
- * prevents two parallel admin clicks from racing through).
- *
- * Phase B1 / criterion 3 of the v1.4.15 backup-completeness work.
+ * Metadata-only portable document exports are rejected before mutation; the
+ * importer never fabricates content. Audit rows remain outside the wipe, and
+ * cache invalidation runs only after the complete restore transaction.
  */
+import { Buffer } from "node:buffer";
+
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { apiHandler, HttpError, requireAdmin } from "@/lib/api-handler";
@@ -37,6 +20,9 @@ import { apiError, apiSuccess, getClientIp } from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { decrypt } from "@/lib/crypto";
 import { encryptNote } from "@/lib/crypto/note-cipher";
+import { encryptToBytes } from "@/lib/ai/coach/bytes-codec";
+import { encryptContextToBytes } from "@/lib/labs/biomarker-store";
+import { encryptNoteToBytes } from "@/lib/labs/store";
 import { defaultUserIdResolver, withIdempotency } from "@/lib/idempotency";
 import { annotate } from "@/lib/logging/context";
 import {
@@ -57,12 +43,6 @@ export const dynamic = "force-dynamic";
 
 interface RestoreResponse {
   restored: true;
-  // v1.28 — `summary` reports every domain PRESENT in the uploaded file
-  // (informational — it now includes labs/illness/allergies/family-history/
-  // workouts/documents counts too). `cleared` below is the narrower,
-  // authoritative list of what this restore actually wiped + recreated —
-  // those newer domains are export-only for now and are NOT touched by a
-  // restore, so they are deliberately absent from `cleared`.
   summary: BackupSummary;
   cleared: {
     measurements: number;
@@ -72,11 +52,24 @@ interface RestoreResponse {
     notificationChannels: number;
     pushSubscriptions: number;
     telegramScheduledDeletions: number;
-    // v1.15.0 — cycle tables wiped before recreate.
     cycles: number;
     cycleDayLogs: number;
     cycleProfile: number;
+    labResults: number;
+    biomarkers: number;
+    illnessEpisodes: number;
+    allergies: number;
+    familyHistory: number;
+    workouts: number;
+    documents: number;
   };
+}
+
+function decodeEncryptedBytes(encoded: string): Uint8Array<ArrayBuffer> {
+  const decoded = Buffer.from(encoded, "base64");
+  const bytes = new Uint8Array(new ArrayBuffer(decoded.byteLength));
+  bytes.set(decoded);
+  return bytes;
 }
 
 /**
@@ -307,14 +300,48 @@ const handler = apiHandler(
       }
     }
 
+    // Portable exports intentionally omit document ciphertext. They remain
+    // valid upload/download artifacts, but cannot be used to manufacture an
+    // InboundDocument row. A DR restore must fail before any delete rather
+    // than inventing empty/plaintext content.
+    const incompleteDocument = payload.documents.find(
+      (document) =>
+        document.contentEncrypted === undefined ||
+        document.contentSha256 === undefined ||
+        document.contentCodec === undefined ||
+        document.providerType === undefined ||
+        document.reportDate === undefined ||
+        document.documentDate === undefined ||
+        document.errorReason === undefined ||
+        document.summaryEncrypted === undefined ||
+        document.summaryGeneratedAt === undefined ||
+        document.summaryState === undefined ||
+        document.createdAt === undefined ||
+        document.updatedAt === undefined,
+    );
+    if (incompleteDocument) {
+      await auditLog("admin.backups.restore.failed", {
+        userId: admin.id,
+        ipAddress: getClientIp(request),
+        details: {
+          backupId: id,
+          ownerId,
+          reason: "document_ciphertext_missing",
+          documentId: incompleteDocument.id,
+        },
+      });
+      return apiError(
+        `Document '${incompleteDocument.id}' is metadata-only and cannot be restored`,
+        422,
+      );
+    }
+
     let cleared: RestoreResponse["cleared"];
     try {
       cleared = await prisma.$transaction(async (tx) => {
-        // ── delete-then-recreate, mirroring the wipe scope plus mood ──
-        // Order matters: child rows first (intake events / schedules
-        // cascade via FK, but we delete them explicitly to capture the
-        // count for the audit trail). Telegram-reminder messages cascade
-        // off `medication`, so the medication delete sweeps them.
+        // Delete every serialized owner-scoped partition before rebuilding it
+        // in the same transaction. Child rows either go first for counts or
+        // cascade from their serialized parent.
         const intake = await tx.medicationIntakeEvent.deleteMany({
           where: { userId: ownerId },
         });
@@ -347,6 +374,27 @@ const handler = apiHandler(
           where: { userId: ownerId },
         });
         const tgDel = await tx.telegramScheduledDeletion.deleteMany({
+          where: { userId: ownerId },
+        });
+        const documents = await tx.inboundDocument.deleteMany({
+          where: { userId: ownerId },
+        });
+        const workouts = await tx.workout.deleteMany({
+          where: { userId: ownerId },
+        });
+        const familyHistory = await tx.familyHistoryEntry.deleteMany({
+          where: { userId: ownerId },
+        });
+        const allergies = await tx.allergy.deleteMany({
+          where: { userId: ownerId },
+        });
+        const illnessEpisodes = await tx.illnessEpisode.deleteMany({
+          where: { userId: ownerId },
+        });
+        const labResults = await tx.labResult.deleteMany({
+          where: { userId: ownerId },
+        });
+        const biomarkers = await tx.biomarker.deleteMany({
           where: { userId: ownerId },
         });
 
@@ -426,24 +474,332 @@ const handler = apiHandler(
         }
 
         if (payload.moodEntries.length > 0) {
-          await tx.moodEntry.createMany({
-            data: payload.moodEntries.map((e) => ({
-              userId: ownerId,
-              date: e.date,
-              mood: e.mood,
-              score: e.score,
-              tags: e.tags ?? null,
-              source: e.source ?? "MOODLOG",
-              moodLoggedAt: new Date(e.loggedAt),
-            })),
-            skipDuplicates: true,
-          });
+          const factorKeys = [
+            ...new Set(
+              payload.moodEntries.flatMap((entry) =>
+                entry.factors.map((factor) => factor.key),
+              ),
+            ),
+          ];
+          const factorRows =
+            factorKeys.length === 0
+              ? []
+              : await tx.moodTag.findMany({
+                  where: {
+                    key: { in: factorKeys },
+                    kind: "RATED",
+                    userId: null,
+                  },
+                  select: { id: true, key: true },
+                });
+          const factorByKey = new Map(
+            factorRows.map((factor) => [factor.key, factor.id]),
+          );
+          if (factorByKey.size !== factorKeys.length) {
+            const missing = factorKeys.filter((key) => !factorByKey.has(key));
+            throw new Error(`Unknown mood factor keys: ${missing.join(", ")}`);
+          }
+
+          for (const entry of payload.moodEntries) {
+            const created = await tx.moodEntry.create({
+              data: {
+                ...(entry.id ? { id: entry.id } : {}),
+                userId: ownerId,
+                date: entry.date,
+                mood: entry.mood,
+                score: entry.score,
+                tags: entry.tags ?? null,
+                source: entry.source ?? "MOODLOG",
+                externalId: entry.externalId ?? null,
+                moodLoggedAt: new Date(entry.loggedAt),
+              },
+            });
+            if (entry.factors.length > 0) {
+              await tx.moodEntryTagLink.createMany({
+                data: entry.factors.map((factor) => ({
+                  moodEntryId: created.id,
+                  moodTagId: factorByKey.get(factor.key)!,
+                  rating: factor.rating,
+                })),
+              });
+            }
+          }
         }
 
         // v1.15.0 — cycle tables (profile + observed spans + day-logs +
         // symptom links). Delete-then-recreate, mirroring the contract
         // above. `notesEncrypted` is restored as ciphertext verbatim.
         const cycleCleared = await restoreCycleData(tx, ownerId, payload);
+
+        const biomarkerByName = new Map<string, string>();
+        for (const biomarker of payload.biomarkers) {
+          const created = await tx.biomarker.create({
+            data: {
+              ...(biomarker.id ? { id: biomarker.id } : {}),
+              userId: ownerId,
+              name: biomarker.name,
+              unit: biomarker.unit,
+              lowerBound: biomarker.lowerBound ?? null,
+              upperBound: biomarker.upperBound ?? null,
+              panel: biomarker.panel ?? null,
+              hidden: biomarker.hidden ?? false,
+              contextEncrypted:
+                biomarker.context == null
+                  ? null
+                  : encryptContextToBytes(biomarker.context),
+              ...(biomarker.createdAt
+                ? { createdAt: new Date(biomarker.createdAt) }
+                : {}),
+              ...(biomarker.updatedAt
+                ? { updatedAt: new Date(biomarker.updatedAt) }
+                : {}),
+            },
+          });
+          biomarkerByName.set(biomarker.name, created.id);
+        }
+
+        for (const lab of payload.labResults) {
+          const biomarkerId = lab.biomarkerName
+            ? biomarkerByName.get(lab.biomarkerName)
+            : undefined;
+          if (lab.biomarkerName && !biomarkerId) {
+            throw new Error(
+              `Unknown biomarker reference: ${lab.biomarkerName}`,
+            );
+          }
+          await tx.labResult.create({
+            data: {
+              ...(lab.id ? { id: lab.id } : {}),
+              userId: ownerId,
+              biomarkerId: biomarkerId ?? null,
+              panel: lab.panel ?? null,
+              analyte: lab.analyte,
+              value: lab.value ?? null,
+              valueText: lab.valueText ?? null,
+              unit: lab.unit,
+              referenceLow: lab.referenceLow ?? null,
+              referenceHigh: lab.referenceHigh ?? null,
+              takenAt: new Date(lab.takenAt),
+              source: lab.source,
+              noteEncrypted:
+                lab.note == null ? null : encryptNoteToBytes(lab.note),
+              ...(lab.createdAt
+                ? { createdAt: new Date(lab.createdAt) }
+                : {}),
+              ...(lab.updatedAt
+                ? { updatedAt: new Date(lab.updatedAt) }
+                : {}),
+            },
+          });
+        }
+
+        const episodeIds = new Set(
+          payload.illnessEpisodes.map((episode) => episode.id),
+        );
+        for (const episode of payload.illnessEpisodes) {
+          if (
+            episode.parentConditionId &&
+            !episodeIds.has(episode.parentConditionId)
+          ) {
+            throw new Error(
+              `Unknown illness parent: ${episode.parentConditionId}`,
+            );
+          }
+          await tx.illnessEpisode.create({
+            data: {
+              id: episode.id,
+              userId: ownerId,
+              label: episode.label,
+              type: episode.type as never,
+              lifecycle: episode.lifecycle as never,
+              onsetAt: new Date(episode.onsetAt),
+              resolvedAt: episode.resolvedAt
+                ? new Date(episode.resolvedAt)
+                : null,
+              parentConditionId: null,
+              noteEncrypted:
+                episode.note == null ? null : encryptToBytes(episode.note),
+              ...(episode.createdAt
+                ? { createdAt: new Date(episode.createdAt) }
+                : {}),
+              ...(episode.updatedAt
+                ? { updatedAt: new Date(episode.updatedAt) }
+                : {}),
+            },
+          });
+        }
+        for (const episode of payload.illnessEpisodes) {
+          if (episode.parentConditionId) {
+            await tx.illnessEpisode.update({
+              where: { id: episode.id },
+              data: { parentConditionId: episode.parentConditionId },
+            });
+          }
+        }
+
+        const symptomKeys = [
+          ...new Set(
+            payload.illnessEpisodes.flatMap((episode) =>
+              episode.dayLogs.flatMap((dayLog) =>
+                dayLog.symptoms.map((symptom) => symptom.key),
+              ),
+            ),
+          ),
+        ];
+        const symptomRows =
+          symptomKeys.length === 0
+            ? []
+            : await tx.illnessSymptom.findMany({
+                where: { key: { in: symptomKeys } },
+                select: { id: true, key: true },
+              });
+        const symptomByKey = new Map(
+          symptomRows.map((symptom) => [symptom.key, symptom.id]),
+        );
+        if (symptomByKey.size !== symptomKeys.length) {
+          const missing = symptomKeys.filter((key) => !symptomByKey.has(key));
+          throw new Error(`Unknown illness symptom keys: ${missing.join(", ")}`);
+        }
+        for (const episode of payload.illnessEpisodes) {
+          for (const dayLog of episode.dayLogs) {
+            await tx.illnessDayLog.create({
+              data: {
+                ...(dayLog.id ? { id: dayLog.id } : {}),
+                userId: ownerId,
+                episodeId: episode.id,
+                date: dayLog.date,
+                functionalImpact: dayLog.functionalImpact ?? null,
+                feverC: dayLog.feverC ?? null,
+                noteEncrypted:
+                  dayLog.note == null ? null : encryptToBytes(dayLog.note),
+                ...(dayLog.updatedAt
+                  ? { updatedAt: new Date(dayLog.updatedAt) }
+                  : {}),
+                symptomLinks: {
+                  create: dayLog.symptoms.map((symptom) => ({
+                    symptomId: symptomByKey.get(symptom.key)!,
+                    severity: symptom.severity ?? null,
+                  })),
+                },
+              },
+            });
+          }
+        }
+
+        for (const allergy of payload.allergies) {
+          await tx.allergy.create({
+            data: {
+              id: allergy.id,
+              userId: ownerId,
+              substance: allergy.substance,
+              category: allergy.category as never,
+              type: allergy.type as never,
+              severity: (allergy.severity ?? null) as never,
+              status: allergy.status as never,
+              onsetAt: allergy.onsetAt ? new Date(allergy.onsetAt) : null,
+              reactionEncrypted:
+                allergy.reaction == null
+                  ? null
+                  : encryptToBytes(allergy.reaction),
+              notesEncrypted:
+                allergy.note == null ? null : encryptToBytes(allergy.note),
+              ...(allergy.createdAt
+                ? { createdAt: new Date(allergy.createdAt) }
+                : {}),
+              ...(allergy.updatedAt
+                ? { updatedAt: new Date(allergy.updatedAt) }
+                : {}),
+            },
+          });
+        }
+
+        for (const familyEntry of payload.familyHistory) {
+          await tx.familyHistoryEntry.create({
+            data: {
+              id: familyEntry.id,
+              userId: ownerId,
+              relationship: familyEntry.relationship as never,
+              condition: familyEntry.condition,
+              ageAtOnset: familyEntry.ageAtOnset ?? null,
+              notesEncrypted:
+                familyEntry.note == null
+                  ? null
+                  : encryptToBytes(familyEntry.note),
+              ...(familyEntry.createdAt
+                ? { createdAt: new Date(familyEntry.createdAt) }
+                : {}),
+              ...(familyEntry.updatedAt
+                ? { updatedAt: new Date(familyEntry.updatedAt) }
+                : {}),
+            },
+          });
+        }
+
+        if (payload.workouts.length > 0) {
+          await tx.workout.createMany({
+            data: payload.workouts.map((workout) => ({
+              ...(workout.id ? { id: workout.id } : {}),
+              userId: ownerId,
+              sportType: workout.sportType,
+              startedAt: new Date(workout.startedAt),
+              endedAt: new Date(workout.endedAt),
+              durationSec: workout.durationSec,
+              totalEnergyKcal: workout.totalEnergyKcal ?? null,
+              totalDistanceM: workout.totalDistanceM ?? null,
+              avgHeartRate: workout.avgHeartRate ?? null,
+              maxHeartRate: workout.maxHeartRate ?? null,
+              minHeartRate: workout.minHeartRate ?? null,
+              stepCount: workout.stepCount ?? null,
+              elevationM: workout.elevationM ?? null,
+              pauseDurationSec: workout.pauseDurationSec ?? null,
+              source: workout.source as never,
+              externalId: workout.externalId ?? null,
+              ...(workout.createdAt
+                ? { createdAt: new Date(workout.createdAt) }
+                : {}),
+              ...(workout.updatedAt
+                ? { updatedAt: new Date(workout.updatedAt) }
+                : {}),
+            })),
+          });
+        }
+
+        if (payload.documents.length > 0) {
+          await tx.inboundDocument.createMany({
+            data: payload.documents.map((document) => ({
+              id: document.id,
+              userId: ownerId,
+              kind: document.kind as never,
+              title: document.title ?? null,
+              filename: document.filename ?? null,
+              mimeType: document.mimeType,
+              byteSize: document.byteSize,
+              contentEncrypted: decodeEncryptedBytes(
+                document.contentEncrypted!,
+              ),
+              contentSha256: document.contentSha256 ?? null,
+              contentCodec: document.contentCodec!,
+              status: document.status as never,
+              providerType: document.providerType ?? null,
+              reportDate: document.reportDate
+                ? new Date(document.reportDate)
+                : null,
+              documentDate: document.documentDate
+                ? new Date(document.documentDate)
+                : null,
+              errorReason: document.errorReason ?? null,
+              summaryEncrypted: document.summaryEncrypted
+                ? decodeEncryptedBytes(document.summaryEncrypted)
+                : null,
+              summaryGeneratedAt: document.summaryGeneratedAt
+                ? new Date(document.summaryGeneratedAt)
+                : null,
+              summaryState: document.summaryState as never,
+              createdAt: new Date(document.createdAt!),
+              updatedAt: new Date(document.updatedAt!),
+            })),
+          });
+        }
 
         return {
           measurements: measurements.count,
@@ -456,7 +812,17 @@ const handler = apiHandler(
           cycles: cycleCleared.cycles,
           cycleDayLogs: cycleCleared.cycleDayLogs,
           cycleProfile: cycleCleared.cycleProfile,
+          labResults: labResults.count,
+          biomarkers: biomarkers.count,
+          illnessEpisodes: illnessEpisodes.count,
+          allergies: allergies.count,
+          familyHistory: familyHistory.count,
+          workouts: workouts.count,
+          documents: documents.count,
         };
+      }, {
+        maxWait: 10_000,
+        timeout: 120_000,
       });
     } catch (err) {
       // Scrub the raw Prisma / driver error from the wire response —
@@ -566,12 +932,19 @@ const handler = apiHandler(
           moodEntries: summary.moodEntries,
           cycles: summary.cycles,
           cycleDayLogs: summary.cycleDayLogs,
+          labResults: summary.labResults,
+          biomarkers: summary.biomarkers,
+          illnessEpisodes: summary.illnessEpisodes,
+          illnessDayLogs: summary.illnessDayLogs,
+          allergies: summary.allergies,
+          familyHistory: summary.familyHistory,
+          workouts: summary.workouts,
+          documents: summary.documents,
         },
       },
     });
 
-    // v1.16.9 — the restore replaced every row the owner's cached
-    // payloads were built on; hard-evict all of that user's buckets.
+    // The complete transaction succeeded; only now evict owner-scoped caches.
     invalidateUserData(ownerId);
 
     const response: RestoreResponse = {

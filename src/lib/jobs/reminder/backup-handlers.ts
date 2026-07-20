@@ -120,13 +120,23 @@ export async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
             prisma.moodEntry.findMany({
               where: { userId: user.id },
               orderBy: { moodLoggedAt: "desc" },
+              include: {
+                tagLinks: {
+                  where: { rating: { not: null } },
+                  select: {
+                    rating: true,
+                    moodTag: { select: { key: true } },
+                  },
+                },
+              },
             }),
             // v1.15.0 — cycle slice (shared helper, notesEncrypted verbatim).
             buildCycleBackupSection(prisma, user.id),
-            // v1.28 backup-completeness — labs/biomarkers, illness episodes
-            // + day-logs, allergies, family history, workouts, and the
-            // documents manifest (shared helper — see records-backup.ts).
-            buildRecordsBackupSection(prisma, user.id),
+            // Canonical DR mode includes InboundDocument ciphertext and the
+            // exact codec/hash metadata needed to re-create the row.
+            buildRecordsBackupSection(prisma, user.id, {
+              purpose: "disaster-recovery",
+            }),
           ]);
 
           const backupJson = JSON.stringify({
@@ -159,20 +169,26 @@ export async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
               source: e.source,
             })),
             moodEntries: moodEntries.map((e) => ({
+              id: e.id,
               date: e.date,
               mood: e.mood,
               score: e.score,
               tags: e.tags,
               source: e.source,
               loggedAt: e.moodLoggedAt.toISOString(),
+              externalId: e.externalId,
+              factors: e.tagLinks.map((link) => ({
+                key: link.moodTag.key,
+                rating: link.rating,
+              })),
             })),
             // v1.15.0 — cycle slice (profile + observed spans + day-logs).
             cycleProfile: cycle.cycleProfile,
             cycles: cycle.cycles,
             cycleDayLogs: cycle.cycleDayLogs,
-            // v1.28 backup-completeness (see records-backup.ts) — export-only
-            // domains; the manifest field discloses the two deliberate
-            // exclusions (document binaries, workout GPS/sample series).
+            // Canonical disaster-recovery records. Documents carry encrypted
+            // bytes plus codec/hash metadata; workout route/sample sidecars
+            // remain outside the serialized workout-summary contract.
             labResults: records.labResults,
             biomarkers: records.biomarkers,
             illnessEpisodes: records.illnessEpisodes,

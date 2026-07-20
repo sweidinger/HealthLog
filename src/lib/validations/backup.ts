@@ -97,14 +97,24 @@ const moodEntryTagsSchema = z
     { message: "tags must be null, empty, or a JSON array of strings" },
   );
 
+const moodFactorSchema = z
+  .object({
+    key: z.string().min(1),
+    rating: z.number().int(),
+  })
+  .passthrough();
+
 const moodEntrySchema = z
   .object({
+    id: z.string().min(1).optional(),
     date: z.string().min(1),
     mood: z.string().min(1),
     score: z.number().int().min(0).max(10),
     tags: moodEntryTagsSchema,
     source: z.string().min(1).optional(),
+    externalId: z.string().nullable().optional(),
     loggedAt: isoDateTime,
+    factors: z.array(moodFactorSchema).default([]),
   })
   .passthrough();
 
@@ -177,22 +187,18 @@ const cycleProfileSchema = z
   })
   .passthrough();
 
-/* ── v1.28 backup-completeness shapes ──────────────────────────────
+/* ── Structured-record disaster-recovery shapes ─────────────────────
  *
- * Labs, illness episodes (+ flares/exacerbations), allergies, family
- * history, workouts, and the documents manifest. Written by
- * `buildRecordsBackupSection` (`src/lib/export/records-backup.ts`) — shared
- * by the on-demand export routes AND the weekly `data-backup` worker.
- *
- * EXPORT-ONLY today: `POST /api/admin/backups/[id]/restore` does not yet
- * recreate these domains on restore (only measurements / medications /
- * mood / cycle round-trip). The schemas below exist so the payload
- * validates + parses with real types (an admin reviewing an uploaded
- * backup sees accurate counts) even though restore ignores them for now.
+ * These shapes serve both the historical portable export and the canonical
+ * weekly/off-host disaster-recovery payload. Portable document entries remain
+ * metadata-only. Canonical entries additionally carry encrypted BYTEA values
+ * as base64 plus the codec/hash fields required to recreate InboundDocument
+ * without decrypting or fabricating content.
  */
 
 const labResultBackupSchema = z
   .object({
+    id: z.string().min(1).optional(),
     panel: z.string().nullable().optional(),
     analyte: z.string().min(1),
     value: z.number().nullable().optional(),
@@ -204,11 +210,14 @@ const labResultBackupSchema = z
     source: z.string().min(1),
     biomarkerName: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
   })
   .passthrough();
 
 const biomarkerBackupSchema = z
   .object({
+    id: z.string().min(1).optional(),
     name: z.string().min(1),
     unit: z.string().min(1),
     lowerBound: z.number().nullable().optional(),
@@ -216,6 +225,8 @@ const biomarkerBackupSchema = z
     panel: z.string().nullable().optional(),
     hidden: z.boolean().optional(),
     context: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
   })
   .passthrough();
 
@@ -287,6 +298,7 @@ const familyHistoryBackupSchema = z
 
 const workoutBackupSchema = z
   .object({
+    id: z.string().min(1).optional(),
     sportType: z.string().min(1),
     startedAt: isoDateTime,
     endedAt: isoDateTime,
@@ -301,8 +313,19 @@ const workoutBackupSchema = z
     pauseDurationSec: z.number().int().nullable().optional(),
     source: z.string().min(1),
     externalId: z.string().nullable().optional(),
+    createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
   })
   .passthrough();
+
+const base64BytesSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) =>
+      value.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(value),
+    { message: "Expected base64-encoded encrypted bytes" },
+  );
 
 const documentBackupSchema = z
   .object({
@@ -315,8 +338,21 @@ const documentBackupSchema = z
     status: z.string().min(1),
     reportDate: z.string().nullable().optional(),
     documentDate: z.string().nullable().optional(),
+    contentEncrypted: base64BytesSchema.optional(),
+    contentSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable()
+      .optional(),
+    contentCodec: z.string().min(1).optional(),
+    providerType: z.string().nullable().optional(),
+    errorReason: z.string().nullable().optional(),
+    summaryEncrypted: base64BytesSchema.nullable().optional(),
+    summaryGeneratedAt: isoDateTime.nullable().optional(),
+    summaryState: z.string().min(1).optional(),
     summary: z.string().nullable().optional(),
     createdAt: isoDateTime.optional(),
+    updatedAt: isoDateTime.optional(),
   })
   .passthrough();
 
@@ -350,9 +386,9 @@ export const backupPayloadSchema = z
     cycleProfile: cycleProfileSchema.nullable().default(null),
     cycles: z.array(cycleSpanSchema).default([]),
     cycleDayLogs: z.array(cycleDayLogSchema).default([]),
-    // v1.28 backup-completeness — export-only for now (see the block
-    // comment above). Default to empty arrays / null so a pre-v1.28 backup
-    // (no records keys) still round-trips unchanged.
+    // Structured records default to empty arrays so older backups remain
+    // parseable. Canonical DR writers add stable ids and encrypted document
+    // fields; portable exports retain the metadata-only subset.
     labResults: z.array(labResultBackupSchema).default([]),
     biomarkers: z.array(biomarkerBackupSchema).default([]),
     illnessEpisodes: z.array(illnessEpisodeBackupSchema).default([]),
@@ -383,21 +419,21 @@ export interface BackupSummary {
   cycles: number;
   /** v1.15.0 — cycle day-logs in the backup. */
   cycleDayLogs: number;
-  /** v1.28 — lab results in the backup (export-only, see above). */
+  /** Lab results in the backup. */
   labResults: number;
-  /** v1.28 — biomarker catalog entries in the backup (export-only). */
+  /** User-scoped biomarker catalog entries in the backup. */
   biomarkers: number;
-  /** v1.28 — illness episodes, incl. flares/exacerbations (export-only). */
+  /** Illness episodes, including flares/exacerbations. */
   illnessEpisodes: number;
-  /** v1.28 — illness day-logs across every episode (export-only). */
+  /** Illness day-logs across every episode. */
   illnessDayLogs: number;
-  /** v1.28 — allergy/intolerance records in the backup (export-only). */
+  /** Allergy/intolerance records in the backup. */
   allergies: number;
-  /** v1.28 — family-history entries in the backup (export-only). */
+  /** Family-history entries in the backup. */
   familyHistory: number;
-  /** v1.28 — workout summary records in the backup (export-only). */
+  /** Workout summary records in the backup. */
   workouts: number;
-  /** v1.28 — document manifest entries (metadata only, export-only). */
+  /** Document records (ciphertext included in canonical DR payloads). */
   documents: number;
 }
 
