@@ -16,8 +16,6 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({
   prisma: {},
-  buildSessionOptions: () => null,
-  getPoolMax: () => 5,
   toJson: (value: unknown) => value,
 }));
 

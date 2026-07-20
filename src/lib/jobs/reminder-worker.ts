@@ -14,9 +14,8 @@
  * Usage: Run as a standalone process or call startReminderWorker() from a
  * custom server setup. In dev, use: npx tsx src/lib/jobs/reminder-worker.ts
  */
-import { PgBoss } from "pg-boss";
 import { markWorkerStarted, recordError } from "@/lib/jobs/worker-status";
-import { setGlobalBoss } from "@/lib/jobs/boss-instance";
+import { createWorkerBoss, setGlobalBoss } from "@/lib/jobs/boss-instance";
 import { assertSubsystemEnabled } from "@/lib/process-type";
 import { DATABASE_URL, workerLog } from "./reminder/shared";
 import {
@@ -50,7 +49,7 @@ export async function startReminderWorker() {
     return;
   }
 
-  const boss = new PgBoss(DATABASE_URL);
+  const boss = createWorkerBoss(DATABASE_URL);
 
   boss.on("error", (error: unknown) => {
     workerLog("error", "boss emitted error", error);

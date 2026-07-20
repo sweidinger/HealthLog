@@ -25,9 +25,8 @@
  * Locks per `.planning/research/v1434-r-1-xml-import.md` §5.1.
  */
 import { unlinkSync } from "node:fs";
-import { PrismaClient } from "@/generated/prisma/client";
-import { buildSessionOptions, getPoolMax, toJson } from "@/lib/db";
-import { PrismaPg } from "@prisma/adapter-pg";
+import type { PrismaClient } from "@/generated/prisma/client";
+import { prisma, toJson } from "@/lib/db";
 import type { Job } from "pg-boss";
 
 import { extractExportXml } from "@/lib/import/unzip-export-xml";
@@ -94,20 +93,7 @@ export function _setWorkerPrismaForTests(client: PrismaClient | null): void {
 }
 
 function getWorkerPrisma(): PrismaClient {
-  if (!workerPrismaSingleton) {
-    // Inherit the web client's pool ceiling + per-session statement timeouts
-    // (`src/lib/db.ts`). The timeout is per-statement, not per-job, so the
-    // long-running bulk import stays safe while a single wedged UPSERT can no
-    // longer pin a worker connection indefinitely.
-    const sessionOptions = buildSessionOptions();
-    const adapter = new PrismaPg({
-      connectionString: process.env.DATABASE_URL!,
-      max: getPoolMax(),
-      ...(sessionOptions ? { options: sessionOptions } : {}),
-    });
-    workerPrismaSingleton = new PrismaClient({ adapter });
-  }
-  return workerPrismaSingleton;
+  return workerPrismaSingleton ?? prisma;
 }
 
 /**

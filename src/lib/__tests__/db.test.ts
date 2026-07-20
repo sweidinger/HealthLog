@@ -1,65 +1,71 @@
 /**
- * v1.4.40 W-POOL — pool-config contract for `src/lib/db.ts`.
- *
- * The v1.4.39 empirical cold-mount trace
- * (`.planning/round-v1439-empirical-trace.md` § B2) traced the
- * Wave-B/C dashboard-query stall to the Prisma `pg.Pool` falling
- * back to the library default ceiling of 10 connections. W-POOL
- * pinned the ceiling to 20 via `getPoolMax()`; this test prevents a
- * future refactor from silently dropping the override and re-introducing
- * the saturation regression on a power-user cold mount.
- *
- * The test only exercises the `getPoolMax()` env-resolver. Constructing
- * a real `PrismaClient` requires a live `DATABASE_URL`, which would
- * make this an integration test instead of a unit test — the helper
- * isolation is intentional.
+ * Pool configuration stays unit-tested here so connection ceilings and wait
+ * timeouts cannot silently fall back to separate library defaults.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { buildSessionOptions, getPoolMax, getStatementTimeoutMs } from "../db";
+import {
+  buildSessionOptions,
+  getConnectionBudget,
+  getPgBossPoolMax,
+  getPoolConnectionTimeoutMs,
+  getPrismaPoolMax,
+  getStatementTimeoutMs,
+} from "../db";
 
-describe("getPoolMax", () => {
-  const originalEnv = process.env.DATABASE_POOL_MAX;
+describe("per-process database connection budget", () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalConnectionLimit = process.env.DB_CONNECTION_LIMIT;
+  const originalPoolTimeout = process.env.DB_POOL_TIMEOUT;
+  const originalLegacyPoolMax = process.env.DATABASE_POOL_MAX;
 
   beforeEach(() => {
+    process.env.DATABASE_URL =
+      "postgresql://healthlog:test@db:5432/healthlog?connection_limit=20&pool_timeout=20";
+    delete process.env.DB_CONNECTION_LIMIT;
+    delete process.env.DB_POOL_TIMEOUT;
     delete process.env.DATABASE_POOL_MAX;
   });
 
   afterEach(() => {
-    if (originalEnv === undefined) {
-      delete process.env.DATABASE_POOL_MAX;
-    } else {
-      process.env.DATABASE_POOL_MAX = originalEnv;
-    }
+    const restore = (name: string, value: string | undefined) => {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    };
+    restore("DATABASE_URL", originalDatabaseUrl);
+    restore("DB_CONNECTION_LIMIT", originalConnectionLimit);
+    restore("DB_POOL_TIMEOUT", originalPoolTimeout);
+    restore("DATABASE_POOL_MAX", originalLegacyPoolMax);
   });
 
-  it("defaults to 20 when DATABASE_POOL_MAX is unset", () => {
-    expect(getPoolMax()).toBe(20);
+  it("splits the URL connection_limit across Prisma and pg-boss", () => {
+    expect(getConnectionBudget()).toBe(20);
+    expect(getPrismaPoolMax()).toBe(18);
+    expect(getPgBossPoolMax()).toBe(2);
+    expect(getPrismaPoolMax() + getPgBossPoolMax()).toBe(
+      getConnectionBudget(),
+    );
   });
 
-  it("honours DATABASE_POOL_MAX when it parses to a positive int", () => {
+  it("uses the existing pool_timeout seconds for both pool constructors", () => {
+    expect(getPoolConnectionTimeoutMs()).toBe(20_000);
+  });
+
+  it("prefers explicit DB_CONNECTION_LIMIT and DB_POOL_TIMEOUT values", () => {
+    process.env.DB_CONNECTION_LIMIT = "12";
+    process.env.DB_POOL_TIMEOUT = "7";
+
+    expect(getConnectionBudget()).toBe(12);
+    expect(getPrismaPoolMax()).toBe(10);
+    expect(getPgBossPoolMax()).toBe(2);
+    expect(getPoolConnectionTimeoutMs()).toBe(7_000);
+  });
+
+  it("keeps DATABASE_POOL_MAX as a backward-compatible explicit override", () => {
     process.env.DATABASE_POOL_MAX = "30";
-    expect(getPoolMax()).toBe(30);
-  });
 
-  it("falls back to 20 on a malformed DATABASE_POOL_MAX", () => {
-    process.env.DATABASE_POOL_MAX = "not-a-number";
-    expect(getPoolMax()).toBe(20);
-  });
-
-  it("falls back to 20 on a non-positive DATABASE_POOL_MAX", () => {
-    process.env.DATABASE_POOL_MAX = "0";
-    expect(getPoolMax()).toBe(20);
-    process.env.DATABASE_POOL_MAX = "-5";
-    expect(getPoolMax()).toBe(20);
-  });
-
-  it("never returns the library default of 10 on the happy path", () => {
-    // The whole point of the W-POOL change. If anybody removes the
-    // `max:` config from `createPrismaClient` and reverts to the
-    // library default, this assertion stops the regression before the
-    // next saturated cold mount.
-    expect(getPoolMax()).toBeGreaterThanOrEqual(20);
+    expect(getConnectionBudget()).toBe(30);
+    expect(getPrismaPoolMax()).toBe(28);
   });
 });
 
