@@ -9,24 +9,31 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { updateManyMock, upsertMeasurementsMock } = vi.hoisted(() => ({
-  updateManyMock: vi.fn(async () => ({ count: 0 })),
-  upsertMeasurementsMock: vi.fn(
-    async (
-      _userId: string,
-      readings: Array<{ type: string; measuredAt: Date }>,
-      opts?: {
-        onInserted?: (
-          rows: Array<{ id: string; type: string; measuredAt: Date }>,
-        ) => void;
+const { updateManyMock, upsertMeasurementsMock, morningRefreshMock } =
+  vi.hoisted(() => ({
+    updateManyMock: vi.fn(async () => ({ count: 0 })),
+    upsertMeasurementsMock: vi.fn(
+      async (
+        _userId: string,
+        readings: Array<{ type: string; measuredAt: Date }>,
+        opts?: {
+          onInserted?: (
+            rows: Array<{ id: string; type: string; measuredAt: Date }>,
+          ) => void;
+        },
+      ) => {
+        opts?.onInserted?.(
+          readings.map((row, index) => ({ ...row, id: `inserted-${index}` })),
+        );
+        return 1;
       },
-    ) => {
-      opts?.onInserted?.(
-        readings.map((row, index) => ({ ...row, id: `inserted-${index}` })),
-      );
-      return 1;
-    },
-  ),
+    ),
+    morningRefreshMock: vi.fn(async () => {}),
+  }));
+
+vi.mock("@/lib/daily/morning-refresh-trigger", () => ({
+  maybeEnqueueMorningRefresh: (...args: unknown[]) =>
+    morningRefreshMock(...args),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -92,6 +99,7 @@ beforeEach(() => {
   updateManyMock.mockClear().mockResolvedValue({ count: 0 });
   upsertMeasurementsMock.mockClear();
   fetchSleepsMock.mockReset();
+  morningRefreshMock.mockClear();
 });
 
 describe("syncUserSleep — record-scoped stale-segment sweep", () => {
@@ -154,5 +162,32 @@ describe("syncUserSleep — record-scoped stale-segment sweep", () => {
     updateManyMock.mockRejectedValueOnce(new Error("db down"));
     await expect(syncUserSleep("user-1")).resolves.toBe(1);
     expect(upsertMeasurementsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("enqueues refreshes for a committed chunk before a later chunk fails", async () => {
+    fetchSleepsMock.mockResolvedValue([NIGHT]);
+    const measuredAt = new Date("2026-06-01T07:00:00.000Z");
+    upsertMeasurementsMock.mockImplementationOnce(
+      async (
+        _userId: string,
+        _readings: Array<{ type: string; measuredAt: Date }>,
+        opts?: {
+          onInserted?: (
+            rows: Array<{ id: string; type: string; measuredAt: Date }>,
+          ) => void;
+        },
+      ) => {
+        opts?.onInserted?.([
+          { id: "committed-segment", type: "SLEEP_DURATION", measuredAt },
+        ]);
+        throw new Error("injected later-chunk failure");
+      },
+    );
+
+    await expect(syncUserSleep("user-1")).rejects.toThrow(
+      "injected later-chunk failure",
+    );
+
+    expect(morningRefreshMock).toHaveBeenCalledWith("user-1", [measuredAt]);
   });
 });

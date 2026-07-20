@@ -17,6 +17,8 @@ const {
   isReauthRequired,
   emitArrivalMock,
   reconcileMock,
+  recomputeBucketsMock,
+  invalidateStatusMock,
 } = vi.hoisted(() => ({
   prismaMock: {
     whoopConnection: {
@@ -43,6 +45,12 @@ const {
   ),
   reconcileMock: vi.fn(),
   emitArrivalMock: vi.fn(),
+  recomputeBucketsMock: vi.fn<(...a: unknown[]) => Promise<void>>(
+    async () => {},
+  ),
+  invalidateStatusMock: vi.fn<(...a: unknown[]) => Promise<void>>(
+    async () => {},
+  ),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }));
@@ -82,11 +90,13 @@ vi.mock("@/lib/integrations/status", () => ({
 vi.mock("@/lib/rollups/measurement-rollups", () => ({
   collapseToTypeDayKeys: (rows: Array<{ type: string; measuredAt: Date }>) =>
     rows.map((r) => ({ type: r.type, measuredAt: r.measuredAt })),
-  recomputeBucketsForMeasurement: vi.fn(async () => {}),
+  recomputeBucketsForMeasurement: (...a: unknown[]) =>
+    recomputeBucketsMock(...a),
 }));
 
 vi.mock("@/lib/insights/comprehensive-generate", () => ({
-  invalidateStatusInsightsForTypes: vi.fn(async () => {}),
+  invalidateStatusInsightsForTypes: (...a: unknown[]) =>
+    invalidateStatusMock(...a),
 }));
 
 vi.mock("@/lib/arrivals/measurement-emit", () => ({
@@ -592,6 +602,8 @@ describe("syncUserRecovery — durable cursor ordering", () => {
     expect(committedRows.size).toBeLessThan(105);
     expect(prismaMock.$transaction.mock.calls.length).toBeGreaterThan(1);
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
+    expect(recomputeBucketsMock).toHaveBeenCalled();
+    expect(invalidateStatusMock).toHaveBeenCalled();
 
     failLaterChunk = false;
     await expect(syncUserRecovery("user1")).resolves.toBe(105);

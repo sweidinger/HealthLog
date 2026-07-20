@@ -345,7 +345,6 @@ export async function upsertWhoopMeasurements(
   if (readings.length === 0) return 0;
 
   let imported = 0;
-  const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
 
   for (
     let chunkStart = 0;
@@ -385,6 +384,7 @@ export async function upsertWhoopMeasurements(
       { maxWait: 10_000, timeout: 60_000 },
     );
 
+    const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
     const insertedRows: Array<
       InsertedMeasurementArrivalRow & { externalId: string | null }
     > = [];
@@ -406,24 +406,24 @@ export async function upsertWhoopMeasurements(
     void emitInsertedMeasurementArrivals(userId, insertedRows, "whoop").catch(
       () => {},
     );
-  }
-  try {
-    const keys = collapseToTypeDayKeys(touched);
-    for (const k of keys) {
-      await recomputeBucketsForMeasurement(userId, k.type, k.measuredAt);
-    }
-    invalidateStatusInsightsForTypes(
-      userId,
-      keys.map((k) => k.type),
-    ).catch((err) => {
+    try {
+      const keys = collapseToTypeDayKeys(touched);
+      for (const k of keys) {
+        await recomputeBucketsForMeasurement(userId, k.type, k.measuredAt);
+      }
+      invalidateStatusInsightsForTypes(
+        userId,
+        keys.map((k) => k.type),
+      ).catch((err) => {
+        getEvent()?.addWarning(
+          `whoop: status-insight invalidate failed for ${userId}: ${err}`,
+        );
+      });
+    } catch (err) {
       getEvent()?.addWarning(
-        `whoop: status-insight invalidate failed for ${userId}: ${err}`,
+        `whoop: rollup recompute failed for ${userId}: ${err}`,
       );
-    });
-  } catch (err) {
-    getEvent()?.addWarning(
-      `whoop: rollup recompute failed for ${userId}: ${err}`,
-    );
+    }
   }
 
   return imported;

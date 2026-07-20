@@ -40,6 +40,18 @@ import {
 } from "./sync";
 import { prisma } from "@/lib/db";
 
+function enqueueMorningRefreshForInsertedSleepRows(
+  userId: string,
+  rows: ReadonlyArray<{ type: string; measuredAt: Date }>,
+): void {
+  const measuredAts = rows
+    .filter((row) => row.type === "SLEEP_DURATION")
+    .map((row) => row.measuredAt);
+  if (measuredAts.length === 0) return;
+
+  void maybeEnqueueMorningRefresh(userId, measuredAts).catch(() => {});
+}
+
 export async function syncUserSleep(
   userId: string,
   opts: { fullSync?: boolean } = {},
@@ -94,22 +106,14 @@ export async function syncUserSleep(
   // the fresh set upserts (mirrors Google Health's replace-by-window order).
   await sweepStaleSleepSegments(userId, "WHOOP", sweeps);
 
-  const insertedSleepMeasuredAts: Date[] = [];
+  // Each committed chunk triggers independently; a later chunk failure cannot
+  // strand inserted sleep rows without their debounced morning refresh.
   const imported = await upsertWhoopMeasurements(userId, readings, {
     onInserted: (rows) => {
-      insertedSleepMeasuredAts.push(
-        ...rows
-          .filter((row) => row.type === "SLEEP_DURATION")
-          .map((row) => row.measuredAt),
-      );
+      enqueueMorningRefreshForInsertedSleepRows(userId, rows);
     },
   });
   await markResourceSynced(userId, "sleep");
-
-  // S4 — trigger the debounced morning refresh on a last-night segment landing.
-  void maybeEnqueueMorningRefresh(userId, insertedSleepMeasuredAts).catch(
-    () => {},
-  );
 
   return imported;
 }
@@ -158,20 +162,12 @@ export async function syncWhoopSleepById(
     { prefix: `${record.id}:`, keepIds },
   ]);
 
-  let insertedSleepMeasuredAts: Date[] = [];
+  // Dispatch the targeted refresh as soon as its insert commits, matching the
+  // chunked collection path above.
   const imported = await upsertWhoopMeasurements(userId, readings, {
     onInserted: (rows) => {
-      insertedSleepMeasuredAts = rows
-        .filter((row) => row.type === "SLEEP_DURATION")
-        .map((row) => row.measuredAt);
+      enqueueMorningRefreshForInsertedSleepRows(userId, rows);
     },
   });
-
-  // S4 — a webhook-driven single-record refresh is the freshest possible
-  // last-night signal; kick the debounced morning refresh on its segments.
-  void maybeEnqueueMorningRefresh(userId, insertedSleepMeasuredAts).catch(
-    () => {},
-  );
-
   return imported;
 }
