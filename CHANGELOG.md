@@ -2,9 +2,13 @@
 
 ## [Unreleased]
 
+## [1.31.8] — 2026-07-21
+
 - **MCP search cursors keep lab results stable across pages.** Distinct analyte
   names are ordered before offset pagination, preventing repeated or skipped
   lab entries when a client follows `nextCursor`.
+
+No migrations. No breaking changes.
 
 ## [1.31.7] — 2026-07-20
 
