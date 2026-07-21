@@ -74,6 +74,8 @@ import { SettingsGroup } from "@/components/medications/settings-group";
 import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
 import { SideEffectsSection } from "@/components/medications/side-effects-section";
 import { hasSideEffectLogbook } from "@/lib/medications/side-effects/taxonomy";
+import { DailyCheckin } from "@/components/medications/daily-checkin";
+import { hasDrugProfile } from "@/lib/medications/profiles/registry";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { TitrationTimeline } from "@/components/medications/titration-timeline";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
@@ -254,6 +256,9 @@ export function MedicationDetailTabs({
     !oneShot &&
     hasSideEffectLogbook(medication.treatmentClass) &&
     !(isGlp1 && isInjectable);
+  // Daily guided check-in (the "interview") for any class with a drug profile.
+  const showDailyCheckin =
+    !oneShot && hasDrugProfile(medication.treatmentClass);
 
   // v1.28 — the "Wirkung" tab appears when the medication resolves to a known
   // outcome target (ATC class prefix → whole-word name inference) and is not a
@@ -705,6 +710,17 @@ export function MedicationDetailTabs({
             Slot zuordnen?" nudge). CSV import lives under Erweitert →
             Daten (the DataPortabilityRow), not in this header. */}
         <TabsContent value="verlauf" className="space-y-6 pt-2">
+          {showDailyCheckin && (
+            <div
+              className="flex justify-start"
+              data-slot="medication-daily-checkin"
+            >
+              <DailyCheckin
+                medicationId={id}
+                treatmentClass={medication.treatmentClass ?? "GENERIC"}
+              />
+            </div>
+          )}
           <div className="flex justify-end">
             <SegmentedToggle
               value={historyView}
