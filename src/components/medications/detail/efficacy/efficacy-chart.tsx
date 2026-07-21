@@ -54,6 +54,42 @@ export interface EfficacyChartProps {
 
 const toMs = (iso: string): number => Date.parse(iso);
 
+export interface DoseBand {
+  x1: number;
+  x2: number;
+  label: string;
+  index: number;
+}
+
+/**
+ * Stage C.3 — turn the dose-change markers into per-dose-level intervals so the
+ * target trend can be read against the dose in effect. Each band runs from one
+ * dose change to the next (the last runs to the chart's right edge), clamped to
+ * the plotted domain. A change before the visible window starts the first band
+ * at the left edge; a change beyond the right edge (a still-dataless planned
+ * step) yields no band. Sorted + pure so it is unit-testable and render-safe
+ * (no `Date.now()`).
+ */
+export function buildDoseBands(
+  doseChanges: { at: string; label: string }[],
+  domainMin: number,
+  rightEdge: number,
+): DoseBand[] {
+  const sorted = doseChanges
+    .map((d) => ({ at: toMs(d.at), label: d.label }))
+    .filter((d) => Number.isFinite(d.at))
+    .sort((a, b) => a.at - b.at);
+  const bands: DoseBand[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const x1 = Math.max(sorted[i].at, domainMin);
+    const rawEnd = i + 1 < sorted.length ? sorted[i + 1].at : rightEdge;
+    const x2 = Math.min(rawEnd, rightEdge);
+    if (x2 <= x1) continue;
+    bands.push({ x1, x2, label: sorted[i].label, index: i });
+  }
+  return bands;
+}
+
 export function EfficacyChart({
   target,
   startMs,
@@ -132,6 +168,14 @@ export function EfficacyChart({
     return [Math.floor(min - pad), Math.ceil(max + pad)];
   }, [displaySeries]);
 
+  // Stage C.3 — per-dose-level bands from the dose-change markers, clamped to
+  // the plotted domain. Computed before the early return to keep hook order
+  // stable; empty when there is no domain or no dose change.
+  const doseBands = useMemo(
+    () => (domain ? buildDoseBands(doseChanges, domain[0], domain[1]) : []),
+    [doseChanges, domain],
+  );
+
   if (seriesData.length === 0 || !domain) return null;
 
   const unitSuffix = mode === "percent" ? "%" : target.unit;
@@ -204,6 +248,27 @@ export function EfficacyChart({
               fill="var(--foreground)"
               fillOpacity={0.06}
               stroke="none"
+            />
+          ))}
+
+          {/* Stage C.3 — per-dose-level bands. Gentle alternating neutral
+              shading with the dose label, so the target trend reads against
+              the dose in effect. Descriptive only: never a good/bad zone. */}
+          {doseBands.map((b) => (
+            <ReferenceArea
+              key={`doseband-${b.index}`}
+              yAxisId="target"
+              x1={b.x1}
+              x2={b.x2}
+              fill="var(--muted-foreground)"
+              fillOpacity={b.index % 2 === 0 ? 0.06 : 0.02}
+              stroke="none"
+              label={{
+                value: b.label,
+                position: "insideTop",
+                fill: "var(--muted-foreground)",
+                fontSize: 9,
+              }}
             />
           ))}
 
