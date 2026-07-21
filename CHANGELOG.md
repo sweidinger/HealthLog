@@ -7,6 +7,9 @@
 - **MCP search cursors keep lab results stable across pages.** Distinct analyte
   names are ordered before offset pagination, preventing repeated or skipped
   lab entries when a client follows `nextCursor`.
+- **Opening the medication wizard no longer risks clearing entered fields.**
+  The one-shot URL flag is removed without starting a second page navigation,
+  so slower browsers keep the active wizard instance and its form state.
 
 No migrations. No breaking changes.
 

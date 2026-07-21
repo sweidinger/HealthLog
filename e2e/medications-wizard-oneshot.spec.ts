@@ -33,6 +33,29 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 test.describe("medication wizard — one-shot", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
+  test("does not replay the one-shot URL flag after history traversal", async ({
+    page,
+  }) => {
+    await stubDashboardAnalytics(page);
+    await openCreateWizard(page);
+
+    await page.keyboard.press("Escape");
+    await expect(
+      page.locator('[data-slot="medication-wizard-dialog"]'),
+    ).toHaveCount(0);
+
+    await page.locator('a[href="/"]:visible').first().click();
+    await page.waitForURL((url) => url.pathname === "/");
+    await page.goBack();
+    await page.waitForURL(
+      (url) => url.pathname === "/medications" && !url.searchParams.has("new"),
+    );
+
+    await expect(
+      page.locator('[data-slot="medication-wizard-dialog"]'),
+    ).toHaveCount(0);
+  });
+
   test("creates a single-dose medication end-to-end", async ({ page }) => {
     test.slow();
     await stubDashboardAnalytics(page);

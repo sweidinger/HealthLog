@@ -20,8 +20,9 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 /**
  * v1.5.4 — Medication wizard end-to-end — daily cadence.
  *
- * Walks the 7-step daily path through the modal dialog. The dialog
- * mounts when `/medications/new` redirects to `/medications?new=1`.
+ * Walks the 7-step daily path through the modal dialog. The shared helper
+ * opens `/medications?new=1` directly so cadence coverage is independent of
+ * the legacy `/medications/new` redirect.
  * The DE label surface (the maintainer's primary locale) is the assertion
  * surface — "Schritt N von 7" tracks the visible counter.
  */
