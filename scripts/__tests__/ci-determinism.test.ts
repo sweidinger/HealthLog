@@ -21,8 +21,13 @@ type WorkflowStep = {
   with?: Record<string, string | number>;
 };
 
+type WorkflowJob = {
+  env?: Record<string, string>;
+  steps?: WorkflowStep[];
+};
+
 type Workflow = {
-  jobs: Record<string, { steps?: WorkflowStep[] }>;
+  jobs: Record<string, WorkflowJob>;
 };
 
 afterEach(() => {
@@ -58,6 +63,16 @@ describe("Playwright CI determinism", () => {
       "if-no-files-found": "ignore",
     });
   });
+
+  it("uses production-valid secrets and plain-HTTP cookies", () => {
+    const workflow = parse(
+      readRepoFile(".github/workflows/e2e.yml"),
+    ) as Workflow;
+    const env = workflow.jobs.e2e?.env;
+
+    expect(env?.API_TOKEN_HMAC_KEY).toMatch(/^[0-9a-f]{64}$/);
+    expect(env?.SESSION_COOKIE_SECURE).toBe("false");
+  });
 });
 
 describe("integration environment isolation", () => {
@@ -73,7 +88,8 @@ describe("integration environment isolation", () => {
         "0000000000000000000000000000000000000000000000000000000000000000",
       ENCRYPTION_KEYS: "",
       ENCRYPTION_ACTIVE_KEY_ID: "",
-      API_TOKEN_HMAC_KEY: "integration-test-hmac-key-32-bytes-minimum",
+      API_TOKEN_HMAC_KEY:
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
       SESSION_SECRET: "integration-test-session-secret-32-bytes",
     });
     expect(

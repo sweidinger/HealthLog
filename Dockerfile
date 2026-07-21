@@ -80,10 +80,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Next's standalone output must carry every externalized worker dependency.
-# Fail the image build here if output tracing ever stops shipping one rather
-# than compensating with a second, independently versioned npm installation.
-RUN node -e "require.resolve('pg-boss'); require.resolve('@prisma/adapter-pg'); require.resolve('pg'); require.resolve('@prisma/client')"
+# Next's standalone output must carry the externalized worker dependencies.
+# Prisma's pure-JS adapter stays bundled; only modules loaded through native
+# Node resolution belong in this runtime assertion.
+RUN node -e "require.resolve('pg-boss'); require.resolve('pg')"
 
 # @napi-rs/canvas (document PDF rasterization): Next's file tracer copies the
 # native binary's package into the standalone tree but NOT the pnpm symlinks that

@@ -111,7 +111,7 @@ jobs:
             -e DATABASE_URL="$DATABASE_URL" \
             -e ENCRYPTION_KEYS='{"v1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}' \
             -e ENCRYPTION_ACTIVE_KEY_ID=v1 \
-            -e API_TOKEN_HMAC_KEY=verify-hmac-key-32-bytes-padding-x \
+            -e API_TOKEN_HMAC_KEY=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc \
             -e AUTH_RP_NAME=HealthLog \
             -e AUTH_RP_ID=localhost \
             -e AUTH_RP_ORIGIN=http://localhost:3000 \
@@ -135,10 +135,11 @@ jobs:
             exit 1
           fi
 
+          EXPECTED_VERSION="${IMAGE_TAG#v}"
           echo "$body" | jq .
-          if ! jq -e --arg expected "$IMAGE_TAG" '.data.version == $expected' <<< "$body" >/dev/null; then
+          if ! jq -e --arg expected "$EXPECTED_VERSION" '.data.version == $expected' <<< "$body" >/dev/null; then
             actual="$(jq -r '.data.version // "<missing>"' <<< "$body")"
-            echo "::error::Version mismatch: exact image reports '$actual', expected '$IMAGE_TAG'." >&2
+            echo "::error::Version mismatch: exact image reports '$actual', expected '$EXPECTED_VERSION' (release tag '$IMAGE_TAG')." >&2
             exit 1
           fi
           if ! jq -e --arg expected "$BUILD_SHA" '.data.buildSha == $expected' <<< "$body" >/dev/null; then

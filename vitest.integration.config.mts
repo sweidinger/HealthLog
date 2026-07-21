@@ -21,7 +21,8 @@ export default defineConfig({
         "0000000000000000000000000000000000000000000000000000000000000000",
       ENCRYPTION_KEYS: "",
       ENCRYPTION_ACTIVE_KEY_ID: "",
-      API_TOKEN_HMAC_KEY: "integration-test-hmac-key-32-bytes-minimum",
+      API_TOKEN_HMAC_KEY:
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
       SESSION_SECRET: "integration-test-session-secret-32-bytes",
     },
     include: ["tests/integration/**/*.test.ts"],

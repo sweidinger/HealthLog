@@ -244,12 +244,18 @@ describe("release container inputs", () => {
     ).toHaveLength(3);
   });
 
-  it("relies on and verifies standalone dependency resolution", () => {
+  it("bundles Prisma's adapter and verifies only runtime externals", () => {
     const dockerfile = readRepoFile("Dockerfile");
+    const nextConfig = readRepoFile("next.config.ts");
     expect(dockerfile).not.toContain("/opt/pg-boss");
     expect(dockerfile).not.toContain('NODE_PATH="/opt/pg-boss/node_modules"');
     expect(dockerfile).toMatch(
-      /require\.resolve\(['"]pg-boss['"]\)[\s\S]*require\.resolve\(['"]@prisma\/adapter-pg['"]\)[\s\S]*require\.resolve\(['"]pg['"]\)/,
+      /require\.resolve\(['"]pg-boss['"]\)[\s\S]*require\.resolve\(['"]pg['"]\)/,
+    );
+    expect(dockerfile).not.toContain("require.resolve('@prisma/adapter-pg')");
+    expect(dockerfile).not.toContain("require.resolve('@prisma/client')");
+    expect(nextConfig).not.toMatch(
+      /serverExternalPackages:\s*\[[\s\S]*["']@prisma\/adapter-pg["']/,
     );
   });
 });
@@ -374,12 +380,16 @@ describe("exact post-publish verification", () => {
     expect(stepScript(workflow, "verify", "Run migrations")).toContain(
       "${IMAGE_REF}@${IMAGE_DIGEST}",
     );
-    expect(stepScript(workflow, "verify", "Start exact image")).toContain(
-      "${IMAGE_REF}@${IMAGE_DIGEST}",
+    const startScript = stepScript(workflow, "verify", "Start exact image");
+    expect(startScript).toContain("${IMAGE_REF}@${IMAGE_DIGEST}");
+    expect(startScript).toMatch(/API_TOKEN_HMAC_KEY=[0-9a-f]{64}(?:\s|\\)/);
+    const versionScript = stepScript(
+      workflow,
+      "verify",
+      "Verify exact version",
     );
-    expect(stepScript(workflow, "verify", "Verify exact version")).toContain(
-      'jq -e --arg expected "$IMAGE_TAG"',
-    );
+    expect(versionScript).toContain('EXPECTED_VERSION="${IMAGE_TAG#v}"');
+    expect(versionScript).toContain('jq -e --arg expected "$EXPECTED_VERSION"');
     expect(stepScript(workflow, "verify", "Verify health")).toContain(
       "jq -e '.status == \"ok\"'",
     );
