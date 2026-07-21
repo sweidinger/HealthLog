@@ -221,6 +221,11 @@ const EXEMPT_ROUTES: ReadonlyArray<string> = [
   "src/app/api/medications/[id]/compliance/route.ts",
   "src/app/api/medications/[id]/dose-history/route.ts",
   "src/app/api/medications/[id]/glp1/route.ts",
+  // Fork ADHS Stage C — DELETE a single titration dose-change step. Same
+  // data-layer reasoning as the glp1 route above: raw CRUD over the user's own
+  // MedicationDoseChange rows. The module gate governs whether medications
+  // SURFACES, not whether the row store accepts a delete.
+  "src/app/api/medications/[id]/glp1/dose-change/[changeId]/route.ts",
   "src/app/api/medications/[id]/phase-config/route.ts",
   "src/app/api/medications/[id]/intake/route.ts",
   "src/app/api/medications/[id]/intake/[eventId]/route.ts",
