@@ -934,7 +934,10 @@
         "metabolic": "Métabolique",
         "injectionSite": "Site d'injection",
         "cognitive": "Cognitif",
-        "glp1Specific": "Spécifique GLP-1"
+        "glp1Specific": "Spécifique GLP-1",
+        "stimulantActivation": "Activation",
+        "stimulantSomatic": "Physique",
+        "stimulantMood": "Humeur"
       },
       "entries": {
         "nausea": "Nausées",
@@ -957,7 +960,17 @@
         "earlySatiety": "Satiété précoce",
         "gastroparesisLike": "Vidange gastrique lente",
         "dysgeusia": "Altération du goût",
-        "gallbladderDiscomfort": "Inconfort de la vésicule biliaire"
+        "gallbladderDiscomfort": "Inconfort de la vésicule biliaire",
+        "insomnia": "Insomnie",
+        "palpitations": "Palpitations",
+        "restlessness": "Agitation",
+        "reducedAppetite": "Appétit réduit",
+        "dryMouth": "Bouche sèche",
+        "bruxism": "Bruxisme",
+        "headache": "Mal de tête",
+        "irritability": "Irritabilité",
+        "emotionalBlunting": "Émoussement émotionnel",
+        "afternoonRebound": "Contrecoup de l'après-midi"
       },
       "deleteConfirmTitle": "Supprimer cette entrée ?",
       "deleteConfirmBody": "Cette entrée d’effet secondaire sera définitivement supprimée."
@@ -1192,6 +1205,7 @@
         "diabetes": "Diabetes",
         "hormone": "Hormones",
         "glp1": "Injection de GLP-1",
+        "stimulant": "Stimulant",
         "painRelief": "Douleur",
         "allergy": "Allergie",
         "vitamin": "Vitamines",

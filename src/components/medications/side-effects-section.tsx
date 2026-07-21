@@ -35,8 +35,8 @@ import type {
   MedicationSideEffectEntry,
 } from "@/generated/prisma/client";
 import {
-  SIDE_EFFECT_CATEGORY_ORDER,
   SIDE_EFFECT_SEVERITY_LADDER,
+  categoriesForTreatmentClass,
   categoryForEntry,
   entriesByCategory,
   severityLikertLabel,
@@ -80,6 +80,12 @@ interface SideEffectRow {
 
 interface SideEffectsSectionProps {
   medicationId: string;
+  /**
+   * The medication's treatment class (`MedicationCategory` value). Picks the
+   * class-scoped category set the picker offers so a GLP-1 med never sees
+   * stimulant categories and vice-versa.
+   */
+  treatmentClass: string;
 }
 
 const NOTES_MAX = 280;
@@ -98,6 +104,12 @@ function categoryI18nKey(category: MedicationSideEffectCategory): string {
       return "cognitive";
     case "GLP1_SPECIFIC":
       return "glp1Specific";
+    case "STIMULANT_ACTIVATION":
+      return "stimulantActivation";
+    case "STIMULANT_SOMATIC":
+      return "stimulantSomatic";
+    case "STIMULANT_MOOD":
+      return "stimulantMood";
   }
 }
 
@@ -108,13 +120,24 @@ function entryI18nKey(entry: MedicationSideEffectEntry): string {
     .replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 }
 
-export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
+export function SideEffectsSection({
+  medicationId,
+  treatmentClass,
+}: SideEffectsSectionProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const queryClient = useQueryClient();
 
+  // Class-scoped category set — the picker offers only these.
+  const categories = useMemo(
+    () => categoriesForTreatmentClass(treatmentClass),
+    [treatmentClass],
+  );
+
   const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState<MedicationSideEffectCategory>("GI");
+  const [category, setCategory] = useState<MedicationSideEffectCategory>(
+    () => categoriesForTreatmentClass(treatmentClass)[0] ?? "GI",
+  );
   const [entry, setEntry] = useState<MedicationSideEffectEntry | null>(null);
   const [severity, setSeverity] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [notes, setNotes] = useState<string>("");
@@ -199,7 +222,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
   });
 
   function resetForm() {
-    setCategory("GI");
+    setCategory(categories[0] ?? "GI");
     setEntry(null);
     setSeverity(null);
     setNotes("");
@@ -422,7 +445,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SIDE_EFFECT_CATEGORY_ORDER.map((c) => (
+                {categories.map((c) => (
                   <SelectItem key={c} value={c}>
                     {t(
                       `medications.sideEffects.categories.${categoryI18nKey(c)}`,

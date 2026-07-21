@@ -317,7 +317,7 @@ describe("WIZARD_TREATMENT_MAPPING — Step 2 row → request body", () => {
     });
   });
 
-  it("every row picks GENERIC except glp1", () => {
+  it("every row picks GENERIC except glp1 and stimulant", () => {
     const rows: WizardTreatmentRow[] = [
       "bloodPressure",
       "diabetes",
@@ -332,6 +332,9 @@ describe("WIZARD_TREATMENT_MAPPING — Step 2 row → request body", () => {
     for (const row of rows) {
       expect(WIZARD_TREATMENT_MAPPING[row].treatmentClass).toBe("GENERIC");
     }
+    // The two treatment-class-bending rows.
+    expect(WIZARD_TREATMENT_MAPPING.glp1.treatmentClass).toBe("GLP1");
+    expect(WIZARD_TREATMENT_MAPPING.stimulant.treatmentClass).toBe("STIMULANT");
   });
 });
 
@@ -339,6 +342,11 @@ describe("rowFromTreatment — reverse mapping for edit-hydration", () => {
   it("GLP1 treatment class wins over category", () => {
     expect(rowFromTreatment("GLP1", "OTHER")).toBe("glp1");
     expect(rowFromTreatment("GLP1", "BLOOD_PRESSURE")).toBe("glp1");
+  });
+
+  it("STIMULANT treatment class maps to the stimulant row", () => {
+    expect(rowFromTreatment("STIMULANT", "OTHER")).toBe("stimulant");
+    expect(rowFromTreatment("STIMULANT", "BLOOD_PRESSURE")).toBe("stimulant");
   });
 
   it("DIABETES category maps to the diabetes row", () => {

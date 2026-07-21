@@ -13,6 +13,7 @@ import {
   Syringe,
   Tag,
   Wind,
+  Zap,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -30,6 +31,7 @@ const ROW_ICONS: Record<WizardTreatmentRow, ComponentType<LucideProps>> = {
   diabetes: Droplet,
   hormone: Activity,
   glp1: Syringe,
+  stimulant: Zap,
   painRelief: Flame,
   allergy: Wind,
   vitamin: Apple,

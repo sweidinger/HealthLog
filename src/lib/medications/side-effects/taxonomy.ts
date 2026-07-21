@@ -63,20 +63,46 @@ export const SIDE_EFFECT_CATEGORIES: Record<
   GASTROPARESIS_LIKE: "GLP1_SPECIFIC",
   DYSGEUSIA: "GLP1_SPECIFIC",
   GALLBLADDER_DISCOMFORT: "GLP1_SPECIFIC",
+  // Stimulant — activation (3)
+  INSOMNIA: "STIMULANT_ACTIVATION",
+  PALPITATIONS: "STIMULANT_ACTIVATION",
+  RESTLESSNESS: "STIMULANT_ACTIVATION",
+  // Stimulant — somatic (4)
+  REDUCED_APPETITE: "STIMULANT_SOMATIC",
+  DRY_MOUTH: "STIMULANT_SOMATIC",
+  BRUXISM: "STIMULANT_SOMATIC",
+  HEADACHE: "STIMULANT_SOMATIC",
+  // Stimulant — mood (3)
+  IRRITABILITY: "STIMULANT_MOOD",
+  EMOTIONAL_BLUNTING: "STIMULANT_MOOD",
+  AFTERNOON_REBOUND: "STIMULANT_MOOD",
 };
 
 /**
  * Total entry count exposed as a const so callers (validators,
  * snapshot aggregators) can assert against drift without re-counting.
  */
-export const SIDE_EFFECT_ENTRY_COUNT = 21;
+export const SIDE_EFFECT_ENTRY_COUNT = 31;
 
 /**
  * Ordered category list — defines the picker UI's category-tab
- * sequence. Stable across versions; new categories append.
+ * sequence. Stable across versions; new categories append. NOTE: the
+ * picker never renders this whole list — it renders only the categories
+ * visible for the medication's treatment class (see
+ * `categoriesForTreatmentClass`). This full order is retained for
+ * aggregators / tests that reason about every category.
  */
 export const SIDE_EFFECT_CATEGORY_ORDER: readonly MedicationSideEffectCategory[] =
-  ["GI", "METABOLIC", "INJECTION_SITE", "COGNITIVE", "GLP1_SPECIFIC"] as const;
+  [
+    "GI",
+    "METABOLIC",
+    "INJECTION_SITE",
+    "COGNITIVE",
+    "GLP1_SPECIFIC",
+    "STIMULANT_ACTIVATION",
+    "STIMULANT_SOMATIC",
+    "STIMULANT_MOOD",
+  ] as const;
 
 /**
  * Entries grouped under each category in picker-UI order. The order
@@ -107,7 +133,45 @@ export const SIDE_EFFECT_ENTRIES_BY_CATEGORY: Record<
     "DYSGEUSIA",
     "GALLBLADDER_DISCOMFORT",
   ],
+  STIMULANT_ACTIVATION: ["INSOMNIA", "PALPITATIONS", "RESTLESSNESS"],
+  STIMULANT_SOMATIC: ["REDUCED_APPETITE", "DRY_MOUTH", "BRUXISM", "HEADACHE"],
+  STIMULANT_MOOD: ["IRRITABILITY", "EMOTIONAL_BLUNTING", "AFTERNOON_REBOUND"],
 } as const;
+
+/**
+ * Per-treatment-class category visibility — the picker shows ONLY the
+ * categories a medication's class surfaces, so GLP-1 rows never see
+ * "bruxism" and stimulant rows never see "gallbladder discomfort". The
+ * GLP-1 list preserves the exact pre-existing 5-category order/behaviour.
+ * A class absent from this map (e.g. GENERIC) has no side-effect logbook.
+ * Keyed by `Medication.treatmentClass` value (the `MedicationCategory`
+ * enum), typed loosely as string so callers can pass the raw column.
+ */
+export const SIDE_EFFECT_CATEGORIES_BY_TREATMENT_CLASS: Readonly<
+  Record<string, readonly MedicationSideEffectCategory[]>
+> = {
+  GLP1: ["GI", "METABOLIC", "INJECTION_SITE", "COGNITIVE", "GLP1_SPECIFIC"],
+  STIMULANT: ["STIMULANT_ACTIVATION", "STIMULANT_SOMATIC", "STIMULANT_MOOD"],
+};
+
+/**
+ * The ordered categories the picker offers for a treatment class, or an
+ * empty list when the class has no logbook. Unknown / undefined classes
+ * (e.g. GENERIC) return `[]`.
+ */
+export function categoriesForTreatmentClass(
+  treatmentClass: string | null | undefined,
+): readonly MedicationSideEffectCategory[] {
+  if (!treatmentClass) return [];
+  return SIDE_EFFECT_CATEGORIES_BY_TREATMENT_CLASS[treatmentClass] ?? [];
+}
+
+/** True when the medication's treatment class exposes a side-effect logbook. */
+export function hasSideEffectLogbook(
+  treatmentClass: string | null | undefined,
+): boolean {
+  return categoriesForTreatmentClass(treatmentClass).length > 0;
+}
 
 /**
  * Lookup helper — returns the entries for a category. Used by the

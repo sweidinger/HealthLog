@@ -73,6 +73,7 @@ import {
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
 import { SideEffectsSection } from "@/components/medications/side-effects-section";
+import { hasSideEffectLogbook } from "@/lib/medications/side-effects/taxonomy";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { TitrationTimeline } from "@/components/medications/titration-timeline";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
@@ -244,6 +245,15 @@ export function MedicationDetailTabs({
   const asNeeded = medication.asNeeded === true;
   const isGlp1 = !oneShot && medication.treatmentClass === "GLP1";
   const isInjectable = medication.deliveryForm === "INJECTION";
+  // The side-effect logbook lives in the Injektion tab for GLP-1 injectables
+  // (unchanged). For any other class WITH a scoped taxonomy (stimulants, and
+  // an oral GLP-1 that has no Injektion tab), surface it in the always-present
+  // Verlauf tab instead. The guard prevents a double mount for the exact case
+  // the Injektion tab already covers (GLP-1 + injectable).
+  const showVerlaufSideEffectLog =
+    !oneShot &&
+    hasSideEffectLogbook(medication.treatmentClass) &&
+    !(isGlp1 && isInjectable);
 
   // v1.28 — the "Wirkung" tab appears only when the medication resolves to a
   // known outcome target (ATC class prefix → whole-word name inference) and is
@@ -726,6 +736,12 @@ export function MedicationDetailTabs({
           ) : (
             <IntakeHistoryListV2 medicationId={id} />
           )}
+          {showVerlaufSideEffectLog && (
+            <SideEffectsSection
+              medicationId={id}
+              treatmentClass={medication.treatmentClass ?? "GENERIC"}
+            />
+          )}
         </TabsContent>
 
         {/* INJEKTION — injectable routes only. Current GLP-1 charts +
@@ -738,7 +754,12 @@ export function MedicationDetailTabs({
                 route (not GLP-1-only) since titration is a property of the
                 injection ladder, not the treatment class. */}
             <TitrationTimeline medicationId={id} />
-            {isGlp1 && <SideEffectsSection medicationId={id} />}
+            {isGlp1 && (
+              <SideEffectsSection
+                medicationId={id}
+                treatmentClass={medication.treatmentClass ?? "GENERIC"}
+              />
+            )}
             {isGlp1 && (
               <div
                 className="space-y-6"

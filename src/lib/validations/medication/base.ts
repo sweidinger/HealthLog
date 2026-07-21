@@ -95,7 +95,11 @@ export type MedicationCategoryValue =
  * inventory, GLP-1-aware Coach replies. Future treatment classes drop
  * into this list (INSULIN, BIOLOGIC, FERTILITY, …).
  */
-export const MEDICATION_TREATMENT_CLASS_VALUES = ["GENERIC", "GLP1"] as const;
+export const MEDICATION_TREATMENT_CLASS_VALUES = [
+  "GENERIC",
+  "GLP1",
+  "STIMULANT",
+] as const;
 export type MedicationTreatmentClass =
   (typeof MEDICATION_TREATMENT_CLASS_VALUES)[number];
 

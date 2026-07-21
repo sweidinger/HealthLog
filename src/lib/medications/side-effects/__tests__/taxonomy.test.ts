@@ -21,8 +21,10 @@ import {
   SIDE_EFFECT_ENTRIES_BY_CATEGORY,
   SIDE_EFFECT_ENTRY_COUNT,
   SIDE_EFFECT_SEVERITY_LADDER,
+  categoriesForTreatmentClass,
   categoryForEntry,
   entriesByCategory,
+  hasSideEffectLogbook,
   isSideEffectSeverity,
   severityLikertLabel,
 } from "../taxonomy";
@@ -49,6 +51,16 @@ const ALL_ENTRIES: MedicationSideEffectEntry[] = [
   "GASTROPARESIS_LIKE",
   "DYSGEUSIA",
   "GALLBLADDER_DISCOMFORT",
+  "INSOMNIA",
+  "PALPITATIONS",
+  "RESTLESSNESS",
+  "REDUCED_APPETITE",
+  "DRY_MOUTH",
+  "BRUXISM",
+  "HEADACHE",
+  "IRRITABILITY",
+  "EMOTIONAL_BLUNTING",
+  "AFTERNOON_REBOUND",
 ];
 
 const ALL_CATEGORIES: MedicationSideEffectCategory[] = [
@@ -57,12 +69,15 @@ const ALL_CATEGORIES: MedicationSideEffectCategory[] = [
   "INJECTION_SITE",
   "COGNITIVE",
   "GLP1_SPECIFIC",
+  "STIMULANT_ACTIVATION",
+  "STIMULANT_SOMATIC",
+  "STIMULANT_MOOD",
 ];
 
 describe("SIDE_EFFECT_CATEGORIES — entry → category mapping", () => {
-  it("declares exactly 21 entries", () => {
-    expect(Object.keys(SIDE_EFFECT_CATEGORIES)).toHaveLength(21);
-    expect(SIDE_EFFECT_ENTRY_COUNT).toBe(21);
+  it("declares exactly 31 entries", () => {
+    expect(Object.keys(SIDE_EFFECT_CATEGORIES)).toHaveLength(31);
+    expect(SIDE_EFFECT_ENTRY_COUNT).toBe(31);
   });
 
   it("maps every entry to a known category", () => {
@@ -94,12 +109,15 @@ describe("SIDE_EFFECT_ENTRIES_BY_CATEGORY — category → entries reverse index
     }
   });
 
-  it("matches the EMA-derived counts (GI 5, METABOLIC 4, INJECTION_SITE 4, COGNITIVE 4, GLP1_SPECIFIC 4)", () => {
+  it("matches the per-category counts (GLP-1: GI 5, METABOLIC 4, INJECTION_SITE 4, COGNITIVE 4, GLP1_SPECIFIC 4; stimulant: ACTIVATION 3, SOMATIC 4, MOOD 3)", () => {
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.GI).toHaveLength(5);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.METABOLIC).toHaveLength(4);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.INJECTION_SITE).toHaveLength(4);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.COGNITIVE).toHaveLength(4);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.GLP1_SPECIFIC).toHaveLength(4);
+    expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.STIMULANT_ACTIVATION).toHaveLength(3);
+    expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.STIMULANT_SOMATIC).toHaveLength(4);
+    expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.STIMULANT_MOOD).toHaveLength(3);
   });
 
   it("reverse index is consistent with the forward mapping", () => {
@@ -118,7 +136,7 @@ describe("SIDE_EFFECT_ENTRIES_BY_CATEGORY — category → entries reverse index
         seen.add(entry);
       }
     }
-    expect(seen.size).toBe(21);
+    expect(seen.size).toBe(31);
   });
 
   it("entriesByCategory helper is a thin wrapper", () => {
@@ -181,5 +199,41 @@ describe("isSideEffectSeverity — type guard", () => {
 
   it("rejects non-integer", () => {
     expect(isSideEffectSeverity(2.5)).toBe(false);
+  });
+});
+
+describe("categoriesForTreatmentClass — class-scoped picker visibility", () => {
+  it("GLP1 sees the five GLP-1 categories in the historical order", () => {
+    expect(categoriesForTreatmentClass("GLP1")).toEqual([
+      "GI",
+      "METABOLIC",
+      "INJECTION_SITE",
+      "COGNITIVE",
+      "GLP1_SPECIFIC",
+    ]);
+  });
+
+  it("STIMULANT sees only the three stimulant categories", () => {
+    expect(categoriesForTreatmentClass("STIMULANT")).toEqual([
+      "STIMULANT_ACTIVATION",
+      "STIMULANT_SOMATIC",
+      "STIMULANT_MOOD",
+    ]);
+  });
+
+  it("the GLP-1 and stimulant category sets never overlap", () => {
+    const glp1 = new Set(categoriesForTreatmentClass("GLP1"));
+    for (const c of categoriesForTreatmentClass("STIMULANT")) {
+      expect(glp1.has(c)).toBe(false);
+    }
+  });
+
+  it("GENERIC / unknown / nullish classes have no logbook", () => {
+    expect(categoriesForTreatmentClass("GENERIC")).toEqual([]);
+    expect(categoriesForTreatmentClass(undefined)).toEqual([]);
+    expect(categoriesForTreatmentClass(null)).toEqual([]);
+    expect(hasSideEffectLogbook("GENERIC")).toBe(false);
+    expect(hasSideEffectLogbook("GLP1")).toBe(true);
+    expect(hasSideEffectLogbook("STIMULANT")).toBe(true);
   });
 });

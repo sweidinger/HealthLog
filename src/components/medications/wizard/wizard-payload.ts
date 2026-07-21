@@ -83,6 +83,7 @@ export type WizardTreatmentRow =
   | "diabetes"
   | "hormone"
   | "glp1"
+  | "stimulant"
   | "painRelief"
   | "allergy"
   | "vitamin"
@@ -101,6 +102,7 @@ export const WIZARD_TREATMENT_ROWS: readonly WizardTreatmentRow[] = [
   "diabetes",
   "hormone",
   "glp1",
+  "stimulant",
   "painRelief",
   "allergy",
   "vitamin",
@@ -125,6 +127,7 @@ export const WIZARD_TREATMENT_MAPPING: Record<
   diabetes: { treatmentClass: "GENERIC", category: "DIABETES" },
   hormone: { treatmentClass: "GENERIC", category: "HORMONE" },
   glp1: { treatmentClass: "GLP1", category: "OTHER" },
+  stimulant: { treatmentClass: "STIMULANT", category: "OTHER" },
   painRelief: { treatmentClass: "GENERIC", category: "PAIN_RELIEF" },
   allergy: { treatmentClass: "GENERIC", category: "ALLERGY" },
   vitamin: { treatmentClass: "GENERIC", category: "VITAMIN" },
@@ -144,6 +147,7 @@ export function rowFromTreatment(
   category: string | undefined,
 ): WizardTreatmentRow {
   if (treatmentClass === "GLP1") return "glp1";
+  if (treatmentClass === "STIMULANT") return "stimulant";
   switch (category) {
     case "BLOOD_PRESSURE":
       return "bloodPressure";

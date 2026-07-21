@@ -934,7 +934,10 @@
         "metabolic": "Metaboliczne",
         "injectionSite": "Miejsce wstrzyknięcia",
         "cognitive": "Poznawcze",
-        "glp1Specific": "Specyficzne dla GLP-1"
+        "glp1Specific": "Specyficzne dla GLP-1",
+        "stimulantActivation": "Pobudzenie",
+        "stimulantSomatic": "Fizyczne",
+        "stimulantMood": "Nastrój"
       },
       "entries": {
         "nausea": "Nudności",
@@ -957,7 +960,17 @@
         "earlySatiety": "Wczesne uczucie sytości",
         "gastroparesisLike": "Spowolnione opróżnianie żołądka",
         "dysgeusia": "Zmiana smaku",
-        "gallbladderDiscomfort": "Dolegliwości pęcherzyka żółciowego"
+        "gallbladderDiscomfort": "Dolegliwości pęcherzyka żółciowego",
+        "insomnia": "Bezsenność",
+        "palpitations": "Kołatanie serca",
+        "restlessness": "Niepokój",
+        "reducedAppetite": "Zmniejszony apetyt",
+        "dryMouth": "Suchość w ustach",
+        "bruxism": "Bruksizm",
+        "headache": "Ból głowy",
+        "irritability": "Drażliwość",
+        "emotionalBlunting": "Stępienie emocjonalne",
+        "afternoonRebound": "Popołudniowy spadek"
       },
       "deleteConfirmTitle": "Usunąć ten wpis?",
       "deleteConfirmBody": "Ten wpis o skutku ubocznym zostanie trwale usunięty."
@@ -1192,6 +1205,7 @@
         "diabetes": "Diabetes",
         "hormone": "Hormony",
         "glp1": "Iniekcja GLP-1",
+        "stimulant": "Stymulant",
         "painRelief": "Ból",
         "allergy": "Alergia",
         "vitamin": "Witaminy",

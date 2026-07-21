@@ -2232,6 +2232,7 @@ model DismissedPriorityItem {
 enum MedicationCategory {
   GENERIC
   GLP1
+  STIMULANT
 
   @@map("medication_category")
 }
@@ -3063,13 +3064,21 @@ enum MedicationSideEffectCategory {
   INJECTION_SITE
   COGNITIVE
   GLP1_SPECIFIC
+  // v1.x — stimulant surface categories (class-scoped; never shown to
+  // GLP-1 rows, and the GLP-1 categories above are never shown to
+  // stimulant rows — see `taxonomy.ts` SIDE_EFFECT_CATEGORIES_BY_TREATMENT_CLASS).
+  STIMULANT_ACTIVATION
+  STIMULANT_SOMATIC
+  STIMULANT_MOOD
 
   @@map("medication_side_effect_category")
 }
 
-/// 21 EMA-EPAR-§4.8-derived entries grouped by surface category.
-/// Order in this enum matches the picker UI order; rename / reorder
-/// is a breaking change for serialised rows. New entries append.
+/// EMA-EPAR-§4.8-derived GLP-1 entries plus a class-scoped stimulant set,
+/// grouped by surface category. Order in this enum matches the picker UI
+/// order; rename / reorder is a breaking change for serialised rows. New
+/// entries append. The entry -> category map + per-class visibility live in
+/// `src/lib/medications/side-effects/taxonomy.ts` (single source).
 enum MedicationSideEffectEntry {
   // GI (5)
   NAUSEA
@@ -3097,6 +3106,19 @@ enum MedicationSideEffectEntry {
   GASTROPARESIS_LIKE
   DYSGEUSIA
   GALLBLADDER_DISCOMFORT
+  // Stimulant — activation (3)
+  INSOMNIA
+  PALPITATIONS
+  RESTLESSNESS
+  // Stimulant — somatic (4)
+  REDUCED_APPETITE
+  DRY_MOUTH
+  BRUXISM
+  HEADACHE
+  // Stimulant — mood (3)
+  IRRITABILITY
+  EMOTIONAL_BLUNTING
+  AFTERNOON_REBOUND
 
   @@map("medication_side_effect_entry")
 }
