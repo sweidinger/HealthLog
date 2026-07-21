@@ -37,6 +37,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-policy:
+    name: Validate release policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Validate release policy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "::notice::Pull-request image validation does not publish release tags."
+            exit 0
+          fi
+
+          if [ "$GITHUB_REF_TYPE" != "tag" ] || [[ ! "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Release ref '$GITHUB_REF_NAME' is not a strict SemVer tag (expected vMAJOR.MINOR.PATCH with no leading zeroes or prerelease suffix)." >&2
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./package.json').version")"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$package_version" != "$tag_version" ]; then
+            echo "::error::package.json version '$package_version' does not match release tag '$GITHUB_REF_NAME'." >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Release commit $GITHUB_SHA is not an ancestor of origin/main." >&2
+            exit 1
+          fi
+
+          successful_quality_runs="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&status=success&per_page=100" \
+              --jq '[.workflow_runs[] | select(.name == "Security & Quality" and .head_branch == "main")] | length'
+          )"
+          if [ "$successful_quality_runs" -lt 1 ]; then
+            echo "::error::Release commit $GITHUB_SHA has no successful prior Security & Quality push run on main." >&2
+            exit 1
+          fi
+
+          echo "Release policy passed for $GITHUB_REF_NAME at $GITHUB_SHA."
+
   # ── Stage 1 ────────────────────────────────────────────────────────
   # Build each architecture on its own native GitHub-hosted runner so
   # Next.js's static-page workers run on real silicon instead of QEMU
@@ -54,6 +105,7 @@ jobs:
   # manifest in a third step, so consumers see a single tag that
   # auto-selects on `docker pull` per local platform.
   build:
+    needs: [release-policy]
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     # 25 min wall clock — native amd64 build finished inside 12 min
@@ -265,6 +317,11 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: [build]
     timeout-minutes: 10
+    outputs:
+      image_ref: ${{ steps.published.outputs.image_ref }}
+      image_tag: ${{ steps.published.outputs.image_tag }}
+      image_digest: ${{ steps.published.outputs.image_digest }}
+      build_sha: ${{ steps.published.outputs.build_sha }}
     permissions:
       contents: read
       packages: write
@@ -335,9 +392,21 @@ jobs:
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.IMAGE_REF }}@sha256:%s ' *)
 
-      - name: Inspect published manifest
+      - name: Resolve published image
+        id: published
+        env:
+          IMAGE_TAG: ${{ github.ref_name }}
         run: |
-          docker buildx imagetools inspect '${{ env.IMAGE_REF }}:${{ steps.meta.outputs.version }}'
+          image_digest="$(docker buildx imagetools inspect "${IMAGE_REF}:${IMAGE_TAG}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          if [[ ! "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not resolve a valid manifest digest for ${IMAGE_REF}:${IMAGE_TAG}." >&2
+            exit 1
+          fi
+          echo "image_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "image_digest=$image_digest" >> "$GITHUB_OUTPUT"
+          echo "build_sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          docker buildx imagetools inspect "${IMAGE_REF}@${image_digest}"
 
       # v1.16.4 — sign the multi-arch manifest index (keyless, Sigstore).
       # Signing the INDEX digest covers both per-platform manifests in
@@ -357,91 +426,59 @@ jobs:
 
       - name: Sign multi-arch manifest (keyless)
         env:
-          IMAGE_VERSION: ${{ steps.meta.outputs.version }}
+          IMAGE_DIGEST: ${{ steps.published.outputs.image_digest }}
         run: |
-          digest="$(docker buildx imagetools inspect "${IMAGE_REF}:${IMAGE_VERSION}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
-          if [ -z "$digest" ]; then
-            echo "::error::Could not resolve the manifest digest for ${IMAGE_REF}:${IMAGE_VERSION} — signing aborted."
-            exit 1
-          fi
-          echo "Signing ${IMAGE_REF}@${digest}"
-          cosign sign --yes "${IMAGE_REF}@${digest}"
-          echo "::notice::Image index signed (keyless): ${IMAGE_REF}@${digest}. Verify with cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp 'https://github.com/${{ github.repository }}/' ${IMAGE_REF}@${digest}"
+          echo "Signing ${IMAGE_REF}@${IMAGE_DIGEST}"
+          cosign sign --yes "${IMAGE_REF}@${IMAGE_DIGEST}"
+          echo "::notice::Image index signed (keyless): ${IMAGE_REF}@${IMAGE_DIGEST}. Verify with cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp 'https://github.com/${{ github.repository }}/' ${IMAGE_REF}@${IMAGE_DIGEST}"
 
-      # v1.4.15: trigger the Coolify deploy automatically once GHCR has
-      # the new image. Replaces the former manual SSH + force-pull recipe
-      # on the deployment host.
-      #
-      # Runs only on the publish path (push to `main` or to a `v*` tag), never
-      # on PRs. `continue-on-error: true` because the image is *already*
-      # published to GHCR by the time we reach this step — a Coolify-side
-      # outage must not retroactively fail the build. The maintainer still
-      # has the manual recipe as fallback.
-      #
-      # Required GitHub repository secrets (set by the maintainer once):
-      #   COOLIFY_WEBHOOK = full deploy URL incl. ?uuid=...&force=false
-      #   COOLIFY_TOKEN   = Bearer token from Coolify UI -> Keys & Tokens
-      # Both secrets are referenced exclusively here. If either is unset, the
-      # step short-circuits to a skip rather than calling Coolify with empty
-      # auth.
-      #
-      # v1.4.26 P6-3 — maintainer toggle.
-      # Three releases in a row shipped via the host-side SSH-retag fallback
-      # because the secrets above silently absent + the warn-only skip
-      # below let the workflow stay green. The `vars.COOLIFY_AUTO_DEPLOY`
-      # repository variable now distinguishes the two intended modes:
-      #
-      #   COOLIFY_AUTO_DEPLOY=on  →  if secrets present, deploy; if absent,
-      #                              FAIL the step so the maintainer sees the
-      #                              missing-secret gap on the next release.
-      #   COOLIFY_AUTO_DEPLOY=off →  unconditional skip with a notice. Use
-      #                              this when the host-side SSH recipe is
-      #                              the intended deploy path.
-      #   (unset / any other)     →  warn-and-skip (legacy behaviour).
-      #
-      # Set the variable under repo Settings → Secrets and variables →
-      # Actions → Variables (NOT Secrets — it is intentionally readable).
+  verify-published-image:
+    name: Verify exact published image
+    needs: merge
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/post-publish-verify.yml
+    with:
+      image_ref: ${{ needs.merge.outputs.image_ref }}
+      image_tag: ${{ needs.merge.outputs.image_tag }}
+      image_digest: ${{ needs.merge.outputs.image_digest }}
+      build_sha: ${{ needs.merge.outputs.build_sha }}
+    secrets: inherit
+
+  promote:
+    name: Promote verified image to Coolify
+    needs: [merge, verify-published-image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
       - name: Trigger Coolify deploy
-        continue-on-error: true
         env:
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           COOLIFY_AUTO_DEPLOY: ${{ vars.COOLIFY_AUTO_DEPLOY }}
-          IMAGE_VERSION: ${{ steps.meta.outputs.version }}
+          IMAGE_TAG: ${{ needs.merge.outputs.image_tag }}
+          IMAGE_DIGEST: ${{ needs.merge.outputs.image_digest }}
+          BUILD_SHA: ${{ needs.merge.outputs.build_sha }}
         run: |
           mode="${COOLIFY_AUTO_DEPLOY:-}"
           if [ "$mode" = "off" ]; then
-            echo "::notice::COOLIFY_AUTO_DEPLOY=off — skipping registry deploy hook. Maintainer uses the host-side SSH recipe instead."
+            echo "::notice::COOLIFY_AUTO_DEPLOY=off — skipping registry deploy hook."
+            exit 0
+          fi
+          if [ "$mode" != "on" ]; then
+            echo "::warning::COOLIFY_AUTO_DEPLOY is not 'on' or 'off' — skipping auto-deploy. Set an explicit mode in repository variables."
             exit 0
           fi
           if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
-            if [ "$mode" = "on" ]; then
-              echo "::error::COOLIFY_AUTO_DEPLOY=on but COOLIFY_WEBHOOK or COOLIFY_TOKEN secret is missing. Set both under repo Settings → Secrets and variables → Actions, or set COOLIFY_AUTO_DEPLOY=off to silence."
-              exit 1
-            fi
-            echo "::warning::COOLIFY_WEBHOOK or COOLIFY_TOKEN secret missing — skipping auto-deploy. Configure in repo Settings → Secrets to enable, or set the COOLIFY_AUTO_DEPLOY variable to 'off' to silence this warning."
-            exit 0
+            echo "::error::COOLIFY_AUTO_DEPLOY=on but COOLIFY_WEBHOOK or COOLIFY_TOKEN secret is missing. Set both credentials or disable promotion explicitly." >&2
+            exit 1
           fi
-          # v1.4.31 — wait for GHCR cache propagation before firing
-          # the Coolify webhook. Five releases in a row (v1.4.27
-          # through v1.4.30.1) the webhook reported "finished" but
-          # Coolify still pulled the prior `:latest` digest. The
-          # `docker buildx imagetools create` + `inspect` steps
-          # above confirm the manifest exists at registry-write time,
-          # but GHCR's CDN edges can take 30-90 s to propagate the
-          # new digest. The webhook fires inside that window, so
-          # Coolify pulls "latest" while the edge still serves the
-          # prior digest, gets "no change", and returns success.
-          # Waiting out the propagation window before firing the
-          # webhook closes that gap.
-          echo "Waiting 90 s for GHCR cache propagation before triggering Coolify (image: $IMAGE_VERSION)…"
+
+          echo "Waiting 90 s for registry propagation before promoting ${IMAGE_TAG}@${IMAGE_DIGEST}."
           sleep 90
-          # v1.4.22 C3 — force=true tells Coolify to skip its image-cache
-          # and re-pull the registry digest. If the maintainer's secret
-          # URL already carries a `?force=` query, leave it alone;
-          # otherwise append `?force=true` (or `&force=true` if other
-          # query params are present) so doc-only deploys still trigger
-          # a registry-digest check.
           deploy_url="$COOLIFY_WEBHOOK"
           if ! echo "$deploy_url" | grep -q "force="; then
             if echo "$deploy_url" | grep -q "?"; then
@@ -450,18 +487,18 @@ jobs:
               deploy_url="${deploy_url}?force=true"
             fi
           fi
-          echo "Triggering Coolify deploy for ref ${{ github.ref_name }} (sha ${GITHUB_SHA::7})"
-          response=$(curl --silent --show-error --max-time 30 \
+
+          echo "Triggering Coolify deploy for ${IMAGE_TAG}@${IMAGE_DIGEST} (source ${BUILD_SHA})."
+          response="$(curl --silent --show-error --max-time 30 \
             --write-out "\n__HTTP_STATUS__:%{http_code}" \
             --request GET "$deploy_url" \
-            --header "Authorization: Bearer $COOLIFY_TOKEN")
+            --header "Authorization: Bearer $COOLIFY_TOKEN")"
           status="${response##*__HTTP_STATUS__:}"
           body="${response%__HTTP_STATUS__:*}"
           echo "Coolify response (HTTP $status):"
           echo "$body"
           if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
-            echo "::error::Coolify deploy webhook returned HTTP $status — image is published, but auto-deploy did not fire. Maintainer: deploy manually on the deployment host (SSH force-pull recipe, see docs/ops/deploy.md)."
+            echo "::error::Coolify deploy webhook returned HTTP $status for verified image ${IMAGE_TAG}@${IMAGE_DIGEST}." >&2
             exit 1
           fi
-          echo "::notice::Coolify auto-deploy webhook fired at $(date -u +%FT%TZ) for ref ${{ github.ref_name }} (sha ${GITHUB_SHA::7}). If /api/version doesn't reach the new tag within ~60s, re-trigger the deploy from the Coolify UI or deploy manually on the deployment host (docs/ops/deploy.md)."
-          echo "Coolify deploy queued — awaiting outgoing notification webhook to /api/internal/deploy-webhook for final status."
+          echo "Coolify deploy queued for verified image ${IMAGE_TAG}@${IMAGE_DIGEST}."

@@ -94,9 +94,27 @@ test.describe("Settings → Export & Import", () => {
   }) => {
     // v1.18.0 (S5) — the panel (and its disclosure) live on the
     // dedicated Gesundheitsakte section now.
+    await page.route("**/api/share-links", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: [], error: null, meta: null }),
+      });
+    });
+    const sharingDataReady = page.waitForResponse(
+      (response) =>
+        response.status() === 200 &&
+        response.request().method() === "GET" &&
+        new URL(response.url()).pathname === "/api/share-links",
+    );
     await page.goto("/settings/gesundheitsakte", {
       waitUntil: "domcontentloaded",
     });
+    await sharingDataReady;
     const toggle = page.getByTestId("health-record-included-data-toggle");
     await expect(toggle).toBeVisible({ timeout: 10_000 });
     // Collapsed on first render — the checklist panel is absent.

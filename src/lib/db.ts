@@ -5,34 +5,54 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-/**
- * v1.4.40 W-POOL — Prisma `pg.Pool` ceiling raised from the library
- * default of 10 → 20.
- *
- * The v1.4.39 empirical cold-mount trace
- * (`.planning/round-v1439-empirical-trace.md` § B2) showed thick
- * `/api/analytics` holding ≥ 8 of the 10 default pool slots for
- * 6.5 s on the maintainer's 347k-row tenant, starving every other Wave-B and
- * Wave-C useQuery fan-out for the duration. The production Postgres runs a
- * `max_connections` of 200 (raised from the stock 100), so a 20-slot
- * Node-side pool sits well under the server's hard cap with plenty of
- * headroom for concurrent power-users. Note the web + worker containers
- * share this one Postgres, so the effective ceiling covers both pools.
- * Complements the W-POOL `p-limit(4)` cap on the analytics fan-out itself —
- * the bounded concurrency keeps any single analytics call to ≤ 4 slots, so
- * the remaining 16 stay available for every other dashboard query.
- *
- * Env-overridable via `DATABASE_POOL_MAX` so an operator running
- * with a smaller Postgres `max_connections` can dial down without a
- * code change.
- */
-export function getPoolMax(): number {
-  const raw = process.env.DATABASE_POOL_MAX;
-  if (raw) {
-    const parsed = Number.parseInt(raw, 10);
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+const DEFAULT_CONNECTION_BUDGET = 20;
+const DEFAULT_POOL_TIMEOUT_SECONDS = 20;
+const PG_BOSS_CONNECTIONS = 2;
+
+function positiveInteger(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function databaseUrlParameter(name: string): string | undefined {
+  const rawUrl = process.env.DATABASE_URL;
+  if (!rawUrl) return undefined;
+  try {
+    return new URL(rawUrl).searchParams.get(name) ?? undefined;
+  } catch {
+    return undefined;
   }
-  return 20;
+}
+
+/**
+ * Total PostgreSQL connections this process may own. Compose already exposes
+ * this as DB_CONNECTION_LIMIT through DATABASE_URL's `connection_limit`.
+ * DATABASE_POOL_MAX remains a backward-compatible explicit override.
+ */
+export function getConnectionBudget(): number {
+  const configured =
+    positiveInteger(process.env.DB_CONNECTION_LIMIT) ??
+    positiveInteger(process.env.DATABASE_POOL_MAX) ??
+    positiveInteger(databaseUrlParameter("connection_limit")) ??
+    DEFAULT_CONNECTION_BUDGET;
+  return Math.max(2, configured);
+}
+
+export function getPgBossPoolMax(): number {
+  return Math.min(PG_BOSS_CONNECTIONS, getConnectionBudget() - 1);
+}
+
+export function getPrismaPoolMax(): number {
+  return getConnectionBudget() - getPgBossPoolMax();
+}
+
+export function getPoolConnectionTimeoutMs(): number {
+  const seconds =
+    positiveInteger(process.env.DB_POOL_TIMEOUT) ??
+    positiveInteger(databaseUrlParameter("pool_timeout")) ??
+    DEFAULT_POOL_TIMEOUT_SECONDS;
+  return seconds * 1_000;
 }
 
 /**
@@ -79,7 +99,8 @@ function createPrismaClient() {
   const sessionOptions = buildSessionOptions();
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL!,
-    max: getPoolMax(),
+    max: getPrismaPoolMax(),
+    connectionTimeoutMillis: getPoolConnectionTimeoutMs(),
     ...(sessionOptions ? { options: sessionOptions } : {}),
   });
   return new PrismaClient({ adapter });

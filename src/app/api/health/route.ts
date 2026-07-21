@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getWorkerStatus } from "@/lib/jobs/worker-status";
+import { getGlobalBoss } from "@/lib/jobs/boss-instance";
+import { shouldRunWeb, shouldRunWorker } from "@/lib/process-type";
 import { getSession } from "@/lib/auth/session";
 import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
@@ -19,7 +21,13 @@ export const GET = apiHandler(async () => {
   }
 
   const worker = getWorkerStatus();
-  const status = dbOk && worker.running ? "ok" : "degraded";
+  const producerReady = getGlobalBoss() !== null;
+  const status =
+    dbOk &&
+    (!shouldRunWeb() || producerReady) &&
+    (!shouldRunWorker() || worker.running)
+      ? "ok"
+      : "degraded";
   const statusCode = status === "ok" ? 200 : 503;
 
   const cacheHeaders = {

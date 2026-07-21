@@ -1,44 +1,116 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
-const { start, PgBoss } = vi.hoisted(() => {
-  const start = vi.fn(async () => undefined);
-  const stop = vi.fn(async () => undefined);
-  const on = vi.fn();
-  const PgBoss = vi.fn(function MockPgBoss(this: Record<string, unknown>) {
-    this.start = start;
-    this.stop = stop;
-    this.on = on;
+interface MockBoss {
+  start: Mock<() => Promise<unknown>>;
+  stop: Mock<(options?: { graceful?: boolean }) => Promise<void>>;
+  on: Mock<(event: string, handler: (error: Error) => void) => MockBoss>;
+  emitError(error: Error): void;
+}
+
+const { PgBoss, instances, startOutcomes } = vi.hoisted(() => {
+  const instances: MockBoss[] = [];
+  const startOutcomes: Array<() => Promise<unknown>> = [];
+  const PgBoss = vi.fn(function MockPgBoss(this: MockBoss) {
+    let errorHandler: ((error: Error) => void) | undefined;
+    this.start = vi.fn(() =>
+      (startOutcomes.shift() ?? (() => Promise.resolve(undefined)))(),
+    );
+    this.stop = vi.fn(async () => undefined);
+    this.on = vi.fn((event: string, handler: (error: Error) => void) => {
+      if (event === "error") errorHandler = handler;
+      return this;
+    });
+    this.emitError = (error: Error) => errorHandler?.(error);
+    instances.push(this);
   });
-  return { start, PgBoss };
+  return { PgBoss, instances, startOutcomes };
 });
 
 vi.mock("pg-boss", () => ({ PgBoss }));
-import { getGlobalBoss, startGlobalBossProducer } from "../boss-instance";
+import {
+  createWorkerBoss,
+  getGlobalBoss,
+  startGlobalBossProducer,
+} from "../boss-instance";
+
+const globalState = globalThis as Record<string, unknown>;
+
+beforeEach(() => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+  instances.length = 0;
+  startOutcomes.length = 0;
+  delete globalState.__healthlog_pgboss__;
+  delete globalState.__healthlog_pgboss_start__;
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+});
 
 describe("web-process pg-boss producer", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  it("waits for delayed pg-boss schema readiness with capped exponential backoff", async () => {
+    vi.useFakeTimers();
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    startOutcomes.push(
+      () => Promise.reject(new Error("schema not ready")),
+      () => Promise.reject(new Error("schema still not ready")),
+      () => Promise.reject(new Error("schema still not ready")),
+      () => Promise.resolve(undefined),
+    );
 
-  it("retries startup and caps the send-only connection pool", async () => {
-    start
-      .mockRejectedValueOnce(new Error("schema not ready"))
-      .mockResolvedValueOnce(undefined);
-
-    const boss = await startGlobalBossProducer("postgres://healthlog@test/db", {
-      maxAttempts: 2,
-      retryDelayMs: 0,
+    const starting = startGlobalBossProducer("postgres://healthlog@test/db", {
+      maxAttempts: 4,
+      retryBaseDelayMs: 10,
+      retryMaxDelayMs: 20,
     });
+    await vi.runAllTimersAsync();
+    const boss = await starting;
 
-    expect(PgBoss).toHaveBeenCalledTimes(2);
-    expect(PgBoss).toHaveBeenCalledWith({
+    expect(PgBoss).toHaveBeenCalledTimes(4);
+    expect(timeoutSpy.mock.calls.map((call) => call[1])).toEqual([10, 20, 20]);
+    expect(PgBoss).toHaveBeenLastCalledWith({
       connectionString: "postgres://healthlog@test/db",
       max: 2,
+      connectionTimeoutMillis: 20_000,
       migrate: false,
       schedule: false,
       supervise: false,
     });
-    expect(start).toHaveBeenCalledTimes(2);
     expect(boss).toBe(getGlobalBoss());
+  });
+
+  it("keeps supervised reconnect active after a bounded failed batch", async () => {
+    vi.useFakeTimers();
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    startOutcomes.push(() => Promise.resolve(undefined));
+    await startGlobalBossProducer("postgres://healthlog@test/db", {
+      maxAttempts: 2,
+      retryBaseDelayMs: 10,
+      retryMaxDelayMs: 20,
+    });
+
+    startOutcomes.push(
+      () => Promise.reject(new Error("db unavailable 1")),
+      () => Promise.reject(new Error("db unavailable 2")),
+      () => Promise.resolve(undefined),
+    );
+    instances[0].emitError(new Error("connection lost"));
+    await vi.runAllTimersAsync();
+    await Promise.resolve();
+
+    expect(PgBoss).toHaveBeenCalledTimes(4);
+    expect(timeoutSpy.mock.calls.map((call) => call[1])).toEqual([10, 20]);
+    expect(instances[0].stop).toHaveBeenCalledWith({ graceful: false });
+    expect(getGlobalBoss()).toBe(instances[3]);
+  });
+});
+
+describe("worker pg-boss pool", () => {
+  it("uses the pg-boss share of the process connection budget", () => {
+    createWorkerBoss("postgres://healthlog@test/db");
+
+    expect(PgBoss).toHaveBeenCalledWith({
+      connectionString: "postgres://healthlog@test/db",
+      max: 2,
+      connectionTimeoutMillis: 20_000,
+    });
   });
 });

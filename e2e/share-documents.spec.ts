@@ -57,7 +57,14 @@ interface CreatedShare {
 async function createShareWithDocs(page: Page): Promise<CreatedShare> {
   const label = `${SHARE_DOC_PREFIX} ${Date.now()}`;
 
+  const sharingDataReady = page.waitForResponse(
+    (response) =>
+      response.status() === 200 &&
+      response.request().method() === "GET" &&
+      new URL(response.url()).pathname === "/api/share-links",
+  );
   await page.goto("/settings/sharing");
+  await sharingDataReady;
   await page.locator("#share-label").fill(label);
 
   // Open the document picker and isolate the seeded trio.
@@ -69,13 +76,18 @@ async function createShareWithDocs(page: Page): Promise<CreatedShare> {
   // Exactly the three share-fixture documents match the prefix.
   const rows = list.getByRole("button");
   await expect(rows).toHaveCount(3);
-  for (let i = 0; i < 3; i++) await rows.nth(i).click();
+  for (let i = 0; i < 3; i++) {
+    const row = rows.nth(i);
+    await row.click();
+    await expect(row).toHaveAttribute("aria-pressed", "true");
+  }
   await page.getByRole("button", { name: "Done" }).click();
 
   // Three chips staged before create.
   await expect(
     page.getByTestId("share-attached-chips").getByRole("listitem"),
   ).toHaveCount(3);
+  await expect(page.getByRole("button", { name: "Create link" })).toBeEnabled();
 
   await page.getByRole("button", { name: "Create link" }).click();
 
@@ -150,9 +162,14 @@ test.describe("clinician document sharing", () => {
       clinician.getByRole("heading", { name: "Documents" }),
     ).toBeVisible();
     // Class A image → inline <img> at the token-scoped serve route.
-    await expect(
-      clinician.locator(`img[src*="/d/${SHARE_JPEG_DOC_ID}"]`),
-    ).toBeVisible();
+    const inlineImage = clinician.getByRole("img", {
+      name: "Share e2e scan",
+    });
+    await expect(inlineImage).toBeVisible();
+    await expect(inlineImage).toHaveAttribute(
+      "src",
+      new RegExp(`/d/${SHARE_JPEG_DOC_ID}$`),
+    );
     // Class A PDF → inline <iframe> at the same route family.
     await expect(
       clinician.locator(`iframe[src*="/d/${SHARE_PDF_DOC_ID}"]`),

@@ -15,7 +15,16 @@ export default defineConfig({
     environment: "node",
     // Same host-timezone pin as the unit config — CI runs UTC, so the
     // integration contracts must be read against the same clock.
-    env: { TZ: "UTC" },
+    env: {
+      TZ: "UTC",
+      ENCRYPTION_KEY:
+        "0000000000000000000000000000000000000000000000000000000000000000",
+      ENCRYPTION_KEYS: "",
+      ENCRYPTION_ACTIVE_KEY_ID: "",
+      API_TOKEN_HMAC_KEY:
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      SESSION_SECRET: "integration-test-session-secret-32-bytes",
+    },
     include: ["tests/integration/**/*.test.ts"],
     // Container boot + migration apply is slow; give each test a generous
     // budget and beforeAll/afterAll twice that.
@@ -39,6 +48,9 @@ export default defineConfig({
     // expensive boot cost is unaffected.
     isolate: true,
     // One container for the whole run; tests truncate between them.
+    // Bridge the global Testcontainers URL into each isolated worker before
+    // application modules read DATABASE_URL at import time.
+    setupFiles: ["./tests/integration/environment-setup.ts"],
     globalSetup: ["./tests/integration/global-setup.ts"],
   },
   resolve: {

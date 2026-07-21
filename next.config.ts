@@ -231,7 +231,6 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "@prisma/client",
     "pg-boss",
-    "@prisma/adapter-pg",
     "pg",
     // Document PDF handling MUST run the real, un-bundled modules. When
     // Turbopack bundles pdfjs-dist into the server chunks, its runtime
