@@ -147,7 +147,7 @@ export const SIDE_EFFECT_ENTRIES_BY_CATEGORY: Record<
  * Keyed by `Medication.treatmentClass` value (the `MedicationCategory`
  * enum), typed loosely as string so callers can pass the raw column.
  */
-export const SIDE_EFFECT_CATEGORIES_BY_TREATMENT_CLASS: Readonly<
+const SIDE_EFFECT_CATEGORIES_BY_TREATMENT_CLASS: Readonly<
   Record<string, readonly MedicationSideEffectCategory[]>
 > = {
   GLP1: ["GI", "METABOLIC", "INJECTION_SITE", "COGNITIVE", "GLP1_SPECIFIC"],

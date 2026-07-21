@@ -75,7 +75,10 @@ describe("<SideEffectsSection> — surface render", () => {
   it("renders the section heading and add-CTA in English", () => {
     const client = makeClient();
     seedSideEffects(client, "med-1", []);
-    const html = render(<SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />, client);
+    const html = render(
+      <SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />,
+      client,
+    );
     expect(html).toContain("Side effects");
     // v1.4.28 FB-F1 — the CTA dropped its qualifier so the chip stops
     // overflowing the side-effects card on narrow viewports. The
@@ -100,7 +103,10 @@ describe("<SideEffectsSection> — surface render", () => {
   it("renders the empty-state copy when no rows are seeded", () => {
     const client = makeClient();
     seedSideEffects(client, "med-1", []);
-    const html = render(<SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />, client);
+    const html = render(
+      <SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />,
+      client,
+    );
     expect(html).toContain("No side effects logged yet");
   });
 });
@@ -118,7 +124,10 @@ describe("<SideEffectsSection> — timeline rows", () => {
         notes: null,
       },
     ]);
-    const html = render(<SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />, client);
+    const html = render(
+      <SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />,
+      client,
+    );
     expect(html).toContain("Nausea");
     expect(html).toContain("Gastrointestinal");
     expect(html).toContain("Moderate");
@@ -144,7 +153,10 @@ describe("<SideEffectsSection> — timeline rows", () => {
         notes: "felt full after two bites",
       },
     ]);
-    const html = render(<SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />, client);
+    const html = render(
+      <SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />,
+      client,
+    );
     expect(html).toContain("Nausea");
     expect(html).toContain("Mild");
     expect(html).toContain("Early satiety");
@@ -165,7 +177,10 @@ describe("<SideEffectsSection> — timeline rows", () => {
         notes: null,
       },
     ]);
-    const html = render(<SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />, client);
+    const html = render(
+      <SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />,
+      client,
+    );
     expect(html).toContain("Last 30 days");
   });
 
@@ -189,7 +204,10 @@ describe("<SideEffectsSection> — timeline rows", () => {
         notes: null,
       },
     ]);
-    const html = render(<SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />, client);
+    const html = render(
+      <SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />,
+      client,
+    );
     expect(html).toContain("Mild");
     expect(html).toContain("Very severe");
   });
@@ -211,7 +229,10 @@ describe("<SideEffectsSection> — timeline rows", () => {
         notes: null,
       },
     ]);
-    const html = render(<SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />, client);
+    const html = render(
+      <SideEffectsSection medicationId="med-1" treatmentClass="GLP1" />,
+      client,
+    );
     // Class attribute order in SSR depends on JSX prop order; match
     // either order so the assertion stays stable across React minor
     // versions.

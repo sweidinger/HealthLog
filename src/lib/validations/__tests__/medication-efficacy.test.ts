@@ -11,7 +11,9 @@ import { efficacyTargetOverrideSchema } from "@/lib/validations/medication-effic
 
 describe("efficacyTargetOverrideSchema — custom-metric target", () => {
   it("accepts a lone customMetricId", () => {
-    const r = efficacyTargetOverrideSchema.safeParse({ customMetricId: "cm_1" });
+    const r = efficacyTargetOverrideSchema.safeParse({
+      customMetricId: "cm_1",
+    });
     expect(r.success).toBe(true);
   });
 
@@ -24,7 +26,8 @@ describe("efficacyTargetOverrideSchema — custom-metric target", () => {
       efficacyTargetOverrideSchema.safeParse({ biomarkerId: "bm_1" }).success,
     ).toBe(true);
     expect(
-      efficacyTargetOverrideSchema.safeParse({ customMetricId: "cm_1" }).success,
+      efficacyTargetOverrideSchema.safeParse({ customMetricId: "cm_1" })
+        .success,
     ).toBe(true);
   });
 

@@ -3977,6 +3977,10 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 64
+                customMetricId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
                 primary:
                   type: boolean
       responses:
@@ -11919,6 +11923,7 @@ components:
           enum:
             - GENERIC
             - GLP1
+            - STIMULANT
         dosesPerUnit:
           type: integer
           minimum: 1
@@ -12226,6 +12231,7 @@ components:
           enum:
             - GENERIC
             - GLP1
+            - STIMULANT
         dosesPerUnit:
           anyOf:
             - type: integer
@@ -13512,6 +13518,7 @@ components:
       enum:
         - GENERIC
         - GLP1
+        - STIMULANT
       description: Prisma-level treatment-class discriminator. `GLP1` unlocks the GLP-1 specialist surfaces (injection-site
         rotation, titration history, pen inventory, GLP-1-aware Coach).
     MedicationSchedule:
@@ -20308,6 +20315,7 @@ components:
                     enum:
                       - metric
                       - lab
+                      - custom
                   key:
                     type: string
                   label:
@@ -20499,9 +20507,26 @@ components:
                       - label
                       - unit
                     additionalProperties: false
+                customMetrics:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      label:
+                        type: string
+                      unit:
+                        type: string
+                    required:
+                      - id
+                      - label
+                      - unit
+                    additionalProperties: false
               required:
                 - metrics
                 - biomarkers
+                - customMetrics
               additionalProperties: false
           required:
             - medicationId
