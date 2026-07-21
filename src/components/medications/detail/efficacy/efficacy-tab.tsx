@@ -132,7 +132,12 @@ export function EfficacyTab({
     );
   }
 
-  // The tab is hidden upstream when ineligible; this is a defensive fallback.
+  // Ineligible = no derived target AND no override yet (e.g. a stimulant whose
+  // effect is a user-supplied custom metric). The tab still renders the
+  // retarget picker so the user can pin one of their own signals (custom
+  // metric / metric / lab); once pinned the DTO turns eligible on refetch. The
+  // picker self-hides when the user has nothing to pin (RetargetControl returns
+  // null on an empty option set), leaving just the explanatory copy.
   if (!data.eligible) {
     return (
       <MedicationDetailSection
@@ -140,9 +145,21 @@ export function EfficacyTab({
         title={t("medications.efficacy.title")}
         dataSlot="medication-wirkung-section"
       >
-        <p className="text-muted-foreground text-sm">
-          {t("medications.efficacy.notEligible")}
-        </p>
+        <div className="space-y-3">
+          <p className="text-muted-foreground text-sm">
+            {t("medications.efficacy.notEligible")}
+          </p>
+          <RetargetControl
+            medicationId={medicationId}
+            options={data.overrideOptions}
+            isOverride={data.resolution.tier === "override"}
+            onChanged={() =>
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.medicationEfficacy(medicationId),
+              })
+            }
+          />
+        </div>
       </MedicationDetailSection>
     );
   }

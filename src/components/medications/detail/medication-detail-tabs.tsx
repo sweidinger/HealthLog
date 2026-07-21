@@ -255,18 +255,25 @@ export function MedicationDetailTabs({
     hasSideEffectLogbook(medication.treatmentClass) &&
     !(isGlp1 && isInjectable);
 
-  // v1.28 — the "Wirkung" tab appears only when the medication resolves to a
-  // known outcome target (ATC class prefix → whole-word name inference) and is
-  // not a single-dose med. Same pure resolver the server efficacy builder's
-  // derived tier uses, so the tab's presence agrees with the DTO's eligibility.
+  // v1.28 — the "Wirkung" tab appears when the medication resolves to a known
+  // outcome target (ATC class prefix → whole-word name inference) and is not a
+  // single-dose med. Same pure resolver the server efficacy builder's derived
+  // tier uses, so the tab's presence agrees with the DTO's eligibility.
+  //
+  // STIMULANT has no derived outcome metric (a psychostimulant's effect is the
+  // user's own subjective signal, logged as a custom metric), so it is shown
+  // unconditionally: the tab then hosts the retarget picker in its no-target
+  // state so a custom metric can be pinned as the effect target. This is the
+  // one class whose effect target is user-supplied rather than derived.
   const hasEfficacyTarget = useMemo(
     () =>
       !oneShot &&
-      resolveMedicationTargets({
-        name: medication.name,
-        treatmentClass: medication.treatmentClass,
-        atcCode: medication.atcCode,
-      }) !== null,
+      (medication.treatmentClass === "STIMULANT" ||
+        resolveMedicationTargets({
+          name: medication.name,
+          treatmentClass: medication.treatmentClass,
+          atcCode: medication.atcCode,
+        }) !== null),
     [oneShot, medication.name, medication.treatmentClass, medication.atcCode],
   );
 
