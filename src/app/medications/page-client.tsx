@@ -198,12 +198,27 @@ export default function MedicationsPageClient() {
   const { layout, isLayoutLoading } = useMedicationListLayout(isAuthenticated);
 
   useEffect(() => {
-    if (shouldOpenFromUrl) {
-      // Drop the query param so a refresh after closing the dialog
-      // doesn't keep reopening it.
-      router.replace("/medications");
-    }
-  }, [shouldOpenFromUrl, router]);
+    if (!shouldOpenFromUrl) return;
+
+    // Child effects may run before the App Router installs its native-history
+    // integration, while the responsive sheet also settles its first client
+    // layout. Wait until the following painted frame so replaceState preserves
+    // Next's internals and synchronizes useSearchParams without starting a
+    // router navigation that can remount the open wizard and discard fields.
+    let cleanupFrame: number | undefined;
+    const layoutFrame = window.requestAnimationFrame(() => {
+      cleanupFrame = window.requestAnimationFrame(() => {
+        window.history.replaceState(null, "", "/medications");
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(layoutFrame);
+      if (cleanupFrame !== undefined) {
+        window.cancelAnimationFrame(cleanupFrame);
+      }
+    };
+  }, [shouldOpenFromUrl]);
 
   const {
     data: medications,
