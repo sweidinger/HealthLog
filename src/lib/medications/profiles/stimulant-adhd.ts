@@ -95,4 +95,14 @@ export const STIMULANT_ADHD_PROFILE: DrugProfile = {
     },
   ],
   targetSymptomScale: { min: 1, max: 10 },
+  // Stage B.2 — when (relative to the morning intake) the check-in is most
+  // informative to record: ~3 h in, the drug is active ("is it working +
+  // early side effects"); ~9 h in catches the late-afternoon rebound of a
+  // long-acting morning stimulant. These are documentation-timing offsets,
+  // not a pharmacokinetic claim or a dose recommendation; the user opts in
+  // and can ignore any nudge.
+  effectWindow: {
+    effectOffsetHours: 3,
+    reboundOffsetHours: 9,
+  },
 };

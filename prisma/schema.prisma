@@ -751,6 +751,10 @@ model User {
   // 22:00 window (the cron fires every 15 min — without the ledger
   // a user could see three pushes back-to-back).
   moodReminderDispatches      MoodReminderDispatch[]
+  // Fork ADHS Stage B.2 — per-(user, medication, local date, window) ledger
+  // for the medication effect-window check-in reminder, so the every-15-min
+  // cron fires each window's nudge at most once per day.
+  medicationCheckinReminderDispatches MedicationCheckinReminderDispatch[]
   // v1.4.39 W-MOOD — per-(user, granularity, bucket) mood rollup. New
   // tier behind the mood-analytics read path; per-write hooks fold
   // MoodEntry mutations into the DAY granularity inline so the next
@@ -3931,6 +3935,30 @@ model MoodReminderDispatch {
   @@unique([userId, date])
   @@index([userId, dispatchedAt])
   @@map("mood_reminder_dispatches")
+}
+
+// ─── Medication check-in reminder dispatch ledger (Fork ADHS Stage B.2) ───
+//
+// Idempotency anchor for the medication effect-window check-in reminder.
+// The every-15-min cron nudges the user to open the daily guided check-in
+// once per effect window ("EFFECT" = a while after intake, "REBOUND" = the
+// afternoon rebound). The `(userId, medicationId, date, window)` unique
+// guarantees each window fires at most once per local day even though the
+// cron re-ticks four times an hour. Descriptive-only feature: the reminder
+// links to the check-in surface and never carries a dosing suggestion.
+model MedicationCheckinReminderDispatch {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  medicationId String   @map("medication_id")
+  date         String // YYYY-MM-DD anchored to user.timezone
+  window       String // "EFFECT" | "REBOUND"
+  dispatchedAt DateTime @default(now()) @map("dispatched_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, medicationId, date, window])
+  @@index([userId, dispatchedAt])
+  @@map("medication_checkin_reminder_dispatches")
 }
 
 // ─── Mood Entry Rollup (v1.4.39 W-MOOD) ───────────────────────

@@ -69,4 +69,21 @@ export interface DrugProfile {
   sideEffects: readonly DrugProfileSideEffect[];
   targetSymptoms: readonly DrugProfileTargetSymptom[];
   targetSymptomScale: { min: number; max: number };
+  /**
+   * Optional effect-window timing (Stage B.2) — WHEN, relative to the
+   * earliest daily intake, the guided check-in is most informative to
+   * record, so the reminder cron can nudge inside the drug's active window
+   * instead of at a fixed clock time. Both are offsets in hours from the
+   * intake slot.
+   *
+   * This is reminder-TIMING metadata for documentation, NOT a dosing or
+   * pharmacokinetic claim and never a dose recommendation (CLAUDE.md §1):
+   * a class without it simply gets no effect-window reminder.
+   */
+  effectWindow?: {
+    /** Hours after intake for the first ("is it working yet?") check-in nudge. */
+    effectOffsetHours: number;
+    /** Hours after intake for the afternoon-rebound check-in nudge. */
+    reboundOffsetHours: number;
+  };
 }

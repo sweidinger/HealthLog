@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { LowStockCard } from "@/components/settings/low-stock-card";
+import { MedicationCheckinReminderCard } from "@/components/settings/medication-checkin-reminder-card";
 import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
 import { Button } from "@/components/ui/button";
 
@@ -89,6 +90,16 @@ export function NotificationsSection() {
           {medsEnabled ? (
             <div id="low-stock" className="scroll-mt-28">
               <LowStockCard isAuthenticated={isAuthenticated} />
+            </div>
+          ) : null}
+
+          {/* Fork ADHS Stage B.2 — medication effect-window check-in reminder,
+              only when the medications module is enabled. */}
+          {medsEnabled ? (
+            <div id="medication-checkin-reminder" className="scroll-mt-28">
+              <MedicationCheckinReminderCard
+                isAuthenticated={isAuthenticated}
+              />
             </div>
           ) : null}
         </section>

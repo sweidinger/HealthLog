@@ -148,6 +148,19 @@ const coachPrefsSchema = z
   .partial();
 
 /**
+ * Fork ADHS Stage B.2 — medication effect-window check-in reminder category.
+ * `enabled` is the per-user master opt-in the effect-window reminder cron
+ * reads (default OFF — see `DEFAULT_NOTIFICATION_PREFS`); the reminder timing
+ * itself comes from each medication's drug profile, so this stays a single
+ * boolean. Sub-object form keeps the layout open for future knobs.
+ */
+const medicationCheckinPrefsSchema = z
+  .object({
+    enabled: z.boolean(),
+  })
+  .partial();
+
+/**
  * v1.7.0 — per-device delivery override schema for the device PATCH.
  * NULL clears the override (the device inherits the user-level roaming
  * default).
@@ -167,6 +180,7 @@ export const notificationPrefsSchema = z
     cycle: cyclePrefsSchema,
     coach: coachPrefsSchema,
     measurementReminder: measurementReminderPrefsSchema,
+    medicationCheckin: medicationCheckinPrefsSchema,
   })
   .partial();
 
@@ -238,6 +252,14 @@ export interface NotificationPrefs {
      */
     clientManaged: boolean;
   };
+  medicationCheckin: {
+    /**
+     * Fork ADHS Stage B.2 — master opt-in for the medication effect-window
+     * check-in reminder. Default `false`; the every-15-min cron skips the
+     * user unless this is `true`.
+     */
+    enabled: boolean;
+  };
 }
 
 /**
@@ -291,6 +313,9 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   measurementReminder: {
     clientManaged: false,
   },
+  medicationCheckin: {
+    enabled: false,
+  },
 };
 
 /**
@@ -339,6 +364,10 @@ export function resolveNotificationPrefs(
       ...base.measurementReminder,
       ...(incoming.measurementReminder ?? {}),
     },
+    medicationCheckin: {
+      ...base.medicationCheckin,
+      ...(incoming.medicationCheckin ?? {}),
+    },
   });
 }
 
@@ -368,6 +397,7 @@ function applyDeliveryDefaultMapping(
     cycle: { ...prefs.cycle },
     coach: { ...prefs.coach },
     measurementReminder: { ...prefs.measurementReminder },
+    medicationCheckin: { ...prefs.medicationCheckin },
   };
 }
 
@@ -404,6 +434,15 @@ export function isCycleReminderClientManaged(raw: unknown): boolean {
  */
 export function isMeasurementReminderClientManaged(raw: unknown): boolean {
   return parseNotificationPrefs(raw).measurementReminder.clientManaged === true;
+}
+
+/**
+ * Fork ADHS Stage B.2 — cron-side gate. Returns `true` when the user has
+ * opted in to the medication effect-window check-in reminder. Tolerates a
+ * null / missing / drifted prefs row (resolves to the OFF default).
+ */
+export function isMedicationCheckinReminderEnabled(raw: unknown): boolean {
+  return parseNotificationPrefs(raw).medicationCheckin.enabled === true;
 }
 
 /**
@@ -516,6 +555,9 @@ function cloneDefaults(): NotificationPrefs {
     measurementReminder: {
       ...DEFAULT_NOTIFICATION_PREFS.measurementReminder,
     },
+    medicationCheckin: {
+      ...DEFAULT_NOTIFICATION_PREFS.medicationCheckin,
+    },
   };
 }
 
@@ -540,6 +582,10 @@ function mergeOverDefaults(input: NotificationPrefsInput): NotificationPrefs {
     measurementReminder: {
       ...DEFAULT_NOTIFICATION_PREFS.measurementReminder,
       ...(input.measurementReminder ?? {}),
+    },
+    medicationCheckin: {
+      ...DEFAULT_NOTIFICATION_PREFS.medicationCheckin,
+      ...(input.medicationCheckin ?? {}),
     },
   });
 }

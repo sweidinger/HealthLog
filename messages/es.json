@@ -6667,6 +6667,18 @@
     }
   },
   "notifications": {
+    "eventMedicationCheckinReminder": "Registro del medicamento",
+    "eventMedicationCheckinReminderDesc": "Aviso para registrar el chequeo diario dentro de la ventana de efecto de tu medicamento.",
+    "medicationCheckinReminder": {
+      "title": "Recordatorio de registro del medicamento",
+      "description": "Un aviso para abrir el registro diario dentro de la ventana de efecto de tu medicamento: un rato después de tomarlo y de nuevo por la tarde. Los horarios provienen del perfil del medicamento.",
+      "toggleAria": "Activar el recordatorio de registro del medicamento",
+      "statusOn": "Activado",
+      "statusOff": "Desactivado",
+      "enabledToast": "Recordatorios de registro activados.",
+      "disabledToast": "Recordatorios de registro desactivados.",
+      "saveError": "No se pudo guardar. Inténtalo de nuevo."
+    },
     "title": "Notificaciones",
     "eventColumn": "Evento",
     "subtitle": "Elige qué notificaciones recibes y por qué canal.",
@@ -6959,6 +6971,12 @@
     "bodyToday": "{medName}: quedan {units} unidades — menos de un día de suministro.",
     "bodyReorder": "{medName}: quedan {units} unidades. Las existencias se agotan hacia el {runsOutOn} — vuelve a pedir antes del {reorderBy}.",
     "bodyLastDose": "{medName}: quedan {units} unidades — alrededor de tu última dosis. Las existencias se agotan hacia el {runsOutOn}."
+  },
+  "medicationCheckinReminders": {
+    "effectTitle": "Hora de tu registro",
+    "effectBody": "Tu medicamento ya debería estar haciendo efecto: anota si tienes efectos secundarios y cómo te encuentras.",
+    "reboundTitle": "Registro de la tarde",
+    "reboundBody": "¿Cómo va la tarde? Anota los efectos secundarios y cómo se mantiene el efecto del medicamento."
   },
   "moodReminders": {
     "dailyTitle": "Registrar el ánimo",

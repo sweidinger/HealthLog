@@ -25,3 +25,12 @@ export function hasDrugProfile(
 ): boolean {
   return profileForTreatmentClass(treatmentClass) !== null;
 }
+
+/**
+ * Every `Medication.treatmentClass` value that has a drug profile. The
+ * effect-window reminder cron uses this to narrow its medication query to the
+ * classes that can actually surface a check-in, instead of scanning all rows.
+ */
+export function profiledTreatmentClasses(): string[] {
+  return Object.keys(PROFILES_BY_TREATMENT_CLASS);
+}

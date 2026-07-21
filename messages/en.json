@@ -6667,6 +6667,18 @@
     }
   },
   "notifications": {
+    "eventMedicationCheckinReminder": "Medication check-in",
+    "eventMedicationCheckinReminderDesc": "Nudge to log the daily check-in inside your medication's effect window.",
+    "medicationCheckinReminder": {
+      "title": "Medication check-in reminder",
+      "description": "A nudge to open the daily check-in inside your medication's effect window — a while after you take it and again in the afternoon. Timing comes from the medication's profile.",
+      "toggleAria": "Toggle medication check-in reminder",
+      "statusOn": "On",
+      "statusOff": "Off",
+      "enabledToast": "Check-in reminders on.",
+      "disabledToast": "Check-in reminders off.",
+      "saveError": "Couldn't save. Please try again."
+    },
     "title": "Notifications",
     "eventColumn": "Event",
     "subtitle": "Choose which notifications you want to receive through which channel.",
@@ -6959,6 +6971,12 @@
     "bodyToday": "{medName}: {units} units left — less than one day of supply.",
     "bodyReorder": "{medName}: {units} units left. Supply runs out around {runsOutOn} — reorder by {reorderBy}.",
     "bodyLastDose": "{medName}: {units} units left — about your final dose. Supply runs out around {runsOutOn}."
+  },
+  "medicationCheckinReminders": {
+    "effectTitle": "Time for your check-in",
+    "effectBody": "Your medication should be active now — take a moment to note any side effects and how you're doing.",
+    "reboundTitle": "Afternoon check-in",
+    "reboundBody": "How's the afternoon going? Note any side effects and how the medication is holding up."
   },
   "moodReminders": {
     "dailyTitle": "Log your mood",

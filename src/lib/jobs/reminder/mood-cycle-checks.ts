@@ -8,6 +8,7 @@ import { type Job } from "pg-boss";
 import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { runMoodReminderTick } from "@/lib/jobs/mood-reminder";
+import { runMedicationCheckinReminderTick } from "@/lib/jobs/medication-checkin-reminder";
 import { runCycleReminderTick } from "@/lib/jobs/cycle-reminder";
 import {
   runMeasurementReminderTick,
@@ -21,6 +22,10 @@ export interface MoodReminderPayload {
 }
 
 export interface CycleReminderPayload {
+  triggeredAt: string;
+}
+
+export interface MedicationCheckinReminderPayload {
   triggeredAt: string;
 }
 
@@ -45,6 +50,44 @@ export async function handleMoodReminderCheck(
           skipped_already_logged: summary.skippedAlreadyLogged,
           skipped_already_dispatched: summary.skippedAlreadyDispatched,
           skipped_outside_window: summary.skippedOutsideWindow,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+/**
+ * Fork ADHS Stage B.2 — medication effect-window check-in reminder tick. Thin
+ * shim around `runMedicationCheckinReminderTick` so the unit tests exercise the
+ * windowing + opt-in + dedup logic without pg-boss.
+ */
+export async function handleMedicationCheckinReminderCheck(
+  jobs: Job<MedicationCheckinReminderPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.medication_checkin_reminder", async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      const summary = await runMedicationCheckinReminderTick(
+        prisma,
+        new Date(),
+      );
+      evt.setBackground({
+        task_name: "job.medication_checkin_reminder",
+        result: {
+          medications_scanned: summary.medicationsScanned,
+          windows_in_window: summary.windowsInWindow,
+          dispatched: summary.dispatched,
+          skipped_not_opted_in: summary.skippedNotOptedIn,
+          skipped_no_profile_window: summary.skippedNoProfileWindow,
+          skipped_no_intake_time: summary.skippedNoIntakeTime,
+          skipped_already_dispatched: summary.skippedAlreadyDispatched,
+          skipped_no_channel: summary.skippedNoChannel,
+          failed: summary.failed,
         },
       });
     } catch (err) {

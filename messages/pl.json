@@ -6667,6 +6667,18 @@
     }
   },
   "notifications": {
+    "eventMedicationCheckinReminder": "Wpis dot. leku",
+    "eventMedicationCheckinReminderDesc": "Przypomnienie o zarejestrowaniu codziennego wpisu w oknie działania leku.",
+    "medicationCheckinReminder": {
+      "title": "Przypomnienie o wpisie dot. leku",
+      "description": "Przypomnienie, aby otworzyć codzienny wpis w oknie działania leku — jakiś czas po przyjęciu i ponownie po południu. Godziny pochodzą z profilu leku.",
+      "toggleAria": "Przełącz przypomnienie o wpisie dot. leku",
+      "statusOn": "Wł.",
+      "statusOff": "Wył.",
+      "enabledToast": "Przypomnienia o wpisach włączone.",
+      "disabledToast": "Przypomnienia o wpisach wyłączone.",
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie."
+    },
     "title": "Powiadomienia",
     "eventColumn": "Zdarzenie",
     "subtitle": "Wybierz, które powiadomienia chcesz otrzymywać i którym kanałem.",
@@ -6959,6 +6971,12 @@
     "bodyToday": "{medName}: pozostało {units} jednostek — mniej niż jeden dzień zapasu.",
     "bodyReorder": "{medName}: pozostało {units} jednostek. Zapas skończy się około {runsOutOn} — zamów ponownie do {reorderBy}.",
     "bodyLastDose": "{medName}: pozostało {units} jednostek — to mniej więcej Twoja ostatnia dawka. Zapas skończy się około {runsOutOn}."
+  },
+  "medicationCheckinReminders": {
+    "effectTitle": "Czas na Twój wpis",
+    "effectBody": "Lek powinien już działać — poświęć chwilę, aby zanotować ewentualne działania niepożądane i swoje samopoczucie.",
+    "reboundTitle": "Popołudniowy wpis",
+    "reboundBody": "Jak mija popołudnie? Zanotuj działania niepożądane i to, jak utrzymuje się działanie leku."
   },
   "moodReminders": {
     "dailyTitle": "Zapisz nastrój",

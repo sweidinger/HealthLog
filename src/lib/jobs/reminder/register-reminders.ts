@@ -26,9 +26,11 @@ import {
   MoodReminderPayload,
   CycleReminderPayload,
   MeasurementReminderPayload,
+  MedicationCheckinReminderPayload,
   handleMoodReminderCheck,
   handleCycleReminderCheck,
   handleMeasurementReminderCheck,
+  handleMedicationCheckinReminderCheck,
   handleReminderSatisfy,
 } from "./mood-cycle-checks";
 
@@ -72,6 +74,17 @@ const MEASUREMENT_REMINDER_QUEUE = "measurement-reminder-check";
 
 const MEASUREMENT_REMINDER_CRON = "*/15 * * * *";
 
+// Fork ADHS Stage B.2 — every-15-min tick for the medication effect-window
+// check-in reminder. Same cadence + short-circuit shape as the mood / cycle /
+// measurement reminders: the handler only fires when a profiled medication is
+// inside one of its effect windows AND the user opted in, so the 15-min cadence
+// picks up every IANA timezone crossing a window without one cron entry per
+// zone. Dedup is the `MedicationCheckinReminderDispatch` ledger.
+
+const MEDICATION_CHECKIN_REMINDER_QUEUE = "medication-checkin-reminder-check";
+
+const MEDICATION_CHECKIN_REMINDER_CRON = "*/15 * * * *";
+
 const allQueues = [
   QUEUE_NAME,
   // v0.5.4 ios-coord — mood-reminder cron tick. Same pg-boss v12
@@ -86,6 +99,10 @@ const allQueues = [
   // pg-boss never provisions the queue and the every-15-min schedule
   // silently no-ops (the v1.4.37 dead-queue class).
   MEASUREMENT_REMINDER_QUEUE,
+  // Fork ADHS Stage B.2 — medication effect-window check-in reminder cron tick.
+  // Without this entry pg-boss never provisions the queue and the every-15-min
+  // schedule silently no-ops (the v1.4.37 dead-queue class).
+  MEDICATION_CHECKIN_REMINDER_QUEUE,
   // v1.18.1 — eventful Vorsorge satisfaction. No cron of its own (the
   // 15-min measurement-reminder check is the safety-net); enqueued by the
   // ingest paths. Must still be registered here or the worker binding
@@ -110,6 +127,11 @@ const schedules: ScheduleEntry[] = [
   // user's local time matches the reminder's notifyHour, so the cron
   // costs ~one reminder-row scan per tick for the active cohort.
   [MEASUREMENT_REMINDER_QUEUE, MEASUREMENT_REMINDER_CRON],
+  // Fork ADHS Stage B.2 — every-15-min tick for the medication effect-window
+  // check-in reminder. The handler short-circuits unless a profiled medication
+  // is inside a window AND the user opted in, so the cron costs ~one medication
+  // scan per tick for the profiled cohort.
+  [MEDICATION_CHECKIN_REMINDER_QUEUE, MEDICATION_CHECKIN_REMINDER_CRON],
 ];
 
 /**
@@ -151,6 +173,15 @@ export async function registerReminderQueues(
     MEASUREMENT_REMINDER_QUEUE,
     { localConcurrency: 1 },
     handleMeasurementReminderCheck,
+  );
+  // Fork ADHS Stage B.2 — single-flight medication effect-window check-in
+  // reminder worker. localConcurrency=1 keeps two ticks from racing the
+  // `MedicationCheckinReminderDispatch` ledger that anchors the per-window
+  // idempotency, exactly like the mood / cycle / measurement reminder workers.
+  await boss.work<MedicationCheckinReminderPayload>(
+    MEDICATION_CHECKIN_REMINDER_QUEUE,
+    { localConcurrency: 1 },
+    handleMedicationCheckinReminderCheck,
   );
   // v1.18.1 — eventful Vorsorge satisfaction. Resolves a user's reminders
   // against their just-landed measurement / lab. Read-heavy on the user's

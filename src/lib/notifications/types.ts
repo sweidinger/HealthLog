@@ -112,6 +112,16 @@ export const EVENT_TYPES = [
   // morning window, so a concerning reading always stays on
   // `MEASUREMENT_ANOMALY` and this never bypasses Focus.
   "DAILY_BRIEFING",
+  // Fork ADHS Stage B.2 — medication effect-window check-in reminder. Fired by
+  // the every-15-min medication-checkin-reminder cron when a profiled
+  // medication (a class with a drug profile, e.g. a stimulant) is inside one
+  // of its effect windows (a while after intake + the afternoon rebound), to
+  // nudge the user to open the daily guided check-in. Default OFF at the
+  // channel layer (see EVENT_DEFAULT_ENABLED) and additionally gated on the
+  // per-user `notificationPrefs.medicationCheckin.enabled` opt-in the cron
+  // reads, so the user opts in before the server nudges. Descriptive: the push
+  // links to the check-in and never names a dose or a suggestion.
+  "MEDICATION_CHECKIN_REMINDER",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -179,6 +189,12 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // channel that has no explicit enabled row, so a fresh account never
   // receives a morning push it did not ask for.
   DAILY_BRIEFING: false,
+  // Fork ADHS Stage B.2 — OFF by default (the MOOD_REMINDER precedent). Even
+  // if a future surface forgets to gate on
+  // `notificationPrefs.medicationCheckin.enabled`, this per-event default also
+  // has to be flipped on before the dispatcher surfaces the channel, so a
+  // fresh account never receives a check-in nudge it did not ask for.
+  MEDICATION_CHECKIN_REMINDER: false,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {

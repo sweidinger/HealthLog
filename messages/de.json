@@ -6667,6 +6667,18 @@
     }
   },
   "notifications": {
+    "eventMedicationCheckinReminder": "Medikamenten-Check-in",
+    "eventMedicationCheckinReminderDesc": "Anstoß, den täglichen Check-in im Wirkfenster deines Medikaments zu erfassen.",
+    "medicationCheckinReminder": {
+      "title": "Erinnerung an den Wirkungs-Check-in",
+      "description": "Ein Anstoß, den täglichen Check-in im Wirkfenster deines Medikaments zu öffnen — eine Weile nach der Einnahme und noch einmal am Nachmittag. Die Zeiten kommen aus dem Wirkstoffprofil.",
+      "toggleAria": "Erinnerung an den Wirkungs-Check-in umschalten",
+      "statusOn": "An",
+      "statusOff": "Aus",
+      "enabledToast": "Check-in-Erinnerungen an.",
+      "disabledToast": "Check-in-Erinnerungen aus.",
+      "saveError": "Konnte nicht gespeichert werden. Bitte erneut versuchen."
+    },
     "title": "Benachrichtigungen",
     "eventColumn": "Ereignis",
     "subtitle": "Wähle aus, welche Benachrichtigungen du über welchen Kanal erhalten möchtest.",
@@ -6959,6 +6971,12 @@
     "bodyToday": "Dein Vorrat an {medName} reicht keinen ganzen Tag mehr ({units} Einheiten übrig).",
     "bodyReorder": "Dein Vorrat an {medName} ({units} Einheiten) ist um den {runsOutOn} aufgebraucht — bestelle bis zum {reorderBy} nach.",
     "bodyLastDose": "Dein Vorrat an {medName} ({units} Einheiten) reicht noch etwa für die letzte Dosis. Aufgebraucht um den {runsOutOn}."
+  },
+  "medicationCheckinReminders": {
+    "effectTitle": "Zeit für deinen Check-in",
+    "effectBody": "Dein Medikament sollte jetzt wirken — halte kurz fest, ob du Nebenwirkungen hast und wie es dir geht.",
+    "reboundTitle": "Nachmittags-Check-in",
+    "reboundBody": "Wie läuft der Nachmittag? Halte Nebenwirkungen und die Wirkung des Medikaments fest."
   },
   "moodReminders": {
     "dailyTitle": "Stimmung erfassen",

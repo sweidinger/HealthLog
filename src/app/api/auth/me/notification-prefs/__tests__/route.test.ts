@@ -108,6 +108,9 @@ describe("GET /api/auth/me/notification-prefs", () => {
       measurementReminder: {
         clientManaged: false,
       },
+      medicationCheckin: {
+        enabled: false,
+      },
     });
   });
 
@@ -144,6 +147,9 @@ describe("GET /api/auth/me/notification-prefs", () => {
       },
       measurementReminder: {
         clientManaged: false,
+      },
+      medicationCheckin: {
+        enabled: false,
       },
     });
   });
@@ -183,6 +189,9 @@ describe("GET /api/auth/me/notification-prefs", () => {
       },
       measurementReminder: {
         clientManaged: false,
+      },
+      medicationCheckin: {
+        enabled: false,
       },
     });
   });
@@ -234,6 +243,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       measurementReminder: {
         clientManaged: false,
       },
+      medicationCheckin: {
+        enabled: false,
+      },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -259,6 +271,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           },
           measurementReminder: {
             clientManaged: false,
+          },
+          medicationCheckin: {
+            enabled: false,
           },
         },
       },
@@ -290,6 +305,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             measurementReminder: {
               clientManaged: false,
             },
+            medicationCheckin: {
+              enabled: false,
+            },
           },
           next: {
             medication: {
@@ -311,6 +329,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             },
             measurementReminder: {
               clientManaged: false,
+            },
+            medicationCheckin: {
+              enabled: false,
             },
           },
           changed: ["medication"],
@@ -387,6 +408,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           measurementReminder: {
             clientManaged: false,
           },
+          medicationCheckin: {
+            enabled: false,
+          },
         },
       },
     });
@@ -427,6 +451,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       measurementReminder: {
         clientManaged: false,
       },
+      medicationCheckin: {
+        enabled: false,
+      },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -452,6 +479,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           },
           measurementReminder: {
             clientManaged: false,
+          },
+          medicationCheckin: {
+            enabled: false,
           },
         },
       },
@@ -497,6 +527,9 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           },
           measurementReminder: {
             clientManaged: false,
+          },
+          medicationCheckin: {
+            enabled: false,
           },
         },
       },

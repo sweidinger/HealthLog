@@ -7,6 +7,7 @@ import {
   DEFAULT_REORDER_LEAD_DAYS,
   isCycleReminderClientManaged,
   isMeasurementReminderClientManaged,
+  isMedicationCheckinReminderEnabled,
   isMedicationReminderClientManaged,
   notificationPrefsSchema,
   parseNotificationPrefs,
@@ -115,6 +116,9 @@ describe("parseNotificationPrefs", () => {
       measurementReminder: {
         clientManaged: false,
       },
+      medicationCheckin: {
+        enabled: false,
+      },
     });
   });
 
@@ -139,6 +143,9 @@ describe("parseNotificationPrefs", () => {
       },
       measurementReminder: {
         clientManaged: false,
+      },
+      medicationCheckin: {
+        enabled: false,
       },
     });
   });
@@ -166,6 +173,9 @@ describe("parseNotificationPrefs", () => {
       },
       measurementReminder: {
         clientManaged: false,
+      },
+      medicationCheckin: {
+        enabled: false,
       },
     });
   });
@@ -210,6 +220,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       measurementReminder: {
         clientManaged: false,
       },
+      medicationCheckin: {
+        enabled: false,
+      },
     });
   });
 
@@ -241,6 +254,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       measurementReminder: {
         clientManaged: false,
       },
+      medicationCheckin: {
+        enabled: false,
+      },
     });
   });
 
@@ -268,6 +284,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       },
       measurementReminder: {
         clientManaged: false,
+      },
+      medicationCheckin: {
+        enabled: false,
       },
     });
   });
@@ -297,6 +316,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       measurementReminder: {
         clientManaged: false,
       },
+      medicationCheckin: {
+        enabled: false,
+      },
     });
   });
 
@@ -325,6 +347,9 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       },
       measurementReminder: {
         clientManaged: false,
+      },
+      medicationCheckin: {
+        enabled: false,
       },
     });
   });
@@ -426,6 +451,57 @@ describe("isMeasurementReminderClientManaged — cron-skip gate", () => {
         medication: { deliveryDefault: "client" },
       }),
     ).toBe(false);
+  });
+});
+
+describe("isMedicationCheckinReminderEnabled — Stage B.2 cron opt-in gate", () => {
+  it("returns false for a null / undefined row (opt-in default OFF)", () => {
+    expect(isMedicationCheckinReminderEnabled(null)).toBe(false);
+    expect(isMedicationCheckinReminderEnabled(undefined)).toBe(false);
+  });
+
+  it("returns false for a drifted persisted shape", () => {
+    expect(isMedicationCheckinReminderEnabled({ unknown: "shape" })).toBe(
+      false,
+    );
+  });
+
+  it("returns false when the user has not opted in", () => {
+    expect(
+      isMedicationCheckinReminderEnabled({
+        medicationCheckin: { enabled: false },
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true when the user has opted in", () => {
+    expect(
+      isMedicationCheckinReminderEnabled({
+        medicationCheckin: { enabled: true },
+      }),
+    ).toBe(true);
+  });
+
+  it("is independent of sibling categories", () => {
+    expect(
+      isMedicationCheckinReminderEnabled({
+        mood: { reminderHour: 9 },
+        measurementReminder: { clientManaged: true },
+      }),
+    ).toBe(false);
+  });
+
+  it("survives a deep-merge round-trip (PATCH semantics)", () => {
+    const merged = resolveNotificationPrefs(
+      { medication: { clientManaged: true } },
+      { medicationCheckin: { enabled: true } },
+    );
+    expect(merged.medicationCheckin).toEqual({ enabled: true });
+    // A later PATCH touching only medication keeps the check-in opt-in.
+    const next = resolveNotificationPrefs(merged, {
+      medication: { lowStockRunwayDays: 14 },
+    });
+    expect(next.medicationCheckin).toEqual({ enabled: true });
   });
 });
 

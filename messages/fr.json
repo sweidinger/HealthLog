@@ -6667,6 +6667,18 @@
     }
   },
   "notifications": {
+    "eventMedicationCheckinReminder": "Suivi du médicament",
+    "eventMedicationCheckinReminderDesc": "Rappel pour enregistrer le suivi quotidien pendant la fenêtre d'effet de votre médicament.",
+    "medicationCheckinReminder": {
+      "title": "Rappel de suivi du médicament",
+      "description": "Un rappel pour ouvrir le suivi quotidien pendant la fenêtre d'effet de votre médicament — un moment après la prise puis de nouveau l'après-midi. Les horaires proviennent du profil du médicament.",
+      "toggleAria": "Activer le rappel de suivi du médicament",
+      "statusOn": "Activé",
+      "statusOff": "Désactivé",
+      "enabledToast": "Rappels de suivi activés.",
+      "disabledToast": "Rappels de suivi désactivés.",
+      "saveError": "Impossible d'enregistrer. Veuillez réessayer."
+    },
     "title": "Notifications",
     "eventColumn": "Événement",
     "subtitle": "Choisis quelles notifications tu reçois et par quel canal.",
@@ -6959,6 +6971,12 @@
     "bodyToday": "{medName} : {units} unités restantes — moins d’un jour de réserve.",
     "bodyReorder": "{medName} : {units} unités restantes. Le stock sera épuisé vers le {runsOutOn} — recommandez avant le {reorderBy}.",
     "bodyLastDose": "{medName} : {units} unités restantes — environ votre dernière dose. Le stock sera épuisé vers le {runsOutOn}."
+  },
+  "medicationCheckinReminders": {
+    "effectTitle": "C'est l'heure de votre suivi",
+    "effectBody": "Votre médicament devrait maintenant agir — prenez un instant pour noter les effets indésirables et comment vous vous sentez.",
+    "reboundTitle": "Suivi de l'après-midi",
+    "reboundBody": "Comment se passe l'après-midi ? Notez les effets indésirables et comment l'effet du médicament se maintient."
   },
   "moodReminders": {
     "dailyTitle": "Enregistrer votre humeur",
