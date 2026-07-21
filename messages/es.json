@@ -970,7 +970,13 @@
         "headache": "Dolor de cabeza",
         "irritability": "Irritabilidad",
         "emotionalBlunting": "Embotamiento emocional",
-        "afternoonRebound": "Bajón de la tarde"
+        "afternoonRebound": "Bajón de la tarde",
+        "tremor": "Temblor",
+        "tics": "Tics",
+        "sweating": "Sudoración",
+        "anxiety": "Ansiedad",
+        "moodSwings": "Cambios de humor",
+        "fatigue": "Fatiga"
       },
       "deleteConfirmTitle": "¿Eliminar esta entrada?",
       "deleteConfirmBody": "Esta entrada de efecto secundario se eliminará de forma permanente."

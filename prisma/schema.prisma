@@ -3106,19 +3106,25 @@ enum MedicationSideEffectEntry {
   GASTROPARESIS_LIKE
   DYSGEUSIA
   GALLBLADDER_DISCOMFORT
-  // Stimulant — activation (3)
+  // Stimulant — activation (6)
   INSOMNIA
   PALPITATIONS
   RESTLESSNESS
+  TREMOR
+  TICS
+  SWEATING
   // Stimulant — somatic (4)
   REDUCED_APPETITE
   DRY_MOUTH
   BRUXISM
   HEADACHE
-  // Stimulant — mood (3)
+  // Stimulant — mood (6)
   IRRITABILITY
   EMOTIONAL_BLUNTING
   AFTERNOON_REBOUND
+  ANXIETY
+  MOOD_SWINGS
+  FATIGUE
 
   @@map("medication_side_effect_entry")
 }

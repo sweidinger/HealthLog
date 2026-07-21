@@ -54,6 +54,9 @@ const ALL_ENTRIES: MedicationSideEffectEntry[] = [
   "INSOMNIA",
   "PALPITATIONS",
   "RESTLESSNESS",
+  "TREMOR",
+  "TICS",
+  "SWEATING",
   "REDUCED_APPETITE",
   "DRY_MOUTH",
   "BRUXISM",
@@ -61,6 +64,9 @@ const ALL_ENTRIES: MedicationSideEffectEntry[] = [
   "IRRITABILITY",
   "EMOTIONAL_BLUNTING",
   "AFTERNOON_REBOUND",
+  "ANXIETY",
+  "MOOD_SWINGS",
+  "FATIGUE",
 ];
 
 const ALL_CATEGORIES: MedicationSideEffectCategory[] = [
@@ -75,9 +81,9 @@ const ALL_CATEGORIES: MedicationSideEffectCategory[] = [
 ];
 
 describe("SIDE_EFFECT_CATEGORIES — entry → category mapping", () => {
-  it("declares exactly 31 entries", () => {
-    expect(Object.keys(SIDE_EFFECT_CATEGORIES)).toHaveLength(31);
-    expect(SIDE_EFFECT_ENTRY_COUNT).toBe(31);
+  it("declares exactly 37 entries", () => {
+    expect(Object.keys(SIDE_EFFECT_CATEGORIES)).toHaveLength(37);
+    expect(SIDE_EFFECT_ENTRY_COUNT).toBe(37);
   });
 
   it("maps every entry to a known category", () => {
@@ -109,17 +115,17 @@ describe("SIDE_EFFECT_ENTRIES_BY_CATEGORY — category → entries reverse index
     }
   });
 
-  it("matches the per-category counts (GLP-1: GI 5, METABOLIC 4, INJECTION_SITE 4, COGNITIVE 4, GLP1_SPECIFIC 4; stimulant: ACTIVATION 3, SOMATIC 4, MOOD 3)", () => {
+  it("matches the per-category counts (GLP-1: GI 5, METABOLIC 4, INJECTION_SITE 4, COGNITIVE 4, GLP1_SPECIFIC 4; stimulant: ACTIVATION 6, SOMATIC 4, MOOD 6)", () => {
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.GI).toHaveLength(5);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.METABOLIC).toHaveLength(4);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.INJECTION_SITE).toHaveLength(4);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.COGNITIVE).toHaveLength(4);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.GLP1_SPECIFIC).toHaveLength(4);
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.STIMULANT_ACTIVATION).toHaveLength(
-      3,
+      6,
     );
     expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.STIMULANT_SOMATIC).toHaveLength(4);
-    expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.STIMULANT_MOOD).toHaveLength(3);
+    expect(SIDE_EFFECT_ENTRIES_BY_CATEGORY.STIMULANT_MOOD).toHaveLength(6);
   });
 
   it("reverse index is consistent with the forward mapping", () => {
@@ -138,7 +144,7 @@ describe("SIDE_EFFECT_ENTRIES_BY_CATEGORY — category → entries reverse index
         seen.add(entry);
       }
     }
-    expect(seen.size).toBe(31);
+    expect(seen.size).toBe(37);
   });
 
   it("entriesByCategory helper is a thin wrapper", () => {

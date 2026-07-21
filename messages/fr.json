@@ -970,7 +970,13 @@
         "headache": "Mal de tête",
         "irritability": "Irritabilité",
         "emotionalBlunting": "Émoussement émotionnel",
-        "afternoonRebound": "Contrecoup de l'après-midi"
+        "afternoonRebound": "Contrecoup de l'après-midi",
+        "tremor": "Tremblements",
+        "tics": "Tics",
+        "sweating": "Transpiration",
+        "anxiety": "Anxiété",
+        "moodSwings": "Sautes d'humeur",
+        "fatigue": "Fatigue"
       },
       "deleteConfirmTitle": "Supprimer cette entrée ?",
       "deleteConfirmBody": "Cette entrée d’effet secondaire sera définitivement supprimée."

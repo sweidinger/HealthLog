@@ -970,7 +970,13 @@
         "headache": "Kopfschmerzen",
         "irritability": "Reizbarkeit",
         "emotionalBlunting": "Emotionale Abstumpfung",
-        "afternoonRebound": "Nachmittags-Rebound"
+        "afternoonRebound": "Nachmittags-Rebound",
+        "tremor": "Zittern",
+        "tics": "Tics",
+        "sweating": "Schwitzen",
+        "anxiety": "Angst",
+        "moodSwings": "Stimmungsschwankungen",
+        "fatigue": "Müdigkeit"
       },
       "deleteConfirmTitle": "Eintrag löschen?",
       "deleteConfirmBody": "Dieser Nebenwirkungs-Eintrag wird dauerhaft entfernt."

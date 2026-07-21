@@ -970,7 +970,13 @@
         "headache": "Mal di testa",
         "irritability": "Irritabilità",
         "emotionalBlunting": "Ottundimento emotivo",
-        "afternoonRebound": "Calo del pomeriggio"
+        "afternoonRebound": "Calo del pomeriggio",
+        "tremor": "Tremore",
+        "tics": "Tic",
+        "sweating": "Sudorazione",
+        "anxiety": "Ansia",
+        "moodSwings": "Sbalzi d'umore",
+        "fatigue": "Affaticamento"
       },
       "deleteConfirmTitle": "Eliminare questa voce?",
       "deleteConfirmBody": "Questa voce di effetto collaterale verrà rimossa definitivamente."

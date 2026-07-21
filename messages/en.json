@@ -970,7 +970,13 @@
         "headache": "Headache",
         "irritability": "Irritability",
         "emotionalBlunting": "Emotional blunting",
-        "afternoonRebound": "Afternoon rebound"
+        "afternoonRebound": "Afternoon rebound",
+        "tremor": "Tremor",
+        "tics": "Tics",
+        "sweating": "Sweating",
+        "anxiety": "Anxiety",
+        "moodSwings": "Mood swings",
+        "fatigue": "Fatigue"
       },
       "deleteConfirmTitle": "Delete this entry?",
       "deleteConfirmBody": "This side-effect entry will be permanently removed."

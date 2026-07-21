@@ -970,7 +970,13 @@
         "headache": "Ból głowy",
         "irritability": "Drażliwość",
         "emotionalBlunting": "Stępienie emocjonalne",
-        "afternoonRebound": "Popołudniowy spadek"
+        "afternoonRebound": "Popołudniowy spadek",
+        "tremor": "Drżenie",
+        "tics": "Tiki",
+        "sweating": "Pocenie się",
+        "anxiety": "Lęk",
+        "moodSwings": "Wahania nastroju",
+        "fatigue": "Zmęczenie"
       },
       "deleteConfirmTitle": "Usunąć ten wpis?",
       "deleteConfirmBody": "Ten wpis o skutku ubocznym zostanie trwale usunięty."
