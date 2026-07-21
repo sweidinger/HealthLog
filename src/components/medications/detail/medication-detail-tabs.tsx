@@ -78,6 +78,7 @@ import { DailyCheckin } from "@/components/medications/daily-checkin";
 import { hasDrugProfile } from "@/lib/medications/profiles/registry";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { TitrationTimeline } from "@/components/medications/titration-timeline";
+import { TitrationPlanBuilder } from "@/components/medications/titration-plan-builder";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import type { SupplySummary } from "@/lib/medications/inventory/summary";
 import { MedicationWizardDialog } from "@/components/medications/wizard/medication-wizard-dialog";
@@ -259,6 +260,13 @@ export function MedicationDetailTabs({
   // Daily guided check-in (the "interview") for any class with a drug profile.
   const showDailyCheckin =
     !oneShot && hasDrugProfile(medication.treatmentClass);
+  // Stage C — titration plan (timeline + builder). For a profiled class that
+  // has NO Injektion tab (a stimulant is oral), surface the dose-escalation
+  // plan in the always-present Verlauf tab. The `!isInjectable` guard prevents
+  // a double mount for a hypothetical injectable profiled class (the Injektion
+  // tab already hosts the timeline there).
+  const showTitrationPlan =
+    !oneShot && hasDrugProfile(medication.treatmentClass) && !isInjectable;
 
   // v1.28 — the "Wirkung" tab appears when the medication resolves to a known
   // outcome target (ATC class prefix → whole-word name inference) and is not a
@@ -719,6 +727,14 @@ export function MedicationDetailTabs({
                 medicationId={id}
                 treatmentClass={medication.treatmentClass ?? "GENERIC"}
               />
+            </div>
+          )}
+          {showTitrationPlan && (
+            <div className="space-y-3" data-slot="medication-titration-plan">
+              <TitrationTimeline medicationId={id} />
+              <div className="flex justify-start">
+                <TitrationPlanBuilder medicationId={id} />
+              </div>
             </div>
           )}
           <div className="flex justify-end">

@@ -1311,6 +1311,28 @@
       "empty": "Noch keine Titrations-Historie. Erfasse eine Dosisänderung, um die Stärkekurve zu sehen."
     },
     "titration": {
+      "builder": {
+        "cta": "Plan",
+        "title": "Eindosierungs-Plan",
+        "subtitle": "Trage den vom Arzt verordneten Eindosierungs-Plan ein.",
+        "close": "Schließen",
+        "save": "Plan speichern",
+        "saved": "Plan gespeichert.",
+        "removed": "Schritt entfernt.",
+        "saveError": "Konnte nicht gespeichert werden. Bitte erneut versuchen.",
+        "noStepError": "Bitte trage zuerst mindestens eine Dosis ein.",
+        "safetyNote": "Hier wird nur der vom Arzt verordnete Plan festgehalten — trage jede Dosis selbst ein. Die App schlägt keine Dosis vor und berechnet keine; sie speichert nur, was du einträgst.",
+        "currentPlan": "Aktueller Plan",
+        "newSteps": "Neue Schritte",
+        "startDate": "Startdatum",
+        "interval": "Abstand",
+        "everyNDays": "Alle {count} Tage",
+        "unit": "Einheit",
+        "dosePlaceholder": "z. B. 30",
+        "doseAria": "Dosis für Schritt {step}",
+        "addStep": "Schritt hinzufügen",
+        "removeStep": "Schritt entfernen"
+      },
       "title": "Titrationsplan",
       "empty": "Noch keine Dosis-Steigerungsschritte erfasst. Datierte Dosisänderungen hinzufügen, um den Plan abzubilden.",
       "youAreHere": "Du bist hier",

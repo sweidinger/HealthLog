@@ -1311,6 +1311,28 @@
       "empty": "No titration history yet. Log a dose change to see the strength curve."
     },
     "titration": {
+      "builder": {
+        "cta": "Plan",
+        "title": "Titration plan",
+        "subtitle": "Record the dose-escalation plan your prescriber gave you.",
+        "close": "Close",
+        "save": "Save plan",
+        "saved": "Plan saved.",
+        "removed": "Step removed.",
+        "saveError": "Couldn't save. Please try again.",
+        "noStepError": "Enter at least one dose first.",
+        "safetyNote": "This only records the plan your doctor prescribed — enter each dose yourself. The app never suggests or calculates a dose; it just tracks what you enter.",
+        "currentPlan": "Current plan",
+        "newSteps": "New steps",
+        "startDate": "Start date",
+        "interval": "Interval",
+        "everyNDays": "Every {count} days",
+        "unit": "Unit",
+        "dosePlaceholder": "e.g. 30",
+        "doseAria": "Dose for step {step}",
+        "addStep": "Add step",
+        "removeStep": "Remove step"
+      },
       "title": "Titration plan",
       "empty": "No dose-escalation steps recorded yet. Add dated dose changes to plot the plan.",
       "youAreHere": "You are here",

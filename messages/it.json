@@ -1311,6 +1311,28 @@
       "empty": "Nessuna cronologia di titolazione. Registra un cambio di dose per vedere la curva della dose."
     },
     "titration": {
+      "builder": {
+        "cta": "Piano",
+        "title": "Piano di titolazione",
+        "subtitle": "Registra il piano di aumento della dose prescritto dal medico.",
+        "close": "Chiudi",
+        "save": "Salva piano",
+        "saved": "Piano salvato.",
+        "removed": "Passo rimosso.",
+        "saveError": "Impossibile salvare. Riprova.",
+        "noStepError": "Inserisci prima almeno una dose.",
+        "safetyNote": "Qui viene registrato solo il piano prescritto dal medico: inserisci tu stesso ogni dose. L'app non suggerisce né calcola mai una dose; salva solo ciò che inserisci.",
+        "currentPlan": "Piano attuale",
+        "newSteps": "Nuovi passi",
+        "startDate": "Data di inizio",
+        "interval": "Intervallo",
+        "everyNDays": "Ogni {count} giorni",
+        "unit": "Unità",
+        "dosePlaceholder": "es. 30",
+        "doseAria": "Dose per il passo {step}",
+        "addStep": "Aggiungi passo",
+        "removeStep": "Rimuovi passo"
+      },
       "title": "Piano di titolazione",
       "empty": "Nessuna fase di aumento della dose registrata. Aggiungi variazioni di dose con data per tracciare il piano.",
       "youAreHere": "Sei qui",

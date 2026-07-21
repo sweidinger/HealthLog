@@ -1311,6 +1311,28 @@
       "empty": "Aún no hay historial de titulación. Registra un cambio de dosis para ver la curva de dosis."
     },
     "titration": {
+      "builder": {
+        "cta": "Plan",
+        "title": "Plan de titulación",
+        "subtitle": "Registra el plan de escalada de dosis que te indicó tu médico.",
+        "close": "Cerrar",
+        "save": "Guardar plan",
+        "saved": "Plan guardado.",
+        "removed": "Paso eliminado.",
+        "saveError": "No se pudo guardar. Inténtalo de nuevo.",
+        "noStepError": "Introduce al menos una dosis primero.",
+        "safetyNote": "Aquí solo se registra el plan que te recetó tu médico: introduce cada dosis tú mismo. La app nunca sugiere ni calcula una dosis; solo guarda lo que introduces.",
+        "currentPlan": "Plan actual",
+        "newSteps": "Nuevos pasos",
+        "startDate": "Fecha de inicio",
+        "interval": "Intervalo",
+        "everyNDays": "Cada {count} días",
+        "unit": "Unidad",
+        "dosePlaceholder": "p. ej. 30",
+        "doseAria": "Dosis para el paso {step}",
+        "addStep": "Añadir paso",
+        "removeStep": "Eliminar paso"
+      },
       "title": "Plan de titulación",
       "empty": "Aún no hay pasos de escalada de dosis registrados. Añade cambios de dosis con fecha para trazar el plan.",
       "youAreHere": "Estás aquí",

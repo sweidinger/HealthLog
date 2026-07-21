@@ -1311,6 +1311,28 @@
       "empty": "Brak historii titracji. Zapisz zmianę dawki, aby zobaczyć krzywą dawki."
     },
     "titration": {
+      "builder": {
+        "cta": "Plan",
+        "title": "Plan miareczkowania",
+        "subtitle": "Zapisz zalecony przez lekarza plan zwiększania dawki.",
+        "close": "Zamknij",
+        "save": "Zapisz plan",
+        "saved": "Plan zapisany.",
+        "removed": "Krok usunięty.",
+        "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
+        "noStepError": "Najpierw wprowadź co najmniej jedną dawkę.",
+        "safetyNote": "Zapisywany jest tu tylko plan zalecony przez lekarza — każdą dawkę wprowadź samodzielnie. Aplikacja nigdy nie sugeruje ani nie oblicza dawki; zapisuje tylko to, co wprowadzisz.",
+        "currentPlan": "Bieżący plan",
+        "newSteps": "Nowe kroki",
+        "startDate": "Data początkowa",
+        "interval": "Odstęp",
+        "everyNDays": "Co {count} dni",
+        "unit": "Jednostka",
+        "dosePlaceholder": "np. 30",
+        "doseAria": "Dawka dla kroku {step}",
+        "addStep": "Dodaj krok",
+        "removeStep": "Usuń krok"
+      },
       "title": "Plan titracji",
       "empty": "Nie zarejestrowano jeszcze kroków zwiększania dawki. Dodaj datowane zmiany dawki, aby nakreślić plan.",
       "youAreHere": "Jesteś tutaj",

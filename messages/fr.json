@@ -1311,6 +1311,28 @@
       "empty": "Aucun historique de titration. Enregistrez un changement de dose pour voir la courbe de dose."
     },
     "titration": {
+      "builder": {
+        "cta": "Plan",
+        "title": "Plan de titration",
+        "subtitle": "Enregistrez le plan d'augmentation de dose prescrit par votre médecin.",
+        "close": "Fermer",
+        "save": "Enregistrer le plan",
+        "saved": "Plan enregistré.",
+        "removed": "Étape supprimée.",
+        "saveError": "Impossible d'enregistrer. Veuillez réessayer.",
+        "noStepError": "Saisissez d'abord au moins une dose.",
+        "safetyNote": "Ceci n'enregistre que le plan prescrit par votre médecin — saisissez chaque dose vous-même. L'application ne suggère ni ne calcule jamais de dose ; elle enregistre seulement ce que vous saisissez.",
+        "currentPlan": "Plan actuel",
+        "newSteps": "Nouvelles étapes",
+        "startDate": "Date de début",
+        "interval": "Intervalle",
+        "everyNDays": "Tous les {count} jours",
+        "unit": "Unité",
+        "dosePlaceholder": "p. ex. 30",
+        "doseAria": "Dose pour l'étape {step}",
+        "addStep": "Ajouter une étape",
+        "removeStep": "Supprimer l'étape"
+      },
       "title": "Plan de titration",
       "empty": "Aucune étape d'escalade de dose enregistrée pour le moment. Ajoutez des changements de dose datés pour tracer le plan.",
       "youAreHere": "Vous êtes ici",
