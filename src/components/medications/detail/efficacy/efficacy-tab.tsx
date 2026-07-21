@@ -401,6 +401,10 @@ function RetargetControl({
         value: `lab:${b.id}`,
         label: b.label,
       })),
+      ...options.customMetrics.map((c) => ({
+        value: `custom:${c.id}`,
+        label: c.label,
+      })),
     ],
     [options],
   );
@@ -412,6 +416,7 @@ function RetargetControl({
         clear?: boolean;
         measurementType?: string;
         biomarkerId?: string;
+        customMetricId?: string;
       } = {};
       if (clear) {
         body.clear = true;
@@ -419,6 +424,8 @@ function RetargetControl({
         body.measurementType = value.slice("metric:".length);
       } else if (value.startsWith("lab:")) {
         body.biomarkerId = value.slice("lab:".length);
+      } else if (value.startsWith("custom:")) {
+        body.customMetricId = value.slice("custom:".length);
       } else {
         setBusy(false);
         return;

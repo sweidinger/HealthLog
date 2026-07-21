@@ -80,7 +80,7 @@ export interface EfficacyLevelShift {
 }
 
 export interface EfficacyTargetView {
-  kind: "metric" | "lab";
+  kind: "metric" | "lab" | "custom";
   /** MeasurementType (metric) or the analyte needle (lab). */
   key: string;
   label: string;
@@ -129,6 +129,7 @@ export interface MedicationEfficacyDTO {
   overrideOptions: {
     metrics: { key: string; label: string }[];
     biomarkers: { id: string; label: string; unit: string }[];
+    customMetrics: { id: string; label: string; unit: string }[];
   };
 }
 
@@ -345,6 +346,56 @@ async function buildLabTarget(
 }
 
 /**
+ * Build the custom-metric-target view. Mirrors {@link buildLabTarget}: the
+ * user's own `CustomMetricEntry` rows are read LIVE (no rollup tier — the same
+ * posture the custom-metric charts take), oldest-first, over the window, and
+ * charted on the metric's own `unit`. The optional `targetLow`/`targetHigh`
+ * window becomes the reference band. Intraday points are kept as-is (full
+ * instants), so several check-ins a day all plot. No changepoint note (that
+ * resolver reasons about first-class `MeasurementType` series only).
+ */
+async function buildCustomMetricTarget(
+  userId: string,
+  target: Extract<MedTarget, { kind: "custom" }>,
+  primary: boolean,
+  pivotMs: number | null,
+  windowDays: number,
+  now: Date,
+): Promise<EfficacyTargetView> {
+  const floor = new Date(now.getTime() - windowDays * DAY_MS);
+  const entries = await prisma.customMetricEntry.findMany({
+    where: {
+      userId,
+      customMetricId: target.customMetricId,
+      measuredAt: { gte: floor },
+    },
+    orderBy: { measuredAt: "asc" },
+    select: { value: true, measuredAt: true },
+  });
+
+  const series: EfficacySeriesPoint[] = entries.map((e) => ({
+    t: e.measuredAt.toISOString(),
+    value: round1(e.value),
+  }));
+  const straddle = entries.map((e) => ({
+    at: e.measuredAt.getTime(),
+    value: e.value,
+  }));
+
+  return {
+    kind: "custom",
+    key: target.customMetricId,
+    label: target.label,
+    unit: target.unit,
+    primary,
+    referenceBand: target.referenceBand,
+    series,
+    beforeAfter: beforeAfterFromSeries(straddle, pivotMs),
+    levelShift: null,
+  };
+}
+
+/**
  * Resolve the effective targets for a medication: the user's persisted
  * override wins (tier "override"); otherwise the derived ATC/name resolution.
  * Returns the tier + class provenance for the DTO alongside the target list.
@@ -366,6 +417,16 @@ async function resolveEffectiveTargets(med: {
       measurementType: true,
       primary: true,
       biomarker: { select: { name: true } },
+      customMetric: {
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          targetLow: true,
+          targetHigh: true,
+          deletedAt: true,
+        },
+      },
     },
   });
   const overrideTargets: MedTarget[] = [];
@@ -380,6 +441,20 @@ async function resolveEffectiveTargets(med: {
         kind: "lab",
         analyte: row.biomarker.name,
         label: row.biomarker.name,
+      });
+    } else if (row.customMetric && row.customMetric.deletedAt === null) {
+      // Soft-deleted metrics are treated as "no override" (the FK SET NULL
+      // never fires for a soft delete, so the deletedAt guard is what drops it).
+      const cm = row.customMetric;
+      overrideTargets.push({
+        kind: "custom",
+        customMetricId: cm.id,
+        label: cm.name,
+        unit: cm.unit,
+        referenceBand:
+          cm.targetLow !== null && cm.targetHigh !== null
+            ? { low: cm.targetLow, high: cm.targetHigh }
+            : null,
       });
     }
   }
@@ -451,7 +526,7 @@ export async function buildMedicationEfficacy(
       markers: { start: null, startSource: null, doseChanges: [], pauses: [] },
       targets: [],
       adherence: [],
-      overrideOptions: { metrics: [], biomarkers: [] },
+      overrideOptions: { metrics: [], biomarkers: [], customMetrics: [] },
     };
   }
 
@@ -468,6 +543,11 @@ export async function buildMedicationEfficacy(
     orderBy: { name: "asc" },
     select: { id: true, name: true, unit: true },
   });
+  const customMetricRows = await prisma.customMetric.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, unit: true },
+  });
   const overrideOptions = {
     metrics: OVERRIDE_METRIC_OPTIONS.map((m) => ({
       key: m.key,
@@ -477,6 +557,11 @@ export async function buildMedicationEfficacy(
       id: b.id,
       label: b.name,
       unit: b.unit,
+    })),
+    customMetrics: customMetricRows.map((c) => ({
+      id: c.id,
+      label: c.name,
+      unit: c.unit,
     })),
   };
 
@@ -546,13 +631,31 @@ export async function buildMedicationEfficacy(
         );
       }
       targets.push(view);
-    } else {
+    } else if (target.kind === "lab") {
       const view = await buildLabTarget(
         userId,
         target.analyte,
         target.label,
         primary,
         pivotMs,
+      );
+      if (primary && pivotMs === null && view.series.length > 0) {
+        pivotMs = Date.parse(view.series[0].t);
+        startSource = "firstReading";
+        view.beforeAfter = beforeAfterFromSeries(
+          view.series.map((p) => ({ at: Date.parse(p.t), value: p.value })),
+          pivotMs,
+        );
+      }
+      targets.push(view);
+    } else {
+      const view = await buildCustomMetricTarget(
+        userId,
+        target,
+        primary,
+        pivotMs,
+        windowDays,
+        now,
       );
       if (primary && pivotMs === null && view.series.length > 0) {
         pivotMs = Date.parse(view.series[0].t);

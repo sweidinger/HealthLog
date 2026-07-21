@@ -184,7 +184,14 @@ export function inferMedTargetClass(
  */
 export type MedTarget =
   | { kind: "metric"; measurementType: MeasurementType }
-  | { kind: "lab"; analyte: string; label: string };
+  | { kind: "lab"; analyte: string; label: string }
+  | {
+      kind: "custom";
+      customMetricId: string;
+      label: string;
+      unit: string | null;
+      referenceBand: { low: number; high: number } | null;
+    };
 
 /**
  * The wider class set the efficacy resolver reasons about: the three

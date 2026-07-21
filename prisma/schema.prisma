@@ -2469,16 +2469,24 @@ model MedicationEfficacyTarget {
   /// metric series instead. SetNull on biomarker delete so the row survives
   /// as an orphan the resolver then treats as "no override".
   biomarkerId     String?          @map("biomarker_id")
+  /// Custom-metric target — a user-scoped CustomMetric. NULL when this row
+  /// targets a metric series or lab instead. SetNull on metric delete so the
+  /// row survives as an orphan the resolver then treats as "no override",
+  /// exactly like the biomarker path above. Exactly one of measurementType /
+  /// biomarkerId / customMetricId is set per row (enforced at the API layer).
+  customMetricId  String?          @map("custom_metric_id")
   /// The storyline-leading target when several are pinned. Default true.
   primary         Boolean          @default(true)
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
-  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
-  biomarker  Biomarker? @relation(fields: [biomarkerId], references: [id], onDelete: SetNull)
+  medication   Medication    @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  biomarker    Biomarker?    @relation(fields: [biomarkerId], references: [id], onDelete: SetNull)
+  customMetric CustomMetric? @relation(fields: [customMetricId], references: [id], onDelete: SetNull)
 
   @@index([medicationId])
   @@index([biomarkerId])
+  @@index([customMetricId])
   @@map("medication_efficacy_targets")
 }
 
@@ -4659,8 +4667,9 @@ model CustomMetric {
   /// Soft-delete tombstone. NULL = live; non-NULL = deleted at the instant.
   deletedAt   DateTime? @map("deleted_at")
 
-  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries CustomMetricEntry[]
+  user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries         CustomMetricEntry[]
+  efficacyTargets MedicationEfficacyTarget[]
 
   @@unique([userId, name])
   @@index([userId])

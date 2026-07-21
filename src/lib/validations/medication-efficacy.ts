@@ -21,15 +21,18 @@ export const efficacyTargetOverrideSchema = z
     clear: z.boolean().optional(),
     measurementType: measurementTypeEnum.optional(),
     biomarkerId: z.string().trim().min(1).max(64).optional(),
+    customMetricId: z.string().trim().min(1).max(64).optional(),
     primary: z.boolean().optional(),
   })
   .refine(
     (v) =>
       v.clear === true ||
-      (v.measurementType !== undefined) !== (v.biomarkerId !== undefined),
+      [v.measurementType, v.biomarkerId, v.customMetricId].filter(
+        (x) => x !== undefined,
+      ).length === 1,
     {
       message:
-        "Set exactly one of measurementType / biomarkerId, or pass clear:true to revert to the derived target.",
+        "Set exactly one of measurementType / biomarkerId / customMetricId, or pass clear:true to revert to the derived target.",
       path: ["measurementType"],
     },
   );
@@ -82,7 +85,7 @@ const levelShiftSchema = z
   .nullable();
 
 const targetViewSchema = z.object({
-  kind: z.enum(["metric", "lab"]),
+  kind: z.enum(["metric", "lab", "custom"]),
   key: z.string(),
   label: z.string(),
   unit: z.string().nullable(),
@@ -123,6 +126,9 @@ export const medicationEfficacyResponseSchema = z.object({
   overrideOptions: z.object({
     metrics: z.array(z.object({ key: z.string(), label: z.string() })),
     biomarkers: z.array(
+      z.object({ id: z.string(), label: z.string(), unit: z.string() }),
+    ),
+    customMetrics: z.array(
       z.object({ id: z.string(), label: z.string(), unit: z.string() }),
     ),
   }),

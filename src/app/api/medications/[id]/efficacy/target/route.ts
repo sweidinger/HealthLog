@@ -41,7 +41,8 @@ export const PUT = apiHandler(
     if (!parsed.success) {
       return returnAllZodIssues(parsed.error, 422);
     }
-    const { clear, measurementType, biomarkerId, primary } = parsed.data;
+    const { clear, measurementType, biomarkerId, customMetricId, primary } =
+      parsed.data;
 
     // Clearing reverts to the derived resolution — drop every override row.
     if (clear) {
@@ -70,6 +71,18 @@ export const PUT = apiHandler(
       }
     }
 
+    // A custom-metric target must reference a live CustomMetric the caller
+    // owns (soft-deleted metrics are not selectable).
+    if (customMetricId) {
+      const customMetric = await prisma.customMetric.findFirst({
+        where: { id: customMetricId, userId: user.id, deletedAt: null },
+        select: { id: true },
+      });
+      if (!customMetric) {
+        return apiError("Custom metric not found", 404);
+      }
+    }
+
     // Replace the override with the single pinned target (field-by-field data).
     await prisma.$transaction([
       prisma.medicationEfficacyTarget.deleteMany({
@@ -80,6 +93,7 @@ export const PUT = apiHandler(
           medicationId: id,
           measurementType: measurementType ?? null,
           biomarkerId: biomarkerId ?? null,
+          customMetricId: customMetricId ?? null,
           primary: primary ?? true,
         },
         select: { id: true },
@@ -92,7 +106,9 @@ export const PUT = apiHandler(
         entity_type: "medication",
         entity_id: id,
       },
-      meta: { kind: measurementType ? "metric" : "lab" },
+      meta: {
+        kind: measurementType ? "metric" : biomarkerId ? "lab" : "custom",
+      },
     });
 
     return apiSuccess({ ok: true });
