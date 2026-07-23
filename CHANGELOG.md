@@ -6,20 +6,20 @@
 
 - **Browser SSO sign-in no longer fails on a duplicated callback.** With the
   service worker's navigation preload enabled, a single-use OIDC callback could
-  be requested twice — the first redeemed the authorization code and set the
-  session, the second hit the identity provider with the now-consumed code and
-  failed, landing every successful sign-in on an error page. The service worker
-  now settles one-shot auth navigations itself so the callback reaches the
-  server exactly once, and the callback is idempotent: a duplicate that already
-  holds a database-valid session is sent into the app instead of erroring,
-  while a forged or session-less state still fails closed and never redeems a
-  code.
+  be requested twice. The first request redeemed the authorization code and set
+  the session. The second hit the identity provider with the now-consumed code
+  and failed, so every successful sign-in landed on an error page. The service
+  worker now settles one-shot auth navigations itself, so the callback reaches
+  the server exactly once. The callback is also idempotent: a duplicate that
+  already holds a database-valid session is sent into the app instead of
+  erroring, while a forged or session-less state still fails closed and never
+  redeems a code.
 
 No migrations. No breaking changes.
 
-_Thanks to **@doenke** (#600), whose report pinned the duplicated-callback
-cause — service worker navigation preload plus the single-use OIDC code — down
-to the exact mechanism, so the fix went in as described._
+_Thanks to **@doenke** (#600), whose report pinned the cause (service worker
+navigation preload plus the single-use OIDC code) down to the exact mechanism,
+so the fix went in as reported._
 
 ## [1.32.4] — 2026-07-23
 
@@ -28,8 +28,8 @@ to the exact mechanism, so the fix went in as described._
   numbers the model was shown, a sample count restated from the data inventory
   that rides every turn, a calendar-date ordinal ("July 21st"), and a
   numbered-list marker no longer trip the inline `[unverified]` rewrite that
-  was appearing in place of correct values. A genuinely fabricated figure — one
-  with no grounding at all — is still caught and stripped.
+  was appearing in place of correct values. A genuinely fabricated figure, one
+  with no grounding at all, is still caught and stripped.
 
 No migrations. No breaking changes.
 
@@ -40,14 +40,14 @@ proven can be watched in isolation.
 
 - **A native client can manage its own second factor.** The iOS app can now
   turn two-factor authentication on or off, add or remove a security key, and
-  regenerate recovery codes over its API session — actions that were reachable
+  regenerate recovery codes over its API session. Those actions were reachable
   only from a browser before. It does so through a short-lived, single-use
   elevation the app earns by re-proving a factor, never by presenting its
   token alone.
 - **The re-proved factor decides what the elevation reaches.** Re-proving with
-  a password reaches exactly what a plain browser session reaches; the actions
+  a password reaches exactly what a plain browser session reaches. The actions
   a browser gates behind a completed second factor now require the same over
-  the API — a re-proved TOTP code or security key, never the password alone.
+  the API: a re-proved TOTP code or security key, never the password alone.
   Administrative endpoints remain reachable only from a browser session,
   unchanged.
 
@@ -112,7 +112,7 @@ No migrations. No breaking changes.
 
 _Thanks to **@lutzkind** (health-score zero-state, the Coach refusing score
 questions, the dashboard layout race, the Pulse page) and **@Nazza01** (the
-Apple Health import stall) — these fixes came straight from their reports._
+Apple Health import stall). These fixes came straight from their reports._
 
 ## [1.32.0] — 2026-07-22
 
