@@ -38,7 +38,11 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn() }));
-vi.mock("@/lib/auth/session", () => ({ createSession: vi.fn() }));
+vi.mock("@/lib/auth/session", () => ({
+  createSession: vi.fn(),
+  validateSessionFromCookieValue: vi.fn(),
+  SESSION_COOKIE_NAME: "healthlog_session",
+}));
 vi.mock("@/lib/auth/login-alert", () => ({ recordSignInDevice: vi.fn() }));
 vi.mock("@/lib/auth/mfa/challenge", () => ({
   createMfaChallenge: vi.fn(async () => ({
@@ -84,7 +88,10 @@ import { GET } from "../route";
 import { checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
-import { createSession } from "@/lib/auth/session";
+import {
+  createSession,
+  validateSessionFromCookieValue,
+} from "@/lib/auth/session";
 import { createMfaChallenge } from "@/lib/auth/mfa/challenge";
 import {
   getOidcConfig,
@@ -588,6 +595,52 @@ describe("GET /api/auth/oidc/callback", () => {
       .getSetCookie()
       .find((c) => c.startsWith("oidc_auth_state="))!;
     expect(successCookie.toLowerCase()).toContain("path=/api/auth/oidc");
+  });
+});
+
+describe("GET /api/auth/oidc/callback — duplicate-callback idempotency", () => {
+  // A duplicated callback for the SAME sign-in: the first callback already
+  // redeemed the single-use code, set the session cookie, and deleted the
+  // single-use state cookie — so the duplicate arrives with a live `code` +
+  // `state` in the query but NO state cookie. Whether it also fails closed
+  // turns entirely on whether a VALIDATED session is present.
+  function duplicateRequest(withSession: boolean): NextRequest {
+    const req = new NextRequest(
+      "http://localhost/api/auth/oidc/callback?code=abc&state=STATE",
+    );
+    if (withSession) req.cookies.set("healthlog_session", "hls_valid_secret");
+    return req;
+  }
+
+  it("redirects a duplicate into the app when a valid session is present, WITHOUT re-redeeming the code", async () => {
+    vi.mocked(validateSessionFromCookieValue).mockResolvedValue({
+      session: { id: "sess-1", expiresAt: new Date(Date.now() + 1_000_000) },
+      user: userRow() as never,
+    } as never);
+
+    const res = await GET(duplicateRequest(true));
+
+    const location = res.headers.get("location")!;
+    // Lands in the app, not on the error page.
+    expect(location).not.toContain("error=");
+    expect(new URL(location).pathname).toBe("/");
+    // The now-consumed authorization code is NEVER exchanged again, and no
+    // second session is minted — the redirect is inert.
+    expect(exchangeCodeForTokens).not.toHaveBeenCalled();
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("still fails closed (oidc_state) for a consumed/forged state with NO valid session", async () => {
+    // The security assertion: a caller who presents a real-looking callback
+    // but holds no valid session gets the unchanged error and the code is
+    // never redeemed. This must stay red if the fail-closed path is weakened.
+    vi.mocked(validateSessionFromCookieValue).mockResolvedValue(null);
+
+    const res = await GET(duplicateRequest(false));
+
+    expect(res.headers.get("location")).toContain("error=oidc_state");
+    expect(exchangeCodeForTokens).not.toHaveBeenCalled();
+    expect(createSession).not.toHaveBeenCalled();
   });
 });
 

@@ -151,6 +151,26 @@ self.addEventListener("fetch", (event) => {
   // Only handle same-origin GET requests
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
+  // One-shot auth navigations must reach the server EXACTLY ONCE. The OIDC
+  // login + callback endpoints are top-level browser navigations (not
+  // `fetch`/XHR), so with navigation preload enabled (see `activate`) the
+  // browser has ALREADY dispatched the request by the time this handler runs.
+  // Returning early WITHOUT `event.respondWith()` — the general `/api/` path
+  // below does exactly that — makes the browser ALSO run its own default
+  // navigation fetch, so the request is sent twice. The OIDC authorization
+  // code is single-use: the first callback redeems it and sets the session,
+  // the second fails at the IdP and redirects to
+  // `/auth/login?error=oidc_failed` on an otherwise-successful sign-in.
+  // Consuming the preload response here (or fetching once when there is none)
+  // settles the event with a single network request. These responses are
+  // never cached.
+  if (url.pathname.startsWith("/api/auth/")) {
+    event.respondWith(
+      (async () => (await event.preloadResponse) || fetch(request))(),
+    );
+    return;
+  }
+
   // API calls. Allowlisted safe GET reads use network-first so the installed
   // PWA always renders fresh server data online (and falls back to the last
   // cached copy only when the network fails); everything else (auth,
