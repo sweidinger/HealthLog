@@ -328,18 +328,8 @@ export async function revokeStepUpElevations(userId: string): Promise<void> {
   await prisma.stepUpElevation.deleteMany({ where: { userId } });
 }
 
-/**
- * Delete every elevation whose window has closed.
- *
- * Runs on the queue, not on a request. The earlier fire-and-forget sweep on the
- * mint path was a cross-tenant unbounded DELETE competing with the request for a
- * pool connection, and recurring work belongs on pg-boss. An expired row is
- * already unredeemable — the predicate in `claimStepUpElevation` refuses it — so
- * this is hygiene, not enforcement, and a missed run breaks nothing.
- */
-export async function pruneExpiredStepUpElevations(): Promise<number> {
-  const { count } = await prisma.stepUpElevation.deleteMany({
-    where: { expiresAt: { lt: new Date() } },
-  });
-  return count;
-}
+// The expired-elevation sweep runs on the pg-boss queue against the WORKER
+// Prisma client, not this module's request-scoped one — see
+// `handleStepUpElevationCleanup` in `@/lib/jobs/reminder/cleanup-handlers`.
+// A copy of the predicate here would be unreachable and only invite drift
+// between the two, so it does not exist.
