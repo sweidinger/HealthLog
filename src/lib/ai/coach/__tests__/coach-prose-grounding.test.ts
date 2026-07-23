@@ -297,7 +297,10 @@ describe("G1 — normal-form reconciler grounded-passes", () => {
     ];
     // 444 min ⇔ 7.4 h.
     expect(
-      findUnverifiedCoachNumbers("You averaged about 7.4 hours asleep.", payload),
+      findUnverifiedCoachNumbers(
+        "You averaged about 7.4 hours asleep.",
+        payload,
+      ),
     ).toEqual([]);
   });
 
@@ -306,7 +309,11 @@ describe("G1 — normal-form reconciler grounded-passes", () => {
       { metric: "steps", section: { aggregate: { latest: 10000 } } },
     ];
     expect(
-      findUnverifiedCoachNumbers("You hit 10,000 steps yesterday.", payload, "en"),
+      findUnverifiedCoachNumbers(
+        "You hit 10,000 steps yesterday.",
+        payload,
+        "en",
+      ),
     ).toEqual([]);
   });
 

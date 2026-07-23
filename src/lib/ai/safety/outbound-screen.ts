@@ -241,6 +241,14 @@ const RESULT_VERB_EN =
   "(?:puts?\\s+you|would\\s+put\\s+you|placing\\s+you|places?\\s+you|you\\s+fall|you'?d\\s+fall|classif\\w*\\s+you)";
 const RISK_BAND_EN =
   "(?:high|higher|intermediate|elevated|moderate|low|borderline)[- ]?risk\\s+(?:band|category|group|range)";
+// A categorical VERDICT on the engine / horizon itself ("your 10-year risk IS
+// elevated") — a fabricated result with no digits. The horizon phrase and a
+// named engine are inherently about-this-user, so an attached risk-level
+// adjective is an assertion, not education. A model-perfect refusal names the
+// horizon but attaches no such adjective, so it still passes.
+const RISK_LEVEL_EN =
+  "(?:elevated|high|higher|intermediate|moderate|borderline|raised|concerning|significant)";
+const RISK_VERDICT_EN = `(?:is|are|looks?|appears?|seems?|sits?|remains?|comes?\\s+back|runs?|suggests?|indicat\\w*|shows?|reflects?|points?\\s+to)\\s+(?:\\w+\\s+){0,2}${RISK_LEVEL_EN}`;
 const SPELLED_DE =
   "(?:null|eins?|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig)";
 const PCT_WORD_DE = `${SPELLED_DE}\\s+prozent`;
@@ -251,6 +259,9 @@ const RESULT_VERB_DE =
   "(?:ordnet\\s+(?:dich|sie)\\s+ein|stuft\\s+(?:dich|sie)\\s+ein|f[äa]llst\\s+in|einordnen|liegst\\s+im)";
 const RISK_BAND_DE =
   "(?:hoh|niedrig|mittler|erhöht|moderat|gering)\\w*[- ]?risiko(?:bereich|kategorie|gruppe|band)";
+const RISK_LEVEL_DE =
+  "(?:erhöht|hoch|höher|mittel|mäßig|grenzwertig|besorgniserregend|deutlich)";
+const RISK_VERDICT_DE = `(?:ist|liegt|erscheint|wirkt|bleibt|zeigt|deutet\\s+auf|weist\\s+auf)\\s+(?:\\w+\\s+){0,2}${RISK_LEVEL_DE}`;
 
 const RISK_PATTERNS: Record<Locale, readonly RegExp[]> = {
   en: [
@@ -278,6 +289,11 @@ const RISK_PATTERNS: Record<Locale, readonly RegExp[]> = {
       `\\b(?:${ENGINE}|${HORIZON_EN})\\b[^.?!]{0,60}${RISK_BAND_EN}`,
       "i",
     ),
+    // (6) engine / horizon + a categorical risk-level verdict, numberless
+    new RegExp(
+      `\\b(?:${ENGINE}|${HORIZON_EN})\\b[^.?!]{0,40}${RISK_VERDICT_EN}`,
+      "i",
+    ),
   ],
   de: [
     new RegExp(
@@ -300,6 +316,10 @@ const RISK_PATTERNS: Record<Locale, readonly RegExp[]> = {
     ),
     new RegExp(
       `\\b(?:${ENGINE}|${HORIZON_DE})\\b[^.?!]{0,60}${RISK_BAND_DE}`,
+      "i",
+    ),
+    new RegExp(
+      `\\b(?:${ENGINE}|${HORIZON_DE})\\b[^.?!]{0,40}${RISK_VERDICT_DE}`,
       "i",
     ),
   ],

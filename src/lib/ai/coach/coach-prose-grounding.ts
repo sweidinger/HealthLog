@@ -83,13 +83,7 @@ export interface UnverifiedCoachNumber {
  * precision, never widens.
  * ────────────────────────────────────────────────────────────────────────── */
 type NumKind =
-  | "mass"
-  | "pressure"
-  | "pulse"
-  | "percent"
-  | "duration"
-  | "count"
-  | "glucose";
+  "mass" | "pressure" | "pulse" | "percent" | "duration" | "count" | "glucose";
 
 /** Resolve a kind from a unit suffix the prose attaches to a number. */
 function unitToKind(unitRaw: string): NumKind | null {
@@ -371,10 +365,7 @@ function tokenizeMagnitudes(prose: string, locale: Locale): ProseMagnitude[] {
       ? String.raw`[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?`
       : String.raw`[+-]?\d{1,3}(?:\.\d{3})+(?:,\d+)?|[+-]?\d+(?:,\d+)?`;
 
-  const runPass = (
-    re: RegExp,
-    handle: (m: RegExpExecArray) => void,
-  ): void => {
+  const runPass = (re: RegExp, handle: (m: RegExpExecArray) => void): void => {
     re.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(prose)) !== null) {
@@ -472,15 +463,11 @@ function tokenizeMagnitudes(prose: string, locale: Locale): ProseMagnitude[] {
   // (9) Unit-suffixed measurements — "72.4 kg", "128 mmHg", "10,000 steps".
   const unitFrag =
     "kg|kilograms?|lbs?|pounds?|mmHg|bpm|mg\\/dl|mmol\\/l|steps?|minutes?|mins?|hours?|hrs?|hr";
-  runPass(
-    new RegExp(String.raw`(${numFrag})\s*(${unitFrag})\b`, "gi"),
-    (m) => {
-      if (!claim(m.index, m.index + m[0].length)) return;
-      const value = parseLocaleNumber(m[1], locale);
-      if (value !== null)
-        out.push({ value, raw: m[1], kind: unitToKind(m[2]) });
-    },
-  );
+  runPass(new RegExp(String.raw`(${numFrag})\s*(${unitFrag})\b`, "gi"), (m) => {
+    if (!claim(m.index, m.index + m[0].length)) return;
+    const value = parseLocaleNumber(m[1], locale);
+    if (value !== null) out.push({ value, raw: m[1], kind: unitToKind(m[2]) });
+  });
 
   // (10) Everything left — plain magnitudes (no benign type, no unit).
   runPass(new RegExp(`(?:${numFrag})`, "g"), (m) => {
@@ -683,7 +670,10 @@ export function stripUnverifiedNumbers(
     // Match the token bounded by non-digit / non-separator edges so a larger
     // number that merely contains it is never clipped.
     const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const bounded = new RegExp(`(?<![\\d.,+-])${escaped}(?![\\d.,])`);
+    // Not embedded in a larger number (a leading/trailing digit or a
+    // separator-then-digit is part of a decimal / thousands run) — but a
+    // trailing sentence comma or period is fine.
+    const bounded = new RegExp(`(?<![\\d.,+-])${escaped}(?!\\d)(?![.,]\\d)`);
     const match = bounded.exec(out);
     if (match === null) continue;
     const idx = match.index;

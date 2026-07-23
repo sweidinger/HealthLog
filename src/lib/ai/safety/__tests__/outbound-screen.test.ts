@@ -202,6 +202,16 @@ describe("screenModelOutput — risk narrowing (D1/D4/M4)", () => {
     expect(d.reason).toBe("risk_score");
   });
 
+  it("blocks a numberless categorical risk-level verdict on the horizon", () => {
+    const d = screenModelOutput(
+      "Your 10-year cardiovascular risk is elevated — consider stepping your dose up.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("risk_score");
+  });
+
   it("PASSES a model-perfect refusal that names the horizon and the engine (M4)", () => {
     const d = screenModelOutput(
       "I can't calculate a 10-year cardiovascular risk for you — an ASCVD score is something your clinician computes with lab values I don't have.",
