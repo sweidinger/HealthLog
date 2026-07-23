@@ -43,7 +43,16 @@ export const POST = apiHandler(
 );
 
 async function postIntake(request: NextRequest, { params }: RouteParams) {
-  const { user } = await requireAuth();
+  const { user, authMethod } = await requireAuth();
+  // v1.32.8 (iOS #64) — write provenance derived from the transport, never
+  // client-asserted: a Bearer/native call stores `API`, a cookie/browser call
+  // stores `WEB`. The other `IntakeSource` values are producer-owned by OTHER
+  // routes (the Telegram worker mints `REMINDER`, the bulk/import paths mint
+  // `IMPORT` / `APPLE_HEALTH`), and this route only ever CREATES its own rows —
+  // a converge onto a pending `REMINDER` row updates through
+  // `applyCanonicalSlotWrite`, which never rewrites `source`, so that
+  // provenance is preserved.
+  const intakeSource = authMethod === "bearer" ? "API" : "WEB";
 
   const { id } = await params;
   // v1.4.25 W21 Fix-N — privacy gate hoisted to the shared helper.
@@ -316,7 +325,7 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
       isExplicitTaken,
       isExplicitSkip,
       idempotencyKey: idempotencyKey ?? null,
-      createSource: "WEB",
+      createSource: intakeSource,
       // v1.8.5 — resolved + validated site (null unless a tracking-on
       // injection taken write supplied an allowed site).
       injectionSite: resolvedInjectionSite,
@@ -382,7 +391,7 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
         isExplicitTaken,
         isExplicitSkip,
         idempotencyKey: idempotencyKey ?? null,
-        createSource: "WEB",
+        createSource: intakeSource,
         injectionSite: resolvedInjectionSite,
         attributionSource,
         doseTaken: resolvedDoseTaken,
@@ -409,7 +418,7 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
             scheduledFor: resolvedTakenAt ?? incomingScheduledFor,
             takenAt: resolvedTakenAt,
             skipped,
-            source: "WEB",
+            source: intakeSource,
             idempotencyKey: idempotencyKey ?? null,
             // v1.8.5 — site only on a resolved taken-injection write.
             ...(resolvedInjectionSite !== null && {

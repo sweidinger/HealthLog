@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 
 import { INJECTION_SITE_KEYS } from "@/lib/medications/injection-sites";
 import { validateEntryInstant } from "@/lib/validations/entry-instant";
+import { hhmmToMinutes } from "@/lib/medications/scheduling/hhmm";
 
 /**
  * v1.8.5 — the eight injection-site enum values, mirrored from the
@@ -189,12 +190,6 @@ export const doseWindowEntrySchema = z
     description:
       "One explicit per-dose on-time intake window. `timeOfDay` matches a schedule dose time; `[start, end]` (HH:mm, user local, `start <= end`) is the on-time band. Outside it the cadence-derived late tail applies, then ad-hoc.",
   });
-
-/** Minutes-since-midnight for an `HH:mm` literal (already regex-validated). */
-export function hhmmToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":");
-  return Number(h) * 60 + Number(m);
-}
 
 /**
  * v1.15.19 introduced `takenAt` plausibility bounds on the EDIT path

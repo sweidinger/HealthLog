@@ -48,6 +48,8 @@ import {
   scheduleRevisionListResponse,
   medicationExtractRequest,
   medicationListLayoutSchema,
+  doseHistoryQuery,
+  doseHistoryResponse,
 } from "./schemas";
 
 // ── Bulk intake backfill (iOS SyncMode) — mirrors the route's
@@ -737,6 +739,36 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         },
         "404": {
           description: "Medication or biomarker not found.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/dose-history": {
+    get: {
+      tags: ["Medications"],
+      summary: "Per-slot dose-history ledger (Verlauf tab)",
+      description:
+        "Returns the full per-slot ledger for the medication over [from, to]: every expected slot with a status (taken on-time / taken late / skipped / missed / upcoming) plus every off-schedule intake tagged ad-hoc. Built from the SAME band minter + `reconstructDoseHistory` the compliance % consumes, so the history view and the rate can never disagree. v1.32.8 (iOS #64) surfaces `intake.source` so a client can label how each dose was recorded. Ownership-scoped; rate-limited 60/min/user; reads only non-deleted rows. Auth via cookie or Bearer.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+        query: doseHistoryQuery,
+      },
+      responses: {
+        "200": {
+          description: "Dose-history ledger.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                doseHistoryResponse,
+                "GetDoseHistoryResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
           content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,

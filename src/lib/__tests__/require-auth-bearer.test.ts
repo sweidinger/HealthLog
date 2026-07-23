@@ -390,7 +390,8 @@ describe("requireAuth — cookie path remains intact", () => {
 
     const ctx = await requireAuth("medication:ingest");
 
-    expect(ctx).toEqual(cookieSession);
+    // The cookie path carries the session payload plus the derived transport.
+    expect(ctx).toEqual({ ...cookieSession, authMethod: "cookie" });
     // Cookie short-circuits before any token logic runs.
     expect(prisma.apiToken.findUnique).not.toHaveBeenCalled();
     expect(hashToken).not.toHaveBeenCalled();
