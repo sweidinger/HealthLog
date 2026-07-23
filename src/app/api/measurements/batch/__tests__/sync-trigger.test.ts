@@ -244,16 +244,14 @@ describe("POST /api/measurements/batch — syncTrigger diagnostic (iOS #66)", ()
     // sample row inserts. The per-row outcome must be identical regardless of
     // whether `syncTrigger` rides the request.
     const seedExisting = () =>
-      vi
-        .mocked(prisma.measurement.findMany)
-        .mockResolvedValue([
-          {
-            id: "m1",
-            type: "ACTIVITY_STEPS",
-            source: "APPLE_HEALTH",
-            externalId: STATS_ID,
-          },
-        ] as never);
+      vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+        {
+          id: "m1",
+          type: "ACTIVITY_STEPS",
+          source: "APPLE_HEALTH",
+          externalId: STATS_ID,
+        },
+      ] as never);
 
     const entries = [sampleEntry(SAMPLE_ID, 64), stepsEntry(STATS_ID, 5000)];
 
