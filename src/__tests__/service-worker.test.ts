@@ -248,6 +248,95 @@ function dispatchAssetFetch(
   return captured;
 }
 
+/**
+ * Dispatch a top-level navigation the way the browser does when navigation
+ * preload is enabled — with a `preloadResponse` promise already in flight.
+ * Unlike the other dispatchers this one does NOT throw when the handler
+ * declines to respond: whether `respondWith` was called is exactly what the
+ * one-shot-auth-navigation test asserts (no `respondWith` ⇒ the browser also
+ * runs its own default fetch ⇒ the request is sent twice).
+ */
+function dispatchAuthNavigation(
+  harness: SwHarness,
+  path: string,
+  preloadResponse?: Promise<Response | undefined>,
+): { responded: boolean; response: Promise<Response> | null } {
+  let captured: Promise<Response> | null = null;
+  let responded = false;
+  harness.listeners.get("fetch")!({
+    request: new Request(`${ORIGIN}${path}`, {
+      headers: { accept: "text/html" },
+    }),
+    respondWith: (p: Promise<Response>) => {
+      responded = true;
+      captured = p;
+    },
+    preloadResponse,
+    waitUntil: (p: Promise<unknown>) => {
+      harness.lifetimePromises.push(p);
+    },
+  });
+  return { responded, response: captured };
+}
+
+describe("sw.js — one-shot auth navigations", () => {
+  it("settles an OIDC callback navigation itself, consuming the preload (single request)", async () => {
+    const harness = bootServiceWorker();
+    let fetchCalls = 0;
+    harness.context.fetch = async () => {
+      fetchCalls += 1;
+      return new Response("network callback");
+    };
+
+    const { responded, response } = dispatchAuthNavigation(
+      harness,
+      "/api/auth/oidc/callback?code=abc&state=xyz",
+      Promise.resolve(new Response("preloaded callback")),
+    );
+
+    // The SW settles the event, so the browser does NOT also run its own
+    // default navigation fetch — the single-use OIDC code reaches the server
+    // exactly once. (Without this the handler returned early with no
+    // `respondWith`, and the preload + default fetch redeemed the code twice.)
+    expect(responded).toBe(true);
+    // The already-in-flight preload response is the one used; no extra fetch.
+    expect(await (await response!).text()).toBe("preloaded callback");
+    expect(fetchCalls).toBe(0);
+  });
+
+  it("fetches an auth navigation exactly once when no preload is supplied", async () => {
+    const harness = bootServiceWorker();
+    let fetchCalls = 0;
+    harness.context.fetch = async () => {
+      fetchCalls += 1;
+      return new Response("network callback");
+    };
+
+    const { responded, response } = dispatchAuthNavigation(
+      harness,
+      "/api/auth/oidc/login?next=%2F",
+    );
+
+    expect(responded).toBe(true);
+    expect(await (await response!).text()).toBe("network callback");
+    expect(fetchCalls).toBe(1);
+  });
+
+  it("never caches an auth navigation response", async () => {
+    const harness = bootServiceWorker();
+    harness.context.fetch = async () => new Response("network callback");
+
+    const url = "/api/auth/oidc/callback?code=abc&state=xyz";
+    await dispatchAuthNavigation(harness, url).response;
+    await Promise.all(harness.lifetimePromises);
+
+    const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    expect(await pages.match(`${ORIGIN}${url}`)).toBeUndefined();
+    const data = await harness.cacheStorage.open(CURRENT_DATA_CACHE);
+    expect(await data.match(`${ORIGIN}${url}`)).toBeUndefined();
+  });
+});
+
 describe("sw.js — best-effort cache writes", () => {
   it("returns the original successful API response when cache.put rejects", async () => {
     const harness = bootServiceWorker();

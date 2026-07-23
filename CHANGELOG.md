@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.32.5] — 2026-07-23
+
+- **Browser SSO sign-in no longer fails on a duplicated callback.** With the
+  service worker's navigation preload enabled, a single-use OIDC callback could
+  be requested twice — the first redeemed the authorization code and set the
+  session, the second hit the identity provider with the now-consumed code and
+  failed, landing every successful sign-in on an error page. The service worker
+  now settles one-shot auth navigations itself so the callback reaches the
+  server exactly once, and the callback is idempotent: a duplicate that already
+  holds a database-valid session is sent into the app instead of erroring,
+  while a forged or session-less state still fails closed and never redeems a
+  code.
+
+No migrations. No breaking changes.
+
 ## [1.32.4] — 2026-07-23
 
 - **The Coach's numeric verifier stops flagging figures it was actually given.**
