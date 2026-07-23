@@ -927,6 +927,7 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       const unverified = findUnverifiedCoachNumbers(
         replyText,
         authoritativePayloads,
+        locale,
       );
       if (unverified.length > 0) {
         const { prose: corrected, stripped } = stripUnverifiedNumbers(

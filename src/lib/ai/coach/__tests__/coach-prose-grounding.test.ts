@@ -247,6 +247,195 @@ describe("findUnverifiedCoachNumbers", () => {
   });
 });
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * v1.32.7 (Coach Guard I / G1) — typed tokenizer + normal-form reconciler.
+ * Both directions: a figure the model legitimately reformatted must PASS, and
+ * every fabrication shape the red team named must STILL be flagged.
+ * ────────────────────────────────────────────────────────────────────────── */
+describe("G1 — normal-form reconciler grounded-passes", () => {
+  it("passes a headline integer adherence rate restated as a percent (compliance-block.ts:181-184)", () => {
+    // The compliance headline `rate` is an integer 0–100, not a ratio.
+    const payload = [{ metric: "adherence", section: { rate: 93 } }];
+    expect(
+      findUnverifiedCoachNumbers("Your adherence was 93% this month.", payload),
+    ).toEqual([]);
+  });
+
+  it("passes a ratio headline restated as a percent (ratio↔percent in PERCENT space)", () => {
+    const payload = [{ metric: "adherence", section: { rate: 0.93 } }];
+    expect(
+      findUnverifiedCoachNumbers(
+        "Your adherence has been about 93% overall.",
+        payload,
+      ),
+    ).toEqual([]);
+  });
+
+  it("passes a negative delta narrated as a positive drop (sign-insensitive)", () => {
+    const payload = [
+      { metric: "weight", section: { aggregate: { deltaVs7: -1.2 } } },
+    ];
+    expect(
+      findUnverifiedCoachNumbers("You dropped 1.2 kg this week.", payload),
+    ).toEqual([]);
+  });
+
+  it("passes a colloquial nearest-10 rounding of an authoritative value", () => {
+    const payload = [
+      { metric: "bp", section: { aggregate: { avgSys30: 124 } } },
+    ];
+    // round(124, nearest 10) === 120 — a canonical rounding, not a ±2% band
+    // (|120 - 124| = 4 exceeds the 2.48 tolerance, so only rounding grounds it).
+    expect(
+      findUnverifiedCoachNumbers("Your systolic averaged around 120.", payload),
+    ).toEqual([]);
+  });
+
+  it("passes a minutes→hours restatement of a sleep mean", () => {
+    const payload = [
+      { metric: "sleep", section: { aggregate: { mean: 444 } } },
+    ];
+    // 444 min ⇔ 7.4 h.
+    expect(
+      findUnverifiedCoachNumbers("You averaged about 7.4 hours asleep.", payload),
+    ).toEqual([]);
+  });
+
+  it("parses an EN thousands-separated step count as one figure, not 10", () => {
+    const payload = [
+      { metric: "steps", section: { aggregate: { latest: 10000 } } },
+    ];
+    expect(
+      findUnverifiedCoachNumbers("You hit 10,000 steps yesterday.", payload, "en"),
+    ).toEqual([]);
+  });
+
+  it("parses a DE thousands-separated step count using the reply language", () => {
+    const payload = [
+      { metric: "steps", section: { aggregate: { latest: 10000 } } },
+    ];
+    expect(
+      findUnverifiedCoachNumbers(
+        "Du hast gestern 10.000 Schritte geschafft.",
+        payload,
+        "de",
+      ),
+    ).toEqual([]);
+  });
+
+  it("never grades a reformatted ISO date, a clock time, or a bare year", () => {
+    const payload = [
+      { metric: "bp", section: { aggregate: { avgSys30: 128 } } },
+    ];
+    const prose =
+      "On 2026-07-23 at 22:45 your systolic sat at 128, the calmest since 2019.";
+    expect(findUnverifiedCoachNumbers(prose, payload)).toEqual([]);
+  });
+
+  it("passes a range narration against the real min/max (per-endpoint rounding)", () => {
+    const payload = [
+      { metric: "bp", section: { aggregate: { min: 121, max: 134 } } },
+    ];
+    // round(121,5)=120 and round(134,5)=135 — both endpoints reconcile.
+    expect(
+      findUnverifiedCoachNumbers(
+        "Your systolic sat between 120 and 135 mmHg.",
+        payload,
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("G1 — fabricated figures still blocked", () => {
+  it("blocks paraphrase drift: 128 must NOT ground '~138' (canonical rounding is anchored)", () => {
+    const payload = [
+      { metric: "bp", section: { aggregate: { avgSys30: 128 } } },
+    ];
+    const findings = findUnverifiedCoachNumbers(
+      "Your systolic averaged about 138 recently.",
+      payload,
+    );
+    expect(findings.map((f) => f.value)).toContain(138);
+  });
+
+  it("blocks a fabricated mean laundered via a raw sample's rounding (D5 aggregate-only scoping)", () => {
+    // A dense timeline carries an outlier sample 136.8; the true mean is 128.
+    // "around 140" = round(136.8,10) — but a SAMPLE never gets rounding.
+    const payload = [
+      {
+        metric: "bp",
+        section: {
+          aggregate: { mean: 128 },
+          timeline: [{ value: 118 }, { value: 136.8 }, { value: 129 }],
+        },
+      },
+    ];
+    const findings = findUnverifiedCoachNumbers(
+      "Your systolic average is around 140.",
+      payload,
+    );
+    expect(findings.map((f) => f.value)).toContain(140);
+  });
+
+  it("blocks an adherence % that is ±15 points off a single day's rate (M1 percent-space)", () => {
+    // A per-day rate 0.8 is a SAMPLE (inside a timeline array). Dividing 93%
+    // into 0.93 would ground it against 0.8 under a 0.15 band — the M1 bug.
+    const payload = [
+      {
+        metric: "adherence",
+        section: { timeline: [{ rate: 0.8 }, { rate: 0.75 }] },
+      },
+    ];
+    const findings = findUnverifiedCoachNumbers(
+      "Your adherence has been around 93%.",
+      payload,
+    );
+    expect(findings.map((f) => f.value)).toContain(93);
+  });
+
+  it("blocks fabricated range endpoints 100–150 against a real min 121 / max 134 (D6)", () => {
+    const payload = [
+      { metric: "bp", section: { aggregate: { min: 121, max: 134 } } },
+    ];
+    const findings = findUnverifiedCoachNumbers(
+      "Your systolic ranged from 100 to 150 mmHg.",
+      payload,
+    );
+    const values = findings.map((f) => f.value);
+    expect(values).toContain(100);
+    expect(values).toContain(150);
+  });
+
+  it("blocks a fabricated figure equal to a payload date fragment (date-typing)", () => {
+    // The payload carries an ISO date string; its mined fragment (-23) must
+    // not ground a fabricated "23-point" claim.
+    const payload = [
+      {
+        metric: "weight",
+        section: { lastReading: "2026-07-23", aggregate: { latest: 72.4 } },
+      },
+    ];
+    const findings = findUnverifiedCoachNumbers(
+      "That is a 23 kg swing from where you were.",
+      payload,
+    );
+    expect(findings.map((f) => f.value)).toContain(23);
+  });
+
+  it("blocks a fabricated pressure figure near an unrelated-kind leaf (kind-scoping)", () => {
+    // The only authoritative leaf is a weight; a mmHg claim of the same
+    // magnitude must NOT ground against it.
+    const payload = [
+      { metric: "weight", section: { aggregate: { latest: 72 } } },
+    ];
+    const findings = findUnverifiedCoachNumbers(
+      "Your systolic averaged 72 mmHg this week.",
+      payload,
+    );
+    expect(findings.map((f) => f.value)).toContain(72);
+  });
+});
+
 describe("stripUnverifiedNumbers", () => {
   it("replaces only the flagged tokens, leaving grounded numbers intact", () => {
     const prose = "Systolic 128, but it spiked to 138 yesterday.";
@@ -262,5 +451,17 @@ describe("stripUnverifiedNumbers", () => {
     const { prose, stripped } = stripUnverifiedNumbers("all good", []);
     expect(prose).toBe("all good");
     expect(stripped).toBe(0);
+  });
+
+  it("is boundary-safe: a flagged '23' never clips a grounded '2023' (v1.32.7)", () => {
+    // The old plain indexOf produced "20[unverified]" here.
+    const prose = "Since 2023 your reading of 23 stood out.";
+    const { prose: out, stripped } = stripUnverifiedNumbers(prose, [
+      { value: 23, source: "23" },
+    ]);
+    expect(out).toContain("2023");
+    expect(out).not.toContain("20[unverified]");
+    expect(out).toContain("[unverified]");
+    expect(stripped).toBe(1);
   });
 });
