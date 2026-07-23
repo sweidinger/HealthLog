@@ -75,13 +75,16 @@ export async function handleImportJobReconcileTick(
   jobs: Job<object>[],
 ): Promise<void> {
   void jobs;
-  await withBackgroundEvent("job.apple_health_import_reconcile", async (evt) => {
-    try {
-      await reconcileOrphanImportJobs();
-    } catch (err) {
-      evt.addWarning(`apple-health-import-reconcile failed: ${err}`);
-    }
-  });
+  await withBackgroundEvent(
+    "job.apple_health_import_reconcile",
+    async (evt) => {
+      try {
+        await reconcileOrphanImportJobs();
+      } catch (err) {
+        evt.addWarning(`apple-health-import-reconcile failed: ${err}`);
+      }
+    },
+  );
 }
 
 /** Queue name isolated from revision-1 workers during rolling deployments. */
