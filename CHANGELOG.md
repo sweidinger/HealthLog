@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+- **Dashboard layout changes can no longer be reverted by a concurrent
+  score-ring save.** The instant score-ring toggle now sends only the ring
+  fields instead of resending a cached snapshot of the whole layout, closing
+  a race where an in-flight ring update could land after a tile/chart Save
+  and silently restore the older layout.
+- **Measurement-reminder cadence edits recompute against the cadence that
+  was actually saved.** Clearing `intervalDays` or `rrule` to switch a
+  reminder's schedule no longer leaves the next-due date computed off the
+  just-replaced value for one cycle.
+- **ntfy notification settings keep a saved auth token across unrelated
+  edits.** Toggling the channel, or editing the server URL or topic, no
+  longer silently clears a previously configured token.
+
+No migrations. No breaking changes.
+
 ## [1.32.0] — 2026-07-22
 
 - **Provider ingestion and daily reactions now preserve the correct identity.**
