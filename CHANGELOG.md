@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.32.3] — 2026-07-23
+
+Security release. It ships on its own so the change to how a second factor is
+proven can be watched in isolation.
+
+- **A native client can manage its own second factor.** The iOS app can now
+  turn two-factor authentication on or off, add or remove a security key, and
+  regenerate recovery codes over its API session — actions that were reachable
+  only from a browser before. It does so through a short-lived, single-use
+  elevation the app earns by re-proving a factor, never by presenting its
+  token alone.
+- **The re-proved factor decides what the elevation reaches.** Re-proving with
+  a password reaches exactly what a plain browser session reaches; the actions
+  a browser gates behind a completed second factor now require the same over
+  the API — a re-proved TOTP code or security key, never the password alone.
+  Administrative endpoints remain reachable only from a browser session,
+  unchanged.
+
+One migration (0267), additive. Addresses the native 2FA-management gap
+(healthlog-iOS #57).
+
 ## [1.32.2] — 2026-07-23
 
 Security release. Ships on its own and ahead of everything queued, because it
