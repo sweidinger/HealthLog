@@ -2,14 +2,37 @@
 
 ## [Unreleased]
 
+## [1.32.1] — 2026-07-23
+
+- **The Personal Health Score reads "not enough data yet" instead of zero.**
+  An account with records that do not yet meet any score pillar's minimum
+  (for example a single mood entry, no paired blood pressure, one weight
+  reading) showed a red 0 rather than an honest absence. The score is now
+  withheld until at least one pillar is computable; a genuinely computed 0 is
+  still shown.
+- **The Coach stops refusing ordinary questions about your own scores.** A
+  question about a Sleep Score or Health Score no longer trips the
+  fabricated-clinical-risk refusal; the guard now matches the specific risk
+  calculator it was meant to catch, not the plain word "score", and still
+  blocks a genuinely invented risk figure.
+- **The Apple Health import no longer stalls at "unpacking".** A large export
+  is now unpacked as a stream rather than decompressed whole into memory on
+  the shared event loop, and a job left mid-unpack by a restart is picked up
+  by a periodic reconcile instead of sitting stuck with no error. A byte
+  ceiling still guards against a decompression bomb.
+- **The Pulse insights page shows pulse, not resting heart rate.** It no
+  longer silently swaps its main chart to resting heart rate when any resting
+  data exists; resting heart rate appears as a clearly labelled second series
+  when present, and the resting-calibrated target band no longer paints
+  behind raw pulse readings.
 - **Dashboard layout changes can no longer be reverted by a concurrent
   score-ring save.** The instant score-ring toggle now sends only the ring
   fields instead of resending a cached snapshot of the whole layout, closing
-  a race where an in-flight ring update could land after a tile/chart Save
+  a race where an in-flight ring update could land after a tile or chart Save
   and silently restore the older layout.
 - **Measurement-reminder cadence edits recompute against the cadence that
-  was actually saved.** Clearing `intervalDays` or `rrule` to switch a
-  reminder's schedule no longer leaves the next-due date computed off the
+  was actually saved.** Clearing an interval or a recurrence rule to switch a
+  reminder's schedule no longer leaves the next-due date computed from the
   just-replaced value for one cycle.
 - **ntfy notification settings keep a saved auth token across unrelated
   edits.** Toggling the channel, or editing the server URL or topic, no
