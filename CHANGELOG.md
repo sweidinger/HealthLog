@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [1.32.9] — 2026-07-23
+
+The Coach output guard now remembers the numbers you were actually shown across
+a whole conversation, so figures you legitimately carry forward stop getting
+marked unverified while an invented one still gets caught.
+
+- **A figure from earlier in the chat is no longer flagged when you bring it
+  back up.** The guard now keeps a running record of every number the Coach was
+  given this turn and in earlier turns, plus your goal figures, your medication
+  doses, and the reference bands it was shown. A value it can trace to one of
+  those is left alone even a few turns later. A value the Coach only wrote in an
+  earlier reply is never trusted on that basis, so a number that once slipped
+  through cannot quietly become authoritative later.
+- **An educational sentence keeps its numbers.** A line that states a general
+  guideline, like the note that adults usually need seven to nine hours of
+  sleep, is recognised as a reference and left intact instead of having its
+  numbers stripped. This works in every supported language.
+- **A dose you are actually on reads as a restatement, a different one does
+  not.** When the Coach says to keep taking a dose, the reminder is allowed only
+  when the amount matches a dose on your schedule. A wrong maintenance amount, or
+  any wording that nudges the dose up or down, is still held back.
+- **Fabricated risk numbers are caught in more languages.** The screen that
+  blocks an invented clinical risk figure or a named risk-engine result now
+  reads French, Spanish, Italian, and Polish to the same depth it already read
+  English and German, including a percentage written out in words.
+
 ## [1.32.8] — 2026-07-23
 
 Health records written through the app now carry where they came from, and a

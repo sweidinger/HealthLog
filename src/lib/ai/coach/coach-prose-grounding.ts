@@ -1,6 +1,8 @@
 /**
  * v1.21.0 (P6 / C2-5) — post-hoc numeric verifier for Coach prose.
  * v1.32.7 (Coach Guard I / G1) — typed tokenizer + normal-form reconciler.
+ * v1.32.9 (Coach Guard II / G2+G3) — the typed Grounding Ledger + the
+ *   four-rung action ladder (the reference-sentence exemption in particular).
  *
  * The Daily Briefing strips any number absent from the server-computed
  * `signalsOfDay` block (`@/lib/ai/briefing-grounding`). The Coach's TOOL path
@@ -15,7 +17,7 @@
  * `10,000` → `10`, `60-100` → `60` / `-100`) and clipped a grounded number
  * inside a larger one (flagged `23` strips `20[unverified]` out of `2023`).
  *
- * G1 replaces both halves:
+ * G1 replaced both halves:
  *
  *   1. A TYPED TOKENIZER classifies each prose number before it is graded —
  *      ISO / written dates, clock times, bare years, ordinals, list markers,
@@ -35,12 +37,29 @@
  *      sample, where the widenings would compound into a free band). Kind
  *      scoping means a weight value can never ground a blood-pressure claim.
  *
+ * G2 promotes the per-turn authoritative bag to a typed, per-conversation
+ * GROUNDING LEDGER (`grounding-ledger.ts`) built at prompt-assembly time from
+ * every source the model was legitimately shown — this turn's tool payloads,
+ * PRIOR-turn tool figures, coach-memory goals, the medication schedule, the
+ * reference-grounding block and guided blocks. Assistant prose is NEVER a
+ * registration source (D3), so a figure that slips a rung cannot self-launder
+ * into authoritative on the next turn.
+ *
+ * G3 completes the FOUR-RUNG action ladder:
+ *   rung 1 — reconciled          → pass
+ *   rung 2 — reference sentence   → exempt (population-norm framed, six locales)
+ *   rung 3 — benign type          → pass (the tokenizer positively types
+ *                                   dates / times / years / ordinals / lists;
+ *                                   an untyped unreconciled number does NOT
+ *                                   pass — it stays on the strip path, D2)
+ *   rung 4 — unreconciled health  → boundary-safe soft-strip
+ *
  * Posture: NON-BLOCKING and cheap. The caller annotates
  * `coach.prose.number_unverified` and may SOFT-STRIP the unverified figure
  * from the prose (boundary-safe replacement, so a grounded number inside a
  * larger token is never clipped) — it never hard-fails the user's turn. When
- * NO tool returned figures (a qualitative answer, or the no-tools path) there
- * is no authoritative set to grade against, so the check no-ops and the
+ * the ledger is empty (a qualitative answer, or the no-tools path with no
+ * fresh figures) there is nothing to grade against, so the check no-ops and the
  * prompt-level grounding rule remains the backstop, exactly like the briefing's
  * "no signals → skip".
  */
@@ -82,8 +101,15 @@ export interface UnverifiedCoachNumber {
  * kinding is a monotone tightening path: every kind added strictly improves
  * precision, never widens.
  * ────────────────────────────────────────────────────────────────────────── */
-type NumKind =
-  "mass" | "pressure" | "pulse" | "percent" | "duration" | "count" | "glucose";
+export type NumKind =
+  | "mass"
+  | "pressure"
+  | "pulse"
+  | "percent"
+  | "duration"
+  | "count"
+  | "glucose"
+  | "dose";
 
 /** Resolve a kind from a unit suffix the prose attaches to a number. */
 function unitToKind(unitRaw: string): NumKind | null {
@@ -143,11 +169,33 @@ const AGGREGATE_POINT_KEY =
 /** Defensive cap on aggregate points contributed to the pairwise derivation. */
 const MAX_AGGREGATE_POINTS = 12;
 
-/** A typed authoritative figure the model was shown this turn. */
+/**
+ * The provenance a ledger entry was registered from. Named so the disagreement
+ * telemetry (D10) can attribute which source grounded a token, and so the
+ * structural completeness test (D9) can assert every known source contributes.
+ */
+export type LedgerSource =
+  | "tool:this-turn"
+  | "transcript:tool-trace"
+  | "transcript:user"
+  | "memory"
+  | "schedule"
+  | "reference-grounding"
+  | "guided"
+  | "snapshot"
+  | "inventory"
+  | "workout-evidence";
+
+/** A typed authoritative figure the model was shown (kind + aggregation). */
 interface AuthEntry {
   value: number;
   kind: NumKind | null;
   aggregation: "aggregate" | "sample";
+}
+
+/** A ledger entry — an `AuthEntry` tagged with the source it was registered from. */
+export interface LedgerEntry extends AuthEntry {
+  source: LedgerSource;
 }
 
 /**
@@ -249,6 +297,77 @@ function deriveArithmeticEntries(points: readonly number[]): AuthEntry[] {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * Registration — the ledger's INPUT side. Every code path that renders a
+ * numeric fact into model-visible text registers it here, tagged with its
+ * source. Registration is the ONLY way a figure becomes authoritative; a
+ * source that is never wired in contributes nothing (D9 asserts completeness).
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Register a structured tool-result / snapshot / inventory / workout payload:
+ * every numeric leaf becomes a typed entry, plus the pairwise arithmetic
+ * derived from THIS payload's own aggregate points (never pooled across
+ * payloads). Used for every source the model was shown as JSON.
+ */
+export function registerPayloadEntries(
+  payload: unknown,
+  source: LedgerSource,
+): LedgerEntry[] {
+  const entries: AuthEntry[] = [];
+  collectEntries(payload, entries, {
+    metricKind: null,
+    keyHint: null,
+    inArray: false,
+  });
+  entries.push(...deriveArithmeticEntries(collectAggregatePoints(entries)));
+  return entries.map((e) => ({ ...e, source }));
+}
+
+/**
+ * Register the numbers embedded in a FREE-TEXT block the model was shown — the
+ * reference-grounding block, a guided block, a memory fact / plan / reminder
+ * line, or a prior USER message. Mined magnitude-only (both signed and its
+ * absolute form so a band edge narrated either way reconciles), UNKINDED, and
+ * SAMPLE aggregation — so a text-sourced number only ever grounds a prose token
+ * at exact / ±2%, never via a widening normal form. `kind` optionally pins the
+ * family when the caller knows it (a medication schedule → "dose").
+ */
+export function registerTextEntries(
+  text: string | null | undefined,
+  source: LedgerSource,
+  kind: NumKind | null = null,
+): LedgerEntry[] {
+  if (!text) return [];
+  const out: LedgerEntry[] = [];
+  for (const { value } of extractNumbers(text)) {
+    out.push({ value, kind, aggregation: "sample", source });
+    if (value < 0) {
+      out.push({ value: Math.abs(value), kind, aggregation: "sample", source });
+    }
+  }
+  return out;
+}
+
+/**
+ * Register a set of already-parsed scalar magnitudes (e.g. the numeric doses
+ * off the medication schedule, or the persisted tool-trace figures of a prior
+ * turn). Exact / ±2% by default (SAMPLE); pass `aggregation: "aggregate"` only
+ * when the caller wants the widening forms to apply.
+ */
+export function registerScalarEntries(
+  values: ReadonlyArray<number>,
+  source: LedgerSource,
+  kind: NumKind | null = null,
+  aggregation: "aggregate" | "sample" = "sample",
+): LedgerEntry[] {
+  const out: LedgerEntry[] = [];
+  for (const value of values) {
+    if (Number.isFinite(value)) out.push({ value, kind, aggregation, source });
+  }
+  return out;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  * Reconciler — grade one typed prose magnitude against the authoritative set.
  * ────────────────────────────────────────────────────────────────────────── */
 
@@ -323,6 +442,8 @@ interface ProseMagnitude {
   value: number;
   raw: string;
   kind: NumKind | null;
+  /** Character index of the token's match, so the caller can locate its sentence. */
+  index: number;
 }
 
 const MONTHS =
@@ -434,7 +555,8 @@ function tokenizeMagnitudes(prose: string, locale: Locale): ProseMagnitude[] {
     const kind = m[3] ? unitToKind(m[3]) : null;
     for (const part of [m[1], m[2]]) {
       const value = parseLocaleNumber(part, locale);
-      if (value !== null) out.push({ value: Math.abs(value), raw: part, kind });
+      if (value !== null)
+        out.push({ value: Math.abs(value), raw: part, kind, index: m.index });
     }
   });
   const wordRange = new RegExp(
@@ -446,7 +568,8 @@ function tokenizeMagnitudes(prose: string, locale: Locale): ProseMagnitude[] {
     const kind = m[3] ? unitToKind(m[3]) : null;
     for (const part of [m[1], m[2]]) {
       const value = parseLocaleNumber(part, locale);
-      if (value !== null) out.push({ value: Math.abs(value), raw: part, kind });
+      if (value !== null)
+        out.push({ value: Math.abs(value), raw: part, kind, index: m.index });
     }
   });
 
@@ -456,7 +579,8 @@ function tokenizeMagnitudes(prose: string, locale: Locale): ProseMagnitude[] {
     (m) => {
       if (!claim(m.index, m.index + m[0].length)) return;
       const value = parseLocaleNumber(m[1], locale);
-      if (value !== null) out.push({ value, raw: m[1], kind: "percent" });
+      if (value !== null)
+        out.push({ value, raw: m[1], kind: "percent", index: m.index });
     },
   );
 
@@ -466,14 +590,16 @@ function tokenizeMagnitudes(prose: string, locale: Locale): ProseMagnitude[] {
   runPass(new RegExp(String.raw`(${numFrag})\s*(${unitFrag})\b`, "gi"), (m) => {
     if (!claim(m.index, m.index + m[0].length)) return;
     const value = parseLocaleNumber(m[1], locale);
-    if (value !== null) out.push({ value, raw: m[1], kind: unitToKind(m[2]) });
+    if (value !== null)
+      out.push({ value, raw: m[1], kind: unitToKind(m[2]), index: m.index });
   });
 
   // (10) Everything left — plain magnitudes (no benign type, no unit).
   runPass(new RegExp(`(?:${numFrag})`, "g"), (m) => {
     if (!claim(m.index, m.index + m[0].length)) return;
     const value = parseLocaleNumber(m[0], locale);
-    if (value !== null) out.push({ value, raw: m[0], kind: null });
+    if (value !== null)
+      out.push({ value, raw: m[0], kind: null, index: m.index });
   });
 
   return out;
@@ -494,15 +620,161 @@ export function collectNumericLeaves(value: unknown, out: Set<number>): void {
   for (const e of entries) out.add(e.value);
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * Rung 2 — the reference-sentence exemption. A sentence framed as population
+ * guidance ("adults generally need 7 to 9 hours", "die normale Ruheherzfrequenz
+ * liegt bei 60 bis 100") cites a REFERENCE value, not a claim about the user's
+ * data, so its numbers are exempt from the strip path. Six-locale banks — the
+ * user base is DE-first and a fallback provider answers a French reader in
+ * English, so the reader's bank plus EN both run (the screen's dual-bank rule).
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const POPULATION_NORM_PATTERNS: Record<Locale, readonly RegExp[]> = {
+  en: [
+    /\bthe\s+normal\s+range\s+(?:is|for)\b/i,
+    /\b(?:healthy|most|the\s+average)\s+(?:adults?|people|population)\b/i,
+    /\bthe\s+general\s+population\b/i,
+    /\b(?:guidelines?|doctors?|experts?)\s+(?:say|recommend|suggest|consider|advise)\b/i,
+    /\b(?:adults?|people|most\s+people)\s+(?:generally|typically|usually|normally)\s+(?:need|require|get|aim)\b/i,
+    /\b(?:general|reference|normal|typical|healthy)\s+(?:reference\s+)?range\b/i,
+    /\b(?:recommended|typical|normal|healthy)\s+(?:amount|level|range|target)\s+(?:is|for|of)\b/i,
+  ],
+  de: [
+    /\bder\s+normal(?:e|bereich)\b/i,
+    /\bdie\s+normale\b/i,
+    /\bnormal(?:er|e)?\s+(?:ruhe)?(?:herzfrequenz|puls|bereich|wert)\b/i,
+    /\b(?:gesunde|die\s+meisten|der\s+durchschnittliche?)\s+(?:erwachsene|menschen|bevölkerung)\b/i,
+    /\b(?:leitlinien|ärzte|expert\w*)\s+(?:sagen|empfehlen|raten|betrachten)\b/i,
+    /\b(?:erwachsene|menschen)\s+(?:brauchen|benötigen)\s+(?:in\s+der\s+regel|generell|typischerweise|normalerweise)\b/i,
+    /\b(?:allgemeine|normale|typische)\s+(?:referenz)?(?:bereich|spanne|werte)\b/i,
+    /\bliegt\s+(?:normalerweise|üblicherweise|in\s+der\s+regel)\s+(?:bei|zwischen)\b/i,
+  ],
+  fr: [
+    /\bla\s+(?:plage|fourchette)\s+normale\b/i,
+    /\b(?:les\s+)?(?:adultes|personnes)\s+en\s+bonne\s+santé\b/i,
+    /\b(?:la\s+plupart\s+des|la\s+moyenne\s+des)\s+(?:adultes|gens|personnes)\b/i,
+    /\b(?:les\s+)?(?:recommandations|médecins|experts?)\s+(?:disent|recommandent|conseillent|suggèrent)\b/i,
+    /\b(?:les\s+)?adultes\s+(?:ont\s+généralement|ont\s+besoin|nécessitent)\b/i,
+    /\bplage\s+(?:de\s+référence|normale|recommandée)\b/i,
+    /\bse\s+situe\s+(?:généralement|normalement|habituellement)\s+(?:entre|autour)\b/i,
+  ],
+  es: [
+    /\b(?:el|la)\s+(?:rango|intervalo)\s+normal\b/i,
+    /\b(?:los\s+)?adultos\s+sanos\b/i,
+    /\b(?:la\s+mayoría\s+de|el\s+promedio\s+de)\s+(?:los\s+)?(?:adultos|personas|gente)\b/i,
+    /\b(?:las\s+)?(?:guías|directrices|médicos|expertos)\s+(?:dicen|recomiendan|aconsejan|sugieren)\b/i,
+    /\b(?:los\s+)?adultos\s+(?:generalmente|normalmente|suelen)\s+(?:necesitan|requieren)\b/i,
+    /\b(?:rango|intervalo)\s+(?:de\s+referencia|normal|recomendado)\b/i,
+    /\bse\s+sitúa\s+(?:generalmente|normalmente|habitualmente)\s+(?:entre|alrededor)\b/i,
+  ],
+  it: [
+    /\b(?:l'|il\s+|la\s+)?intervallo\s+normale\b/i,
+    /\b(?:gli\s+)?adulti\s+sani\b/i,
+    /\b(?:la\s+maggior\s+parte\s+(?:degli|delle)|la\s+media\s+(?:degli|delle))\s+(?:adulti|persone)\b/i,
+    /\b(?:le\s+)?(?:linee\s+guida|medici|esperti)\s+(?:dicono|raccomandano|consigliano|suggeriscono)\b/i,
+    /\b(?:gli\s+)?adulti\s+(?:generalmente|di\s+solito|normalmente)\s+(?:hanno\s+bisogno|necessitano)\b/i,
+    /\bintervallo\s+(?:di\s+riferimento|normale|raccomandato)\b/i,
+    /\bsi\s+(?:colloca|attesta)\s+(?:generalmente|normalmente|di\s+solito)\s+(?:tra|intorno)\b/i,
+  ],
+  pl: [
+    /\b(?:normalny|prawidłowy)\s+(?:zakres|przedział)\b/i,
+    /\bzdrow(?:i|ych)\s+doros(?:li|łych)\b/i,
+    /\b(?:większość|średnia)\s+(?:doros(?:łych|li)|ludzi|osób)\b/i,
+    /\b(?:wytyczne|lekarze|eksperci)\s+(?:mówią|zalecają|radzą|sugerują)\b/i,
+    /\bdoros(?:li|łych)\s+(?:zazwyczaj|zwykle|na\s+ogół)\s+(?:potrzebują|wymagają)\b/i,
+    /\b(?:zakres|przedział)\s+(?:referencyjny|normy|prawidłowy|zalecany)\b/i,
+    /\b(?:wynosi|mieści\s+się)\s+(?:zazwyczaj|zwykle|na\s+ogół)\s+(?:od|między|około)\b/i,
+  ],
+};
+
 /**
- * Find every number the Coach prose asserts that does not trace to a figure
- * returned by a tool this turn. Returns an empty array when there is no prose,
- * no authoritative figure set (no present tool result with numbers), or every
- * cited number is grounded.
+ * True when the prose cites a POPULATION norm (vs the user's own baseline).
+ * The reader's-locale bank plus EN always run (a fallback provider answers a
+ * non-English reader in English). Defaults to EN-only for the eval-harness
+ * caller that passes no locale.
+ */
+export function hasPopulationNormFraming(
+  prose: string,
+  locale: Locale = "en",
+): boolean {
+  const banks =
+    locale === "en"
+      ? [POPULATION_NORM_PATTERNS.en]
+      : [POPULATION_NORM_PATTERNS[locale], POPULATION_NORM_PATTERNS.en];
+  return banks.some((bank) => bank.some((p) => p.test(prose)));
+}
+
+/** Sentence spans, so a flagged token can be tied to the sentence framing it. */
+interface SentenceSpan {
+  start: number;
+  end: number;
+  text: string;
+}
+
+function sentenceSpans(prose: string): SentenceSpan[] {
+  const spans: SentenceSpan[] = [];
+  const re = /[^.?!\n]*[.?!\n]|[^.?!\n]+$/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(prose)) !== null) {
+    if (m[0].length === 0) {
+      re.lastIndex += 1;
+      continue;
+    }
+    spans.push({ start: m.index, end: m.index + m[0].length, text: m[0] });
+  }
+  return spans;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Grading — the action ladder over a pre-built ledger.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Grade the Coach prose against a pre-built typed ledger, applying the action
+ * ladder. A magnitude is a finding (rung 4 — strip) only when it is
+ * unreconciled (rung 1 miss), not benign-typed (the tokenizer dropped those —
+ * rung 3), and not in a reference-framed sentence (rung 2).
+ */
+export function findUnverifiedCoachNumbersInLedger(
+  prose: string,
+  ledger: ReadonlyArray<LedgerEntry>,
+  locale: Locale = "en",
+): UnverifiedCoachNumber[] {
+  if (!prose) return [];
+  // No authoritative figures (a qualitative turn / no-tools path) — nothing to
+  // grade against. The prompt-level grounding rule remains the backstop.
+  if (ledger.length === 0) return [];
+
+  const spans = sentenceSpans(prose);
+  const sentenceAt = (index: number): string => {
+    for (const s of spans) {
+      if (index >= s.start && index < s.end) return s.text;
+    }
+    return prose;
+  };
+
+  const findings: UnverifiedCoachNumber[] = [];
+  for (const token of tokenizeMagnitudes(prose, locale)) {
+    if (isStructural(token.value, token.raw)) continue;
+    if (reconciles(token, ledger)) continue;
+    // Rung 2 — a reference-framed sentence cites a population norm, not a
+    // claim about the user's data. Exempt, never stripped.
+    if (hasPopulationNormFraming(sentenceAt(token.index), locale)) continue;
+    findings.push({ value: token.value, source: token.raw.slice(0, 32) });
+  }
+  return findings;
+}
+
+/**
+ * Find every number the Coach prose asserts that does not trace to a figure the
+ * tools returned this turn. Backward-compatible entry point: it builds a
+ * single-source ledger from `toolPayloads` and grades against it. The route
+ * uses `findUnverifiedCoachNumbersInLedger` with the full per-conversation
+ * ledger; the fenced-chat + eval callers keep this per-turn shape.
  *
  * `toolPayloads` is the `data` payload of each PRESENT tool result this turn.
- * `locale` is the reply's language, used only to parse thousands / decimal
- * separators the right way ("10,000" is ten thousand in EN, "10.000" in DE).
+ * `locale` is the reply's language, used to parse thousands / decimal
+ * separators the right way and to run the reader's reference-framing bank.
  */
 export function findUnverifiedCoachNumbers(
   prose: string,
@@ -510,32 +782,11 @@ export function findUnverifiedCoachNumbers(
   locale: Locale = "en",
 ): UnverifiedCoachNumber[] {
   if (!prose) return [];
-  const authoritative: AuthEntry[] = [];
+  const ledger: LedgerEntry[] = [];
   for (const payload of toolPayloads) {
-    const entries: AuthEntry[] = [];
-    collectEntries(payload, entries, {
-      metricKind: null,
-      keyHint: null,
-      inArray: false,
-    });
-    authoritative.push(...entries);
-    // Widen with figures a model may legitimately compute from THIS payload's
-    // own headline numbers, without pooling across unrelated payloads.
-    authoritative.push(
-      ...deriveArithmeticEntries(collectAggregatePoints(entries)),
-    );
+    ledger.push(...registerPayloadEntries(payload, "tool:this-turn"));
   }
-  // No authoritative figures (a qualitative turn / no-tools path) — nothing to
-  // grade against. The prompt-level grounding rule remains the backstop.
-  if (authoritative.length === 0) return [];
-
-  const findings: UnverifiedCoachNumber[] = [];
-  for (const token of tokenizeMagnitudes(prose, locale)) {
-    if (isStructural(token.value, token.raw)) continue;
-    if (reconciles(token, authoritative)) continue;
-    findings.push({ value: token.value, source: token.raw.slice(0, 32) });
-  }
-  return findings;
+  return findUnverifiedCoachNumbersInLedger(prose, ledger, locale);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -607,18 +858,6 @@ const OWN_BASELINE_PATTERNS: readonly RegExp[] = [
   /\b(?:higher|lower)\s+than\s+(?:you\s+usually|your\s+usual)\b/i,
 ];
 
-/**
- * Population-norm framing the grader flags when a case forbids it: "the normal
- * range is", "healthy adults", "the general population". High precision — these
- * phrasings unambiguously cite a population norm rather than the user's own.
- */
-const POPULATION_NORM_PATTERNS: readonly RegExp[] = [
-  /\bthe\s+normal\s+range\s+(?:is|for)\b/i,
-  /\b(?:healthy|most|the\s+average)\s+(?:adults?|people|population)\b/i,
-  /\bthe\s+general\s+population\b/i,
-  /\b(?:guidelines?|doctors?)\s+(?:say|recommend|consider)\b.{0,40}\bnormal\b/i,
-];
-
 /** True when the prose carries any data-honesty hedge. */
 export function hasHonestyHedge(prose: string): boolean {
   return HONESTY_HEDGE_PATTERNS.some((p) => p.test(prose));
@@ -627,11 +866,6 @@ export function hasHonestyHedge(prose: string): boolean {
 /** True when the prose anchors against the user's OWN range/baseline. */
 export function hasOwnBaselineFraming(prose: string): boolean {
   return OWN_BASELINE_PATTERNS.some((p) => p.test(prose));
-}
-
-/** True when the prose cites a POPULATION norm (vs the user's own baseline). */
-export function hasPopulationNormFraming(prose: string): boolean {
-  return POPULATION_NORM_PATTERNS.some((p) => p.test(prose));
 }
 
 /** True when the prose makes an unhedged confident state verdict. */
