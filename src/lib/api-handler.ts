@@ -294,6 +294,15 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
 export type AuthContext = {
   session: { id: string; expiresAt: Date };
   user: User;
+  /**
+   * Transport the caller authenticated with, derived from the SAME branch that
+   * sets the wide event's `auth_method`: the cookie-session path resolves
+   * `"cookie"`, the Bearer-token path resolves `"bearer"`. Read-only and never
+   * client-asserted — it is the transport fact, not a request field. A route
+   * that must record write provenance (e.g. the medication-intake `source`)
+   * maps it server-side, the same posture as `userId` being narrowed from auth.
+   */
+  readonly authMethod: "cookie" | "bearer";
 };
 
 /**
@@ -326,7 +335,7 @@ export async function requireAuth(
         auth_method: "session",
       });
     }
-    return sessionData;
+    return { ...sessionData, authMethod: "cookie" };
   }
 
   // 2. Bearer-token path.
@@ -453,6 +462,7 @@ async function authenticateBearer(
   return {
     session: { id: tokenId, expiresAt },
     user,
+    authMethod: "bearer",
   };
 }
 
@@ -477,7 +487,7 @@ export async function requireAdmin(): Promise<AuthContext> {
   if (sessionData.user.role !== "ADMIN") {
     throw new HttpError(403, "Admin access required");
   }
-  return sessionData;
+  return { ...sessionData, authMethod: "cookie" };
 }
 
 /**
@@ -502,7 +512,7 @@ export async function requireCookieAuth(): Promise<AuthContext> {
       auth_method: "session",
     });
   }
-  return sessionData;
+  return { ...sessionData, authMethod: "cookie" };
 }
 
 /**
@@ -585,7 +595,7 @@ export async function requireFreshMfa(
     throw new StepUpRequiredError();
   }
 
-  return { ...sessionData, mfaVerifiedAt: verifiedAt };
+  return { ...sessionData, authMethod: "cookie", mfaVerifiedAt: verifiedAt };
 }
 
 /**

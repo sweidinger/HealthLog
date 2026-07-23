@@ -159,8 +159,18 @@ const batchEntrySchema = z.object({
   deviceType: deviceTypeEnum.nullable().optional(),
 });
 
+// v1.32.8 (iOS #66) — optional per-REQUEST diagnostic tag naming what woke the
+// client for this sync. Purely observational: it flows into the
+// `measurement.batch.ingest` wide event and NOTHING else — never persisted,
+// never part of the dedup key, never an input to attribution or how a sample is
+// stored. Only the client knows its own wake reason, so it is client-asserted
+// by necessity; being diagnostic-only, that carries no trust surface. Optional
+// so every pre-#66 caller stays byte-for-byte unchanged.
+const syncTriggerEnum = z.enum(["foreground", "background", "push"]);
+
 const batchPayloadSchema = z.object({
   entries: z.array(batchEntrySchema).min(1),
+  syncTrigger: syncTriggerEnum.optional(),
 });
 
 type BatchEntry = z.infer<typeof batchEntrySchema>;
@@ -248,7 +258,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
     return apiError(parsed.error.issues[0]?.message ?? "Invalid batch", 422);
   }
 
-  const { entries } = parsed.data;
+  const { entries, syncTrigger } = parsed.data;
 
   // First pass — map each inbound entry; record skipped entries.
   type Prepared = {
@@ -784,6 +794,10 @@ async function postBatch(request: NextRequest): Promise<Response> {
       // `skippedByReason` build above.
       skipped_by_reason: skippedByReason,
       failed: failedCount,
+      // v1.32.8 (iOS #66) — diagnostic sync-trigger tag (foreground /
+      // background / push), or null when the client did not send one.
+      // Observability only; it never influenced any count above.
+      syncTrigger: syncTrigger ?? null,
     },
   });
 

@@ -4090,6 +4090,56 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/medications/{id}/dose-history:
+    get:
+      tags:
+        - Medications
+      summary: Per-slot dose-history ledger (Verlauf tab)
+      description: "Returns the full per-slot ledger for the medication over [from, to]: every expected slot with a status
+        (taken on-time / taken late / skipped / missed / upcoming) plus every off-schedule intake tagged ad-hoc. Built
+        from the SAME band minter + `reconstructDoseHistory` the compliance % consumes, so the history view and the rate
+        can never disagree. v1.32.8 (iOS #64) surfaces `intake.source` so a client can label how each dose was recorded.
+        Ownership-scoped; rate-limited 60/min/user; reads only non-deleted rows. Auth via cookie or Bearer."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: from
+          schema:
+            description: Window start (inclusive). Defaults to 90 days before `to`; clamped to the medication's `createdAt` and a
+              366-day span floor.
+            type: string
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: Window start (inclusive). Defaults to 90 days before `to`; clamped to the medication's `createdAt` and a
+            366-day span floor.
+        - in: query
+          name: to
+          schema:
+            description: Window end (inclusive). Defaults to now. Must be ≥ `from`.
+            type: string
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: Window end (inclusive). Defaults to now. Must be ≥ `from`.
+      responses:
+        "200":
+          description: Dose-history ledger.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetDoseHistoryResponse"
+        "401": *a1
+        "404":
+          description: Medication not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/medications/{id}/schedule-revisions:
     get:
       tags:
@@ -11828,6 +11878,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AppleHealthBatchEntry"
+        syncTrigger:
+          description: "Diagnostic-only. Names what triggered this sync (foreground app open, background refresh, or a push wake)
+            so an operator can see, per batch, which trigger produced it. Recorded on the ingest wide event and nowhere
+            else — it does not affect dedup, attribution, or how any sample is stored. Optional and backward-compatible:
+            pre-#66 clients omit it."
+          type: string
+          enum:
+            - foreground
+            - background
+            - push
       required:
         - entries
       description: Apple Health batch ingest. ≤500 entries per call; idempotent via `Idempotency-Key`.
@@ -20858,6 +20918,166 @@ components:
       required:
         - data
         - error
+      additionalProperties: false
+    GetDoseHistoryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DoseHistoryResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DoseHistoryResponse:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        to:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        family:
+          type: string
+          enum:
+            - daily
+            - weekly
+            - one_shot
+            - none
+          description: Cadence family the window's slots were minted under.
+        hasExpectedSlots:
+          type: boolean
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DoseHistoryRow"
+      required:
+        - from
+        - to
+        - family
+        - hasExpectedSlots
+        - rows
+      additionalProperties: false
+      description: "Per-slot dose ledger over [from, to]: every expected slot with a status plus every off-schedule intake
+        tagged ad-hoc. Built from the same band minter + `reconstructDoseHistory` the compliance % consumes, so the
+        history view and the rate never contradict each other."
+    DoseHistoryRow:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - slot
+            - ad_hoc
+          description: "`slot` — a scheduled dose window; `ad_hoc` — a standalone off-schedule intake."
+        at:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: The slot anchor instant, or the ad-hoc take's own time.
+        timeOfDay:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: The slot's `HH:mm` label, or null for an ad-hoc row.
+        status:
+          type: string
+          enum:
+            - taken_on_time
+            - taken_late
+            - skipped
+            - missed
+            - upcoming
+            - ad_hoc
+        pinned:
+          description: Present and true when the row is served by a deliberate user pin ('zugeordnet').
+          type: boolean
+        nearestSlot:
+          description: "Due-context for an ad-hoc take: the nearest slot it could belong to (preferring an unserved one). `filled`
+            false means the slot can still be offered for pinning."
+          type: object
+          properties:
+            at:
+              type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            timeOfDay:
+              type: string
+            filled:
+              type: boolean
+          required:
+            - at
+            - timeOfDay
+            - filled
+          additionalProperties: false
+        intake:
+          anyOf:
+            - type: object
+              properties:
+                id:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                scheduledFor:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                takenAt:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                skipped:
+                  type: boolean
+                autoMissed:
+                  type: boolean
+                doseTaken:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                  description: Per-intake dose override; null = configured dose.
+                source:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - WEB
+                        - API
+                        - REMINDER
+                        - IMPORT
+                        - APPLE_HEALTH
+                    - type: "null"
+                  description: "v1.32.8 (iOS #64) — how the dose was recorded: `WEB` (browser), `API` (Bearer / native app), `REMINDER`
+                    (the medication reminder worker), `IMPORT` (CSV importer), `APPLE_HEALTH` (the HealthKit dose-event
+                    mirror). Null on legacy rows written before the column carried a value. Derived server-side from the
+                    write transport, never client-asserted."
+              required:
+                - id
+                - scheduledFor
+                - takenAt
+                - skipped
+                - autoMissed
+                - doseTaken
+                - source
+              additionalProperties: false
+            - type: "null"
+          description: The intake attributed to this row, if any.
+      required:
+        - kind
+        - at
+        - timeOfDay
+        - status
+        - intake
       additionalProperties: false
     ListScheduleRevisionsResponse:
       type: object
