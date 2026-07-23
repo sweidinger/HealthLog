@@ -17,6 +17,10 @@
 
 No migrations. No breaking changes.
 
+_Thanks to **@doenke** (#600), whose report pinned the duplicated-callback
+cause — service worker navigation preload plus the single-use OIDC code — down
+to the exact mechanism, so the fix went in as described._
+
 ## [1.32.4] — 2026-07-23
 
 - **The Coach's numeric verifier stops flagging figures it was actually given.**
