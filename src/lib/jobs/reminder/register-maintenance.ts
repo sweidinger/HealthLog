@@ -41,7 +41,10 @@ import {
   APPLE_HEALTH_IMPORT_V2_QUEUE,
   APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
   APPLE_HEALTH_IMPORT_CONCURRENCY,
+  IMPORT_JOB_RECONCILE_QUEUE,
+  IMPORT_JOB_RECONCILE_CRON,
   handleAppleHealthImport,
+  handleImportJobReconcileTick,
   migrateLegacyAppleHealthImport,
   type AppleHealthImportPayload,
 } from "@/lib/jobs/apple-health-import-worker";
@@ -314,6 +317,11 @@ const allQueues = [
   INTAKE_AUTO_SKIP_QUEUE,
   APPLE_HEALTH_IMPORT_V2_QUEUE,
   APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
+  // v1.32.1 (issue #588) — periodic sweep for ImportJob rows orphaned by a
+  // worker crash/restart mid-run. Without this entry the 15-minute cron
+  // below silently no-ops and a stuck "unpacking"/"parsing"/"upserting" row
+  // that survives past the next worker boot is never revisited.
+  IMPORT_JOB_RECONCILE_QUEUE,
   MEDICATION_INTAKE_IMPORT_QUEUE,
   // v1.8.2 — one-time duplicate dose-slot cleanup. Boot discovery enqueues
   // one job per user holding two live intake rows that snap to the same
@@ -462,6 +470,13 @@ const schedules: ScheduleEntry[] = [
   // Document vault — daily 04:10 Europe/Berlin purge for tombstoned
   // documents past the 30-day undo grace.
   [DOCUMENT_PURGE_QUEUE, DOCUMENT_PURGE_CRON],
+  // v1.32.1 (issue #588) — every-15-minute orphan-ImportJob sweep. Re-runs
+  // the same reconcile the boot path uses, so a stuck "unpacking" row
+  // whose worker crashed/restarted without the boot-time pass catching it
+  // (heartbeat not yet stale, pg-boss job not yet expired) still converges
+  // to a visible `failed` state within two ticks instead of staying stuck
+  // forever on an otherwise-healthy worker.
+  [IMPORT_JOB_RECONCILE_QUEUE, IMPORT_JOB_RECONCILE_CRON],
 ];
 
 /**
@@ -705,6 +720,14 @@ export async function registerMaintenanceQueues(
         await migrateLegacyAppleHealthImport(job);
       }
     },
+  );
+  // v1.32.1 (issue #588) — periodic orphan-ImportJob sweep. Single-flight:
+  // the underlying `updateMany` is idempotent and two ticks racing the same
+  // read-then-write pass would just be wasted work.
+  await boss.work(
+    IMPORT_JOB_RECONCILE_QUEUE,
+    { localConcurrency: 1 },
+    handleImportJobReconcileTick,
   );
   await boss.work<MedicationIntakeImportQueuePayload>(
     MEDICATION_INTAKE_IMPORT_QUEUE,

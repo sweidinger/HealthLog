@@ -7,21 +7,49 @@
  * deflate-compressed ZIP archive. Pulling in `yauzl` / `adm-zip` / etc.
  * for one file we only ever read once would balloon the build graph
  * (and `yauzl` ships a non-trivial number of transitive deps). Node 22
- * ships `node:zlib` `inflateRawSync` already; the only missing piece
- * is a tiny ZIP central-directory walker.
+ * ships `node:zlib` already; the only missing piece is a tiny ZIP
+ * central-directory walker.
  *
  * Coverage scope:
  *   - Stored entries (compression method 0) — copy bytes verbatim.
- *   - Deflated entries (compression method 8) — `inflateRawSync`.
+ *   - Deflated entries (compression method 8) — streamed through
+ *     `zlib.createInflateRaw()`.
  *   - Encrypted entries → unsupported (Apple does not encrypt the
  *     export.zip; reject with a clear error).
  *   - Zip64 — supported for the central directory record (Apple
  *     exports easily push past the 4 GB limit on multi-year accounts).
  *
+ * v1.32.1 (issue #588) — extracting the member used to run through
+ * `inflateRawSync()` on a single in-memory buffer holding the WHOLE
+ * inflated `export.xml` (up to `MAX_DECOMPRESSED_BYTES`) at the same
+ * time the compressed-archive buffer was still resident, then
+ * `writeFileSync()`'d the result in one blocking call. `extractExportXml`
+ * runs on the same event loop as the web server in the default
+ * single-container deployment (`src/instrumentation.ts` starts the
+ * pg-boss worker in-process), so that synchronous path could pin the
+ * Node main thread for minutes on a real multi-year export — freezing
+ * every other request the app was serving — while briefly needing
+ * roughly 2x the decompressed size in JS heap. A user hitting this saw
+ * an import that never leaves "Unpacking the archive…": the phase
+ * label is written to `ImportJob.status` BEFORE extraction starts and
+ * only advances once `extractExportXml()` returns, so a process that
+ * dies mid-extraction (OOM, restart) before that return leaves the row
+ * silently stuck with no failure ever recorded. The member now streams
+ * through `zlib.createInflateRaw()` into a file write stream —
+ * decompression work moves off the JS event loop onto the libuv
+ * threadpool in bounded chunks, and peak memory is bounded by the
+ * chunk size rather than the whole decompressed payload. The
+ * `MAX_DECOMPRESSED_BYTES` zip-bomb defence moves with it: the
+ * streaming inflate API has no `maxOutputLength` option, so a
+ * byte-counting transform enforces the cap on the real output as it
+ * flows.
+ *
  * Locks per `.planning/research/v1434-r-1-xml-import.md` §6.1.
  */
-import { readFileSync, writeFileSync } from "node:fs";
-import { inflateRawSync } from "node:zlib";
+import { readFileSync, createWriteStream, statSync, unlinkSync } from "node:fs";
+import { createInflateRaw } from "node:zlib";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -44,10 +72,14 @@ const MAX_DECOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024;
  * Pre-flight refusal threshold for the central-directory's advertised
  * ratio. Legitimate Apple Health XML compresses at maybe 10–20× under
  * DEFLATE; anything claiming a 200× expansion is a synthesized bomb.
- * This is a coarse signal — the `maxOutputLength` ceiling on the
- * inflate call below is the load-bearing defence.
+ * This is a coarse signal — the byte-counting cap on the streamed
+ * inflate output (`streamEntryToFile()` below) is the load-bearing
+ * defence.
  */
 const MAX_COMPRESSION_RATIO = 200;
+
+/** Chunk size fed into the inflate/write pipeline per `write()` call. */
+const STREAM_CHUNK_BYTES = 1 * 1024 * 1024;
 
 /** A single entry within the archive's central directory. */
 interface CentralDirectoryEntry {
@@ -78,7 +110,9 @@ export interface UnzipResult {
  * Throws when the member is missing, encrypted, or compressed with
  * an unsupported method.
  */
-export function extractExportXml(archivePath: string): UnzipResult {
+export async function extractExportXml(
+  archivePath: string,
+): Promise<UnzipResult> {
   const buf = readFileSync(archivePath);
   const entries = readCentralDirectory(buf);
 
@@ -105,8 +139,8 @@ export function extractExportXml(archivePath: string): UnzipResult {
   // Pre-flight zip-bomb defence. The central directory's advertised
   // `uncompressedSize` is attacker-controlled (a malicious archive can
   // lie), so this catches honest-but-oversized payloads early; the
-  // load-bearing defence is the `maxOutputLength` cap inside
-  // `extractEntry()` which trips on the actual inflate output.
+  // load-bearing defence is the byte-counting cap inside
+  // `streamEntryToFile()` which trips on the actual inflate output.
   if (exportXmlEntry.uncompressedSize > MAX_DECOMPRESSED_BYTES) {
     throw new Error(
       `export.xml declares an uncompressed size of ${exportXmlEntry.uncompressedSize} bytes` +
@@ -126,13 +160,11 @@ export function extractExportXml(archivePath: string): UnzipResult {
     );
   }
 
-  const xmlBytes = extractEntry(buf, exportXmlEntry);
-
   const xmlPath = join(
     tmpdir(),
     `healthlog-import-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.xml`,
   );
-  writeFileSync(xmlPath, xmlBytes);
+  const xmlBytes = await streamEntryToFile(buf, exportXmlEntry, xmlPath);
 
   const otherMembers = entries
     .filter((e) => e !== exportXmlEntry)
@@ -140,7 +172,7 @@ export function extractExportXml(archivePath: string): UnzipResult {
 
   return {
     xmlPath,
-    xmlBytes: xmlBytes.length,
+    xmlBytes,
     otherMembers,
   };
 }
@@ -260,8 +292,59 @@ export function readCentralDirectory(buf: Buffer): CentralDirectoryEntry[] {
   return entries;
 }
 
-/** Extract the bytes of a single ZIP entry into a Buffer. */
-function extractEntry(buf: Buffer, entry: CentralDirectoryEntry): Buffer {
+/**
+ * Split a Buffer into fixed-size slices (no copying — `subarray` views
+ * share the backing memory) so the inflate/write pipeline processes the
+ * entry in bounded chunks instead of one giant `write()` call.
+ */
+function* chunkBuffer(buf: Buffer, size: number): Generator<Buffer> {
+  for (let offset = 0; offset < buf.length; offset += size) {
+    yield buf.subarray(offset, Math.min(offset + size, buf.length));
+  }
+}
+
+/**
+ * Byte-counting passthrough that refuses to forward more than `limit`
+ * bytes — the streaming equivalent of `inflateRawSync`'s
+ * `maxOutputLength`, since the Transform-based zlib API exposes no such
+ * option. Trips on the actual bytes flowing through even when the
+ * central-directory metadata lied about the uncompressed size. Exported
+ * so a unit test can exercise the cap directly against a small limit —
+ * the real `MAX_DECOMPRESSED_BYTES` ceiling (8 GiB) is not practical to
+ * trip from a test fixture.
+ */
+export function createByteCap(limit: number): Transform {
+  let total = 0;
+  return new Transform({
+    transform(chunk: Buffer, _enc, callback) {
+      total += chunk.length;
+      if (total > limit) {
+        callback(
+          new Error(
+            `Decompressed export.xml exceeds the ${limit}-byte cap` +
+              " — refusing as a suspected zip bomb.",
+          ),
+        );
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+}
+
+/**
+ * Stream a single ZIP entry's bytes out to `destPath`, decompressing
+ * through `zlib.createInflateRaw()` when needed. Runs entirely off the
+ * JS main thread (stream I/O + the libuv-threadpool-backed zlib
+ * binding), so a multi-GB member no longer blocks the event loop the
+ * way the old `inflateRawSync()` + `writeFileSync()` pair did. Returns
+ * the number of bytes written.
+ */
+async function streamEntryToFile(
+  buf: Buffer,
+  entry: CentralDirectoryEntry,
+  destPath: string,
+): Promise<number> {
   const local = entry.localHeaderOffset;
   if (buf.readUInt32LE(local) !== LOCAL_FILE_HEADER) {
     throw new Error(
@@ -271,18 +354,32 @@ function extractEntry(buf: Buffer, entry: CentralDirectoryEntry): Buffer {
   const localFileNameLen = buf.readUInt16LE(local + 26);
   const localExtraLen = buf.readUInt16LE(local + 28);
   const dataStart = local + 30 + localFileNameLen + localExtraLen;
-  const compressed = buf.slice(dataStart, dataStart + entry.compressedSize);
+  const compressed = buf.subarray(dataStart, dataStart + entry.compressedSize);
 
-  if (entry.compressionMethod === 0) {
-    return compressed;
+  const source = Readable.from(chunkBuffer(compressed, STREAM_CHUNK_BYTES));
+  const dest = createWriteStream(destPath);
+  const cap = createByteCap(MAX_DECOMPRESSED_BYTES);
+
+  try {
+    if (entry.compressionMethod === 0) {
+      await pipeline(source, cap, dest);
+    } else {
+      // Method 8 — DEFLATE, streamed through the async zlib Transform.
+      await pipeline(source, createInflateRaw(), cap, dest);
+    }
+  } catch (err) {
+    // A mid-stream failure (byte cap trip, corrupt deflate stream) can
+    // leave a partial file on disk — the old sync path only ever wrote
+    // once inflate had already fully succeeded. Clean up so a rejected
+    // archive doesn't leak a partial `/tmp` file.
+    try {
+      unlinkSync(destPath);
+    } catch {
+      // ignore — best-effort
+    }
+    throw err;
   }
-  // Method 8 — DEFLATE. `maxOutputLength` instructs `node:zlib` to
-  // refuse expansion past the cap with a thrown error, defeating
-  // zip-bomb amplification even when the central-directory metadata
-  // lies about the uncompressed size.
-  return inflateRawSync(compressed, {
-    maxOutputLength: MAX_DECOMPRESSED_BYTES,
-  });
+  return statSync(destPath).size;
 }
 
 /**
