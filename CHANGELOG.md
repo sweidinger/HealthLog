@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.32.4] — 2026-07-23
+
+- **The Coach's numeric verifier stops flagging figures it was actually given.**
+  A restated difference, average, or percent change computed from two of the
+  numbers the model was shown, a sample count restated from the data inventory
+  that rides every turn, a calendar-date ordinal ("July 21st"), and a
+  numbered-list marker no longer trip the inline `[unverified]` rewrite that
+  was appearing in place of correct values. A genuinely fabricated figure — one
+  with no grounding at all — is still caught and stripped.
+
+No migrations. No breaking changes.
+
 ## [1.32.3] — 2026-07-23
 
 Security release. It ships on its own so the change to how a second factor is

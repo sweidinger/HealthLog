@@ -409,6 +409,135 @@ describe("coach chat — tool-mode routing (F1)", () => {
     expect(content).not.toContain("138");
   });
 
+  it("does not flag a sample count restated from the DATA INVENTORY manifest even when its own tool did not run this turn (v1.32.1)", async () => {
+    resolveProviderChain.mockResolvedValue([
+      { providerType: "anthropic", instance: {} },
+    ]);
+    // The DATA INVENTORY (always sent to the model this turn, regardless of
+    // which tools actually fire — see `renderDataInventory`) advertises a
+    // blood-pressure sample count of 42. The model restates it in prose while
+    // the ONLY tool it actually called this turn was for workouts.
+    (buildCoachDataInventory as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      {
+        entries: [
+          {
+            tool: "get_metric_series",
+            metric: "bp",
+            domain: "blood pressure",
+            present: true,
+            count: 42,
+          },
+          {
+            tool: "get_workouts",
+            domain: "workouts & training",
+            present: true,
+            count: 12,
+          },
+        ],
+        restMode: false,
+        cycleEnabled: false,
+        window: "last30days",
+        probeScope: { sources: ["bp", "workouts"], window: "last30days" },
+      },
+    );
+    const reply =
+      "You've logged 42 blood pressure readings this window, and your last run burned 320 kcal.";
+    (parseKeyValuesSentinel as ReturnType<typeof vi.fn>).mockReturnValue({
+      prose: reply,
+      keyValues: [],
+      malformed: false,
+      malformedEntries: [],
+    });
+    (parseSuggestReminder as ReturnType<typeof vi.fn>).mockReturnValue({
+      prose: reply,
+    });
+    (runCoachToolLoop as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => ({
+        result: { content: reply, tokensUsed: 80, model: "m" },
+        workingProviderType: "anthropic",
+        totalTokens: 80,
+        rounds: 2,
+        toolTrace: [{ name: "get_workouts", present: true }],
+        // ONLY the workouts tool ran — the BP count "42" was never fetched
+        // this turn, it came from the always-sent DATA INVENTORY manifest.
+        toolResults: [
+          {
+            present: true,
+            data: { workouts: [{ type: "run", calories: 320 }] },
+          },
+        ],
+      }),
+    );
+    await postAndDrain({ message: "How is my BP and my training?" });
+    const calls = (appendMessage as ReturnType<typeof vi.fn>).mock.calls;
+    const assistantCall = calls.find(
+      (c) => (c[0] as { role: string }).role === "assistant",
+    );
+    const content = (assistantCall?.[0] as { content: string }).content;
+    expect(content).not.toContain("[unverified]");
+    expect(content).toContain("42");
+    expect(content).toContain("320");
+  });
+
+  it("keeps the verifier dormant when NO tool returned figures this turn, even though the inventory rides the prompt (v1.32.1 regression)", async () => {
+    // Regression guard for the integration failure: in tool mode the model can
+    // answer a quick turn WITHOUT calling any tool (empty toolResults). The
+    // always-sent DATA INVENTORY carries counts only, never the snapshot's
+    // pre-computed averages. The verifier must NOT activate off the inventory
+    // alone — otherwise a figure the model narrated from the snapshot (a
+    // 30-day systolic average) is wrongly stripped. Matches `main`'s "no tool
+    // figures → skip, prompt-level grounding is the backstop" contract.
+    resolveProviderChain.mockResolvedValue([
+      { providerType: "anthropic", instance: {} },
+    ]);
+    (buildCoachDataInventory as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      {
+        entries: [
+          {
+            tool: "get_metric_series",
+            metric: "bp",
+            domain: "blood pressure",
+            present: true,
+            count: 14,
+          },
+        ],
+        restMode: false,
+        cycleEnabled: false,
+        window: "last30days",
+        probeScope: { sources: ["bp"], window: "last30days" },
+      },
+    );
+    const reply = "Your 30-day systolic average is 130 mmHg, trending up.";
+    (parseKeyValuesSentinel as ReturnType<typeof vi.fn>).mockReturnValue({
+      prose: reply,
+      keyValues: [],
+      malformed: false,
+      malformedEntries: [],
+    });
+    (parseSuggestReminder as ReturnType<typeof vi.fn>).mockReturnValue({
+      prose: reply,
+    });
+    (runCoachToolLoop as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => ({
+        result: { content: reply, tokensUsed: 60, model: "m" },
+        workingProviderType: "anthropic",
+        totalTokens: 60,
+        rounds: 1,
+        toolTrace: [],
+        // No tool returned figures this turn — the model answered directly.
+        toolResults: [],
+      }),
+    );
+    await postAndDrain({ message: "How is my blood pressure this month?" });
+    const calls = (appendMessage as ReturnType<typeof vi.fn>).mock.calls;
+    const assistantCall = calls.find(
+      (c) => (c[0] as { role: string }).role === "assistant",
+    );
+    const content = (assistantCall?.[0] as { content: string }).content;
+    expect(content).not.toContain("[unverified]");
+    expect(content).toContain("130");
+  });
+
   it("falls back to the snapshot-stuffing path when a provider lacks tools", async () => {
     resolveProviderChain.mockResolvedValue([
       { providerType: "anthropic", instance: {} },

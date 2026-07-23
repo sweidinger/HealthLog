@@ -96,6 +96,114 @@ function isGrounded(
 }
 
 /**
+ * v1.32.1 (false-positive closure) — the small, named "central tendency"
+ * fields every snapshot block already exposes (`latest`, `avg7`, `avg30`,
+ * `avgSys30`, `allTimeAvg`, …). A model correctly narrating "down 3.5 kg from
+ * your 7-day average" is computing a DELTA between two of these — a
+ * legitimate derivation, not a fabrication — but the raw figure `3.5` is not
+ * itself a leaf anywhere in the payload, so the plain leaf-matching above
+ * flags it. Deliberately an ALLOWLIST of field names, not "every numeric
+ * leaf": a whole month of daily timeline samples would blow the pairwise
+ * derivation up combinatorially (see `deriveArithmeticValues`) and start
+ * matching a genuinely fabricated figure by coincidence, which is exactly the
+ * hole this checker exists to close. A raw sample, a count, or a day-offset
+ * never matches this pattern.
+ */
+const AGGREGATE_POINT_KEY =
+  /^(?:latest|mean|median|avg(?:Sys|Dia)?\d*(?:LastMonth|LastYear)?|allTime(?:Avg|Min|Max)(?:Sys|Dia)?)$/;
+
+/**
+ * Defensive cap on how many aggregate points one payload may contribute to
+ * the pairwise derivation below. The named fields the allowlist targets are a
+ * handful per metric block (2-6); a payload that somehow surfaces more than
+ * this is not the small aggregate shape the heuristic targets, so skip
+ * deriving from it rather than pay an unbounded O(n^2).
+ */
+const MAX_AGGREGATE_POINTS = 12;
+
+/** Collect every numeric leaf reachable under an `AGGREGATE_POINT_KEY` field. */
+function collectAggregatePoints(
+  value: unknown,
+  out: Set<number>,
+  keyHint?: string,
+): void {
+  if (value === null || value === undefined) return;
+  if (typeof value === "number") {
+    if (
+      Number.isFinite(value) &&
+      keyHint !== undefined &&
+      AGGREGATE_POINT_KEY.test(keyHint)
+    ) {
+      out.add(value);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectAggregatePoints(item, out, keyHint);
+    return;
+  }
+  if (typeof value === "object") {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      collectAggregatePoints(v, out, k);
+    }
+  }
+}
+
+/**
+ * The delta, midpoint average, and percent-change between every PAIR of a
+ * SINGLE payload's own aggregate points — the shapes a model legitimately
+ * narrates ("down 3.5 kg from your 7-day average", "roughly a 5% drop").
+ * Scoped per payload (one tool result / the pinned workout block / one
+ * inventory row), never pooled across the whole turn's authoritative set, so
+ * a weight delta cannot ground itself against an unrelated blood-pressure
+ * figure that happens to land nearby.
+ */
+function deriveArithmeticValues(payload: unknown): number[] {
+  const points = new Set<number>();
+  collectAggregatePoints(payload, points);
+  const arr = [...points];
+  if (arr.length < 2 || arr.length > MAX_AGGREGATE_POINTS) return [];
+  const derived: number[] = [];
+  for (let i = 0; i < arr.length; i += 1) {
+    for (let j = i + 1; j < arr.length; j += 1) {
+      const a = arr[i];
+      const b = arr[j];
+      const diff = Math.abs(a - b);
+      derived.push(diff);
+      derived.push((a + b) / 2);
+      if (a !== 0) derived.push((diff / Math.abs(a)) * 100);
+      if (b !== 0) derived.push((diff / Math.abs(b)) * 100);
+    }
+  }
+  return derived;
+}
+
+/**
+ * v1.32.1 (false-positive closure) — mask date-ordinal and numbered-list
+ * markers OUT of a working copy of the prose before it is tokenised for
+ * numbers, so "on July 21st" or a "1. Reduce sodium" recommendation line never
+ * reads as a restated health figure. `extractNumbers` has no notion of
+ * surrounding context, so this pre-processing happens on a throwaway copy —
+ * the ORIGINAL prose (and hence `stripUnverifiedNumbers`, which edits the real
+ * text via the flagged token) is untouched. Deliberately high precision:
+ *   - a number immediately followed by an English ordinal suffix (21st, 3rd,
+ *     142nd) is a day-of-month or a rank, never a restated magnitude;
+ *   - a number at the START of a line followed by ". " (a numbered-list
+ *     marker) is masked, but ONLY at line-start with a space right after the
+ *     dot — "Systolic 128. Blood pressure remained stable." keeps its 128
+ *     because that number does not open its own line, and "3.5 kg" keeps its
+ *     figure because a digit (not whitespace) follows the dot.
+ */
+function extractClaimableNumbers(
+  prose: string,
+): Array<{ value: number; raw: string }> {
+  const masked = prose
+    .replace(/\b\d{1,3}(?:st|nd|rd|th)\b/gi, "DATE")
+    .replace(/^(\s*)\d{1,3}\.(\s)/gm, "$1LIST$2");
+  return extractNumbers(masked);
+}
+
+/**
  * Find every number the Coach prose asserts that does not trace to a figure
  * returned by a tool this turn. Returns an empty array when there is no prose,
  * no authoritative figure set (no present tool result with numbers), or every
@@ -109,14 +217,19 @@ export function findUnverifiedCoachNumbers(
 ): UnverifiedCoachNumber[] {
   if (!prose) return [];
   const authoritative = new Set<number>();
-  for (const payload of toolPayloads)
+  for (const payload of toolPayloads) {
     collectNumericLeaves(payload, authoritative);
+    // Widen the authoritative set with the derived figures a model may
+    // legitimately compute from this payload's own headline numbers, without
+    // pooling across unrelated payloads (see `deriveArithmeticValues`).
+    for (const d of deriveArithmeticValues(payload)) authoritative.add(d);
+  }
   // No authoritative figures (a qualitative turn / no-tools path) — nothing to
   // grade against. The prompt-level grounding rule remains the backstop.
   if (authoritative.size === 0) return [];
 
   const findings: UnverifiedCoachNumber[] = [];
-  for (const { value, raw } of extractNumbers(prose)) {
+  for (const { value, raw } of extractClaimableNumbers(prose)) {
     if (isStructural(value, raw)) continue;
     if (isGrounded(value, authoritative)) continue;
     findings.push({ value, source: raw.slice(0, 32) });
