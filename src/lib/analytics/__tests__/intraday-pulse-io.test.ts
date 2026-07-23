@@ -13,6 +13,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const findManyMock = vi.fn();
 const workoutFindManyMock = vi.fn();
+const { annotateMock } = vi.hoisted(() => ({ annotateMock: vi.fn() }));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -20,6 +21,8 @@ vi.mock("@/lib/db", () => ({
     workout: { findMany: (...args: unknown[]) => workoutFindManyMock(...args) },
   },
 }));
+
+vi.mock("@/lib/logging/context", () => ({ annotate: annotateMock }));
 
 import { loadIntradayPulse } from "@/lib/analytics/intraday-pulse-io";
 import {
@@ -42,6 +45,7 @@ describe("loadIntradayPulse", () => {
     findManyMock.mockReset();
     workoutFindManyMock.mockReset();
     workoutFindManyMock.mockResolvedValue([]);
+    annotateMock.mockReset();
   });
 
   it("M2 — queries PULSE/step rows against the exact local-day window, not the padded lead/trail superset", async () => {
@@ -208,5 +212,60 @@ describe("loadIntradayPulse", () => {
       { startMinute: 480, mean: 72, count: 2, min: 64, max: 88 },
       { startMinute: 490, mean: 75, count: 2, min: 70, max: 81 },
     ]);
+  });
+
+  it("v1.32.1 (issue #585) — annotates the per-shape row/bucket breakdown for observability", async () => {
+    const tz = "UTC";
+    const dateKey = "2026-06-15";
+
+    const restingRows = Array.from({ length: 20 }, (_, i) => ({
+      value: 55,
+      measuredAt: new Date(
+        `2026-05-${String((i % 28) + 1).padStart(2, "0")}T06:00:00.000Z`,
+      ),
+    }));
+    // One uploaded 10-min bucket row and one raw per-sample row sharing the
+    // day — the DTO merges them (bucket overlays raw on a slot collision),
+    // but the annotation must still report each SHAPE's own row count, not
+    // just the merged bucket total.
+    const uploadedBucket = {
+      value: 72,
+      valueMin: 64,
+      valueMax: 88,
+      measuredAt: new Date("2026-06-15T08:09:00.000Z"),
+      externalId:
+        "stats:HKQuantityTypeIdentifierHeartRate:2026-06-15T08:00:00.000Z",
+    };
+    const rawSample = {
+      value: 65,
+      valueMin: null,
+      valueMax: null,
+      measuredAt: new Date("2026-06-15T09:05:00.000Z"),
+      externalId: "sample:abc123",
+    };
+
+    findManyMock.mockImplementation(
+      async (args: {
+        where: { type: string; measuredAt?: unknown };
+        take?: number;
+      }) => {
+        if (args.where.type === "RESTING_HEART_RATE") return restingRows;
+        if (args.where.type === "PULSE" && args.where.measuredAt) {
+          return [uploadedBucket, rawSample];
+        }
+        return [];
+      },
+    );
+
+    await loadIntradayPulse("user-1", tz, dateKey);
+
+    expect(annotateMock).toHaveBeenCalledWith({
+      meta: {
+        intraday_raw_sample_rows: 1,
+        intraday_uploaded_bucket_rows: 1,
+        intraday_folded_hourly_rows: 0,
+        intraday_ten_min_buckets: 2,
+      },
+    });
   });
 });

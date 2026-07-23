@@ -16,6 +16,7 @@
  * digest's `tension_window` builder, so the signal is computed one way.
  */
 import { prisma } from "@/lib/db";
+import { annotate } from "@/lib/logging/context";
 import { percentile } from "@/lib/insights/strain-score";
 import { resolveRestingPulseSeries } from "@/lib/analytics/resting-pulse";
 import { localDayWindow } from "@/lib/measurements/consolidation-tz";
@@ -348,6 +349,26 @@ export async function loadIntradayPulse(
           hrvConfirmMinutes: [],
         })
       : null;
+
+  // v1.32.1 (issue #585) — per-shape row/bucket breakdown. A report of
+  // "the chart looks sparser after the ZIP-import cutoff" is otherwise
+  // undiagnosable from server logs: the route's own annotation only ever
+  // surfaced the FINAL bucket count, with no visibility into which
+  // ingestion shape (raw ZIP-imported samples vs uploaded 10-min
+  // aggregates) the day's data actually came from, nor how many DB rows
+  // fed each shape before bucketing. Grepping `insights.pulse.intraday`
+  // now shows both — e.g. `uploaded_bucket_rows: 6` next to
+  // `ten_min_buckets: 6` confirms the uploaded shape IS being read and
+  // placed 1:1, narrowing a future report to "the client uploaded too few
+  // buckets" rather than leaving the read path itself as a live suspect.
+  annotate({
+    meta: {
+      intraday_raw_sample_rows: rawPulseRows.length,
+      intraday_uploaded_bucket_rows: uploadedBucketRows.length,
+      intraday_folded_hourly_rows: foldedPulseRows.length,
+      intraday_ten_min_buckets: tenMinSeries.length,
+    },
+  });
 
   return {
     dateKey,
