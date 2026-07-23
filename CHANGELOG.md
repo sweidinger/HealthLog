@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.32.2] — 2026-07-23
+
+Security release. Ships on its own and ahead of everything queued, because it
+closes a set of freshly disclosed framework vulnerabilities that affect the
+running instance today.
+
+- **Next.js updated to 16.2.11**, closing four high-severity advisories in the
+  App Router: a middleware/proxy bypass, two server-side request-forgery
+  paths (rewrites and Server Actions), and a denial of service. The
+  middleware/proxy advisory is the most relevant here, since the request edge
+  enforces the public-path allowlist and the authentication redirect. No
+  application code changed; this is the dependency patch alone.
+
+Carries the fixes already merged for 1.32.1 (honest health-score absence,
+Coach score questions, Apple Health import and Pulse fidelity, three
+silent data-loss races), since those reached the trunk first. No migrations
+beyond what 1.32.1 declared (none). No breaking changes.
+
 ## [1.32.1] — 2026-07-23
 
 - **The Personal Health Score reads "not enough data yet" instead of zero.**
