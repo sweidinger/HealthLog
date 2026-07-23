@@ -201,6 +201,56 @@ describe("GET /api/medications/[id]/dose-history", () => {
     expect(adHoc?.intake?.id).toBe("evt-adhoc");
   });
 
+  it("returns each intake's write provenance in `source` (iOS #64)", async () => {
+    const from = at(DAY, 0, 0).toISOString();
+    const to = at(DAY, 23, 59).toISOString();
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      // a native-app take carries API provenance
+      {
+        id: "evt-morning",
+        scheduledFor: at(DAY, 7, 0),
+        takenAt: at(DAY, 7, 5),
+        skipped: false,
+        autoMissed: false,
+        source: "API",
+      },
+      // a legacy row written before the column carried a value → null
+      {
+        id: "evt-adhoc",
+        scheduledFor: at(DAY, 11, 29),
+        takenAt: at(DAY, 11, 29),
+        skipped: false,
+        autoMissed: false,
+        source: null,
+      },
+    ] as never);
+
+    // The route must SELECT `source` from Prisma, or it could never surface it.
+    const res = await GET(
+      getReq(`?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+      ROUTE_PARAMS,
+    );
+    expect(res.status).toBe(200);
+    const select = vi.mocked(prisma.medicationIntakeEvent.findMany).mock
+      .calls[0][0]?.select as Record<string, unknown> | undefined;
+    expect(select?.source).toBe(true);
+
+    const json = await res.json();
+    const rows = json.data.rows as Array<{
+      kind: string;
+      timeOfDay: string | null;
+      intake: { id: string | null; source: string | null } | null;
+    }>;
+
+    const morning = rows.find((r) => r.timeOfDay === "07:00");
+    expect(morning?.intake?.id).toBe("evt-morning");
+    expect(morning?.intake?.source).toBe("API");
+
+    const adHoc = rows.find((r) => r.kind === "ad_hoc");
+    expect(adHoc?.intake?.id).toBe("evt-adhoc");
+    expect(adHoc?.intake?.source).toBe(null);
+  });
+
   it("422 on a reversed from/to window", async () => {
     const from = at(DAY, 12, 0).toISOString();
     const to = at(DAY, 6, 0).toISOString();
