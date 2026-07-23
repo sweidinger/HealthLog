@@ -298,3 +298,121 @@ describe("notification channel enable-only routes", () => {
     },
   );
 });
+
+/**
+ * v1.32.1 — regression for iOS coordination issue #63: `PUT
+ * /api/settings/ntfy` reconstructed the entire stored config from the
+ * request body. `GET` never returns the write-only `authToken` (only
+ * `hasAuthToken: true/false`), so both native and web clients correctly
+ * OMIT — or round-trip an empty string through — the field on any
+ * unrelated edit. Rebuilding `config` without a preserve fallback
+ * silently dropped a working token on the next save.
+ *
+ * The fix mirrors the pre-existing `headerValue` preserve-on-empty
+ * contract in `src/app/api/settings/webhook/route.ts` (asserted here too,
+ * as a parity pin — that route was never broken, but any future drift
+ * between the two should fail the same suite). Covers exactly the four
+ * cases the report asks for.
+ */
+describe("PUT /api/settings/ntfy — write-only authToken preserve-on-omit contract", () => {
+  function upsertConfig() {
+    const call = vi.mocked(prisma.notificationChannel.upsert).mock
+      .calls[0]?.[0] as {
+      create: { config: string };
+      update: { config: string };
+    };
+    // The route always upserts — assert both arms agree, then decode one.
+    expect(call.update.config).toBe(call.create.config);
+    return JSON.parse(call.update.config.replace(/^encrypted:/, "")) as {
+      serverUrl: string;
+      topic: string;
+      authToken?: string;
+    };
+  }
+
+  it("an omitted authToken preserves the stored secret", async () => {
+    vi.mocked(prisma.notificationChannel.findUnique).mockResolvedValue({
+      config:
+        'encrypted:{"serverUrl":"https://ntfy.sh","topic":"saved-topic","authToken":"secret"}',
+    } as never);
+
+    const response = await put("ntfy", {
+      serverUrl: "https://ntfy.sh",
+      topic: "saved-topic",
+      enabled: true,
+    });
+
+    expect(response.status).toBe(200);
+    expect(upsertConfig().authToken).toBe("secret");
+  });
+
+  it("an explicit empty-string authToken preserves the stored secret (matches current clients)", async () => {
+    vi.mocked(prisma.notificationChannel.findUnique).mockResolvedValue({
+      config:
+        'encrypted:{"serverUrl":"https://ntfy.sh","topic":"saved-topic","authToken":"secret"}',
+    } as never);
+
+    const response = await put("ntfy", {
+      serverUrl: "https://ntfy.sh",
+      topic: "saved-topic",
+      authToken: "",
+      enabled: true,
+    });
+
+    expect(response.status).toBe(200);
+    expect(upsertConfig().authToken).toBe("secret");
+  });
+
+  it("a non-empty authToken replaces the stored secret", async () => {
+    vi.mocked(prisma.notificationChannel.findUnique).mockResolvedValue({
+      config:
+        'encrypted:{"serverUrl":"https://ntfy.sh","topic":"saved-topic","authToken":"old-secret"}',
+    } as never);
+
+    const response = await put("ntfy", {
+      serverUrl: "https://ntfy.sh",
+      topic: "saved-topic",
+      authToken: "new-secret",
+      enabled: true,
+    });
+
+    expect(response.status).toBe(200);
+    expect(upsertConfig().authToken).toBe("new-secret");
+  });
+
+  it("creating without a token remains valid where anonymous ntfy is allowed", async () => {
+    vi.mocked(prisma.notificationChannel.findUnique).mockResolvedValue(null);
+
+    const response = await put("ntfy", {
+      serverUrl: "https://ntfy.sh",
+      topic: "public-topic",
+      enabled: false,
+    });
+
+    expect(response.status).toBe(200);
+    const config = upsertConfig();
+    expect(config.authToken).toBeUndefined();
+    expect(config.topic).toBe("public-topic");
+  });
+
+  it("parity pin: the webhook headerValue preserve-on-empty contract this fix mirrors is intact", async () => {
+    vi.mocked(prisma.notificationChannel.findUnique).mockResolvedValue({
+      config:
+        'encrypted:{"url":"https://saved.example/hook","headerName":"Authorization","headerValue":"secret"}',
+    } as never);
+
+    const response = await put("webhook", {
+      url: "https://saved.example/hook",
+      headerName: "Authorization",
+      enabled: true,
+    });
+
+    expect(response.status).toBe(200);
+    const call = vi.mocked(prisma.notificationChannel.upsert).mock
+      .calls[0]?.[0] as { update: { config: string } };
+    const config = JSON.parse(
+      call.update.config.replace(/^encrypted:/, ""),
+    ) as { headerValue?: string };
+    expect(config.headerValue).toBe("secret");
+  });
+});
