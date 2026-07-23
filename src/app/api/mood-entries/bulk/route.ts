@@ -300,63 +300,73 @@ async function postBulk(request: NextRequest): Promise<Response> {
         continue;
       }
 
-      const result = await prisma.moodEntry.upsert({
-        where: probeWhere,
-        create: {
-          userId: user.id,
-          date,
-          tz,
-          mood: entry.mood,
-          score,
-          tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          note: null,
-          noteEncrypted: encryptNote(entry.note ?? null),
-          source: resolvedSource,
-          externalId: entry.externalId ?? null,
-          moodLoggedAt: entry.moodLoggedAt,
-        },
-        update: {
-          // Last-writer-wins on the mood + tags + note triple. The
-          // iOS client only re-posts an existing entry when it has
-          // new data; the server trusts that decision. When the dedup
-          // key is `externalId`, also refresh `date` / `moodLoggedAt`
-          // so a re-zoned re-import lands the corrected wall-clock on
-          // the same row.
-          mood: entry.mood,
-          score,
-          tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          note: null,
-          noteEncrypted: encryptNote(entry.note ?? null),
-          ...(entry.externalId
-            ? { date, moodLoggedAt: entry.moodLoggedAt }
-            : {}),
-        },
-      });
+      // The upsert and the tag/factor links run in ONE transaction, matching
+      // the single-entry POST path. Split apart, an out-of-scale
+      // `ratedFactors` value (validated inside `createTagLinks`, i.e. AFTER
+      // the row committed) left a persisted mood entry with no links while the
+      // per-entry catch reported the entry as "skipped" — the client believes
+      // nothing saved and a half-written row is on disk.
+      const result = await prisma.$transaction(async (tx) => {
+        const upserted = await tx.moodEntry.upsert({
+          where: probeWhere,
+          create: {
+            userId: user.id,
+            date,
+            tz,
+            mood: entry.mood,
+            score,
+            tags: entry.tags ? JSON.stringify(entry.tags) : null,
+            note: null,
+            noteEncrypted: encryptNote(entry.note ?? null),
+            source: resolvedSource,
+            externalId: entry.externalId ?? null,
+            moodLoggedAt: entry.moodLoggedAt,
+          },
+          update: {
+            // Last-writer-wins on the mood + tags + note triple. The
+            // iOS client only re-posts an existing entry when it has
+            // new data; the server trusts that decision. When the dedup
+            // key is `externalId`, also refresh `date` / `moodLoggedAt`
+            // so a re-zoned re-import lands the corrected wall-clock on
+            // the same row.
+            mood: entry.mood,
+            score,
+            tags: entry.tags ? JSON.stringify(entry.tags) : null,
+            note: null,
+            noteEncrypted: encryptNote(entry.note ?? null),
+            ...(entry.externalId
+              ? { date, moodLoggedAt: entry.moodLoggedAt }
+              : {}),
+          },
+        });
 
-      // v1.12.0 — persist structured-tag links, mirroring the
-      // single-entry `createTagLinks` path. Additive + idempotent:
-      // `createTagLinks` resolves keys against the catalog (dropping
-      // unknown keys) and `skipDuplicates` on the join insert keeps a
-      // re-posted entry from minting duplicate links. Runs for both
-      // fresh and re-posted (upserted) rows so a backfill that adds tag
-      // keys on a second pass still lands them.
-      // v1.12.0 — rated factors ride the same path; an out-of-scale
-      // rating throws `RatedFactorOutOfRangeError`, which the per-entry
-      // catch below turns into a `skipped` result (the rest of the batch
-      // still lands). The mood row itself already upserted, so a skipped
-      // factor leaves a valid entry with no rated links.
-      if (
-        (entry.tagKeys && entry.tagKeys.length > 0) ||
-        (entry.ratedFactors && entry.ratedFactors.length > 0)
-      ) {
-        await createTagLinks(
-          result.id,
-          user.id,
-          entry.tagKeys ?? [],
-          prisma,
-          entry.ratedFactors ?? [],
-        );
-      }
+        // v1.12.0 — persist structured-tag links, mirroring the
+        // single-entry `createTagLinks` path. Additive + idempotent:
+        // `createTagLinks` resolves keys against the catalog (dropping
+        // unknown keys) and `skipDuplicates` on the join insert keeps a
+        // re-posted entry from minting duplicate links. Runs for both
+        // fresh and re-posted (upserted) rows so a backfill that adds tag
+        // keys on a second pass still lands them.
+        // v1.12.0 — rated factors ride the same path; an out-of-scale
+        // rating throws `RatedFactorOutOfRangeError`. Inside the
+        // transaction that throw now rolls the mood row back with it, so a
+        // "skipped" result means nothing was written — which is what the
+        // client was already being told.
+        if (
+          (entry.tagKeys && entry.tagKeys.length > 0) ||
+          (entry.ratedFactors && entry.ratedFactors.length > 0)
+        ) {
+          await createTagLinks(
+            upserted.id,
+            user.id,
+            entry.tagKeys ?? [],
+            tx,
+            entry.ratedFactors ?? [],
+          );
+        }
+
+        return upserted;
+      });
 
       if (existing) {
         duplicates += 1;

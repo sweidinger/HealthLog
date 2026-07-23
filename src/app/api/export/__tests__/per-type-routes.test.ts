@@ -16,6 +16,7 @@ vi.mock("@/lib/db", () => ({
     medication: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
+    nutrientIntakeDay: { findMany: vi.fn().mockResolvedValue([]) },
     // v1.15.0 — cycle tables read by the full-backup helper.
     cycleProfile: { findUnique: vi.fn() },
     menstrualCycle: { findMany: vi.fn() },
@@ -70,6 +71,9 @@ function mkReq(url: string): NextRequest {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // `resetAllMocks` clears the inline default, and the full-backup payload
+  // builder reads this unconditionally.
+  vi.mocked(prisma.nutrientIntakeDay.findMany).mockResolvedValue([] as never);
 });
 
 afterEach(() => {

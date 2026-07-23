@@ -38,7 +38,7 @@ const hoisted = vi.hoisted(() => ({
   apnsSendMock: vi.fn(),
   apnsShutdownMock: vi.fn(),
   webPushSetVapidDetailsMock: vi.fn(),
-  webPushSendNotificationMock: vi.fn(),
+  webPushGenerateRequestDetailsMock: vi.fn(),
   sendTelegramMessageMock: vi.fn(),
   deleteTelegramMessageMock: vi.fn(),
 }));
@@ -111,13 +111,23 @@ vi.mock("@/lib/notifications/vapid-config", () => ({
   }),
 }));
 
+// The sender signs + encrypts via `generateRequestDetails` and dials through
+// `safeFetch` (pinned dispatcher) rather than letting web-push run its own
+// `https.request`, so the dial is interceptable by the global fetch stub.
+const webPushRequestDetails = () => ({
+  endpoint: "https://example.test/push",
+  method: "POST",
+  headers: {},
+  body: null,
+});
+
 vi.mock("web-push", () => ({
   default: {
     setVapidDetails: hoisted.webPushSetVapidDetailsMock,
-    sendNotification: hoisted.webPushSendNotificationMock,
+    generateRequestDetails: hoisted.webPushGenerateRequestDetailsMock,
   },
   setVapidDetails: hoisted.webPushSetVapidDetailsMock,
-  sendNotification: hoisted.webPushSendNotificationMock,
+  generateRequestDetails: hoisted.webPushGenerateRequestDetailsMock,
 }));
 
 vi.mock("@/lib/telegram", () => ({
@@ -330,7 +340,12 @@ describe("recordPushAttempt — WEB_PUSH sender", () => {
         auth: "enc(a)",
       },
     ] as never);
-    hoisted.webPushSendNotificationMock.mockResolvedValue(undefined);
+    hoisted.webPushGenerateRequestDetailsMock.mockReturnValue(
+      webPushRequestDetails(),
+    );
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, { status: 201 }),
+    );
 
     const outcome = await sendViaWebPush("user-1", {
       userId: "user-1",
@@ -379,7 +394,12 @@ describe("recordPushAttempt — WEB_PUSH sender", () => {
         auth: "enc(a)",
       },
     ] as never);
-    hoisted.webPushSendNotificationMock.mockResolvedValue(undefined);
+    hoisted.webPushGenerateRequestDetailsMock.mockReturnValue(
+      webPushRequestDetails(),
+    );
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, { status: 201 }),
+    );
     vi.mocked(prisma.pushAttempt.create).mockRejectedValue(
       new Error("connection refused"),
     );

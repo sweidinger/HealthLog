@@ -29,6 +29,7 @@ export interface FullBackupCounts extends RecordsBackupCounts {
   moodEntries: number;
   cycles: number;
   cycleDayLogs: number;
+  nutrientDays: number;
 }
 
 export interface FullBackupResult {
@@ -59,6 +60,7 @@ export async function buildFullBackupPayload(
     moodEntries,
     cycle,
     records,
+    nutrientDays,
   ] = await Promise.all([
     disasterRecovery
       ? prisma.appSettings.findUnique({ where: { id: "singleton" } })
@@ -164,6 +166,23 @@ export async function buildFullBackupPayload(
     }),
     buildRecordsBackupSection(prisma, userId, {
       purpose: disasterRecovery ? "disaster-recovery" : "portable-export",
+    }),
+    // Nutrient day totals were absent from every export path, which
+    // contradicted the schema's own reason for denormalising the unit column
+    // ("rows stay self-describing in exports even if the catalog ever drifts").
+    // `source` is part of the composite PK, so it has to ride along or a
+    // restore cannot tell a manual water entry from a synced day total. The
+    // table carries no tombstone, so both purposes read the same shape.
+    prisma.nutrientIntakeDay.findMany({
+      where: { userId },
+      select: {
+        day: true,
+        nutrient: true,
+        amount: true,
+        unit: true,
+        source: true,
+      },
+      orderBy: [{ day: "desc" }, { nutrient: "asc" }],
     }),
   ]);
 
@@ -290,6 +309,13 @@ export async function buildFullBackupPayload(
     familyHistory: records.familyHistory,
     workouts: records.workouts,
     documents: records.documents,
+    nutrientDays: nutrientDays.map((n) => ({
+      day: n.day,
+      nutrient: n.nutrient,
+      amount: n.amount,
+      unit: n.unit,
+      source: n.source,
+    })),
     manifest: records.manifest,
   };
 
@@ -302,6 +328,7 @@ export async function buildFullBackupPayload(
       moodEntries: moodEntries.length,
       cycles: cycle.cycles.length,
       cycleDayLogs: cycle.cycleDayLogs.length,
+      nutrientDays: nutrientDays.length,
       ...countRecordsBackupSection(records),
     },
   };

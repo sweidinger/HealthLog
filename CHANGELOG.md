@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [1.32.6] — 2026-07-23
+
+Hardening and data-integrity fixes that were reviewed earlier and are now folded
+into the trunk.
+
+- **Outbound Web Push dials through the guarded network path.** A push endpoint
+  now goes through the same safeFetch wrapper the rest of the app uses, so an
+  operator-configured endpoint cannot be pointed at an internal address.
+- **A bulk mood edit saves all at once.** The mood rows and their tag links are
+  written in one transaction, so a failure part way through no longer leaves a
+  partial save.
+- **Nutrient entries are bounded on write and included in the backup.** Values
+  are range-checked when saved, and the per-day nutrient records now travel with
+  the full backup and restore.
+- **Every response path carries the baseline security headers**, including the
+  early returns that used to skip them.
+- **Provider re-sync tolerates an empty token-refresh body.** Oura, Polar, and
+  Fitbit treat an empty body as transient rather than a hard failure, so a
+  reconnect is not lost to a blank response.
+- **The Coach reply stream aborts cleanly when you navigate away**, and the
+  daily metric series carries its own min and max.
+- Also folded in: the WebAuthn relying-party origin gating (localhost only in
+  development), the medication-compliance point-window bound, a request-time
+  future-date bound on the medication-intake import, and pinned regression tests
+  for the snapshot-cache tenant key, the GlitchTip path-secret redaction, and the
+  Withings credentials delete.
+
+No migrations. No breaking changes.
+
 ## [1.32.5] — 2026-07-23
 
 - **Browser SSO sign-in no longer fails on a duplicated callback.** With the
