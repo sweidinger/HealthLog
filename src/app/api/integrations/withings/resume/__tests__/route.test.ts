@@ -44,13 +44,6 @@ interface ApiEnvelope<T> {
   error: string | null;
 }
 
-function emptyRequest(): Request {
-  return new Request("http://localhost/api/integrations/withings/resume", {
-    method: "POST",
-    headers: { "content-length": "0" },
-  });
-}
-
 beforeEach(() => {
   vi.mocked(resumeIntegrationFromPark).mockReset();
   vi.mocked(checkRateLimit).mockResolvedValue({

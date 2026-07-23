@@ -183,3 +183,64 @@ describe("PATCH /api/medications/[id]/inventory/[itemId] — unitsRemaining stoc
     expect(res.status).toBe(422);
   });
 });
+
+describe("PATCH /api/medications/[id]/inventory/[itemId] — carton labelling", () => {
+  it("updates manufacturer + doseStrength when supplied", async () => {
+    vi.mocked(prisma.medicationInventoryItem.update).mockResolvedValue({
+      id: "i1",
+      state: "ACTIVE",
+    } as never);
+
+    const res = await PATCH(
+      patchReq({
+        manufacturer: "Example Pharma",
+        doseStrength: "5 mg/0.5 ml",
+      }),
+      ROUTE_CTX,
+    );
+
+    expect(res.status).toBe(200);
+    const arg = vi.mocked(prisma.medicationInventoryItem.update).mock
+      .calls[0]?.[0] as unknown as {
+      data: Record<string, unknown>;
+    };
+    expect(arg.data.manufacturer).toBe("Example Pharma");
+    expect(arg.data.doseStrength).toBe("5 mg/0.5 ml");
+  });
+
+  it("leaves both untouched when the request omits them", async () => {
+    // Absent must mean "I have nothing to say", never "blank it" — a client
+    // that does not know the fields must not wipe what another populated.
+    vi.mocked(prisma.medicationInventoryItem.update).mockResolvedValue({
+      id: "i1",
+      state: "ACTIVE",
+    } as never);
+
+    const res = await PATCH(patchReq({ unitsRemaining: 2 }), ROUTE_CTX);
+
+    expect(res.status).toBe(200);
+    const arg = vi.mocked(prisma.medicationInventoryItem.update).mock
+      .calls[0]?.[0] as unknown as {
+      data: Record<string, unknown>;
+    };
+    expect("manufacturer" in arg.data).toBe(false);
+    expect("doseStrength" in arg.data).toBe(false);
+  });
+
+  it("clears a value on an explicit null", async () => {
+    vi.mocked(prisma.medicationInventoryItem.update).mockResolvedValue({
+      id: "i1",
+      state: "ACTIVE",
+    } as never);
+
+    const res = await PATCH(patchReq({ manufacturer: null }), ROUTE_CTX);
+
+    expect(res.status).toBe(200);
+    const arg = vi.mocked(prisma.medicationInventoryItem.update).mock
+      .calls[0]?.[0] as unknown as {
+      data: Record<string, unknown>;
+    };
+    expect(arg.data.manufacturer).toBeNull();
+    expect("doseStrength" in arg.data).toBe(false);
+  });
+});

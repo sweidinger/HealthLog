@@ -2,6 +2,287 @@
 
 ## [Unreleased]
 
+## [1.32.0] — 2026-07-22
+
+- **Provider ingestion and daily reactions now preserve the correct identity.**
+  Arrival reactions are bound to the exact marker revision, workout selection
+  matches field donors to the correct surviving session, long-range buckets
+  honor the user's timezone, MCP pages stay stable, and one Withings
+  subscription repair can no longer block fallback polling for other users.
+- **Large reads and writes are bounded end to end.** Measurement exports stream
+  in pages without splitting sleep sessions, oversized projections cannot evict
+  the shared cache, dense reports and metric series use database aggregation,
+  upload reads have byte, time, and concurrency limits, full-history backfills
+  share admission control, and medication imports use durable chunks with
+  resumable, bounded final rollups.
+- **Capture and history flows are complete on mobile and desktop.** Workout
+  history loads beyond the first page, metric pages open preselected capture
+  forms and return to their origin, failed water submissions retain their draft,
+  and confirmed discards clear it.
+- **Interactive forms share one safe dismissal contract.** Dirty forms require
+  confirmation across tracked Back and Forward traversals, Apple Health setup
+  exposes successful native syncs, document selection is consumed on Coach
+  dismissal but preserved across full-page Coach navigation, conversation
+  titles can be renamed with rollback, and hidden tabs refresh meaningful
+  server state.
+- **Accessibility coverage now exercises representative authenticated routes,
+  themes, dialogs, and sheets.** Small text keeps compliant contrast, OCR uses a
+  visible labeled control, workout sections use real headings, and compact
+  actions retain 44-pixel touch targets.
+- **Client and API boundaries are explicit.** Localized stable error codes cover
+  measurement, mood, lab, and onboarding failures; client fetches and query
+  keys are lint-enforced; AI overrides are documented; and large Coach,
+  report, target, and provider modules now use one-way focused builders.
+
+- **Production image processing uses the patched Sharp 0.35 runtime.** This
+  closes the current high-severity libvips advisory chain inherited through
+  Next.js while retaining verified production-build compatibility.
+
+Migrations `0264_whoop_owner_identity`, `0265_withings_subscription_state`, and
+`0266_medication_intake_import_jobs`. No breaking changes.
+
+## [1.31.8] — 2026-07-21
+
+- **MCP search cursors keep lab results stable across pages.** Distinct analyte
+  names are ordered before offset pagination, preventing repeated or skipped
+  lab entries when a client follows `nextCursor`.
+- **Opening the medication wizard no longer risks clearing entered fields.**
+  The one-shot URL flag is removed without starting a second page navigation,
+  so slower browsers keep the active wizard instance and its form state.
+
+No migrations. No breaking changes.
+
+## [1.31.7] — 2026-07-20
+
+- **Current OpenAI reasoning models use their supported request contract.**
+  Official GPT-5, o1, o3, and o4 models receive `max_completion_tokens`
+  without unsupported `temperature` or `seed` fields; compatible custom
+  gateways retain the legacy parameters they advertise.
+- **Apple Health XML cumulative totals no longer add overlapping sources.**
+  Imports aggregate each source/day independently and select the highest
+  source subtotal, while explicit provenance prevents XML estimates or late
+  legacy samples from overwriting authoritative native HealthKit statistics.
+  Existing legacy aggregates can be repaired by re-uploading their archive.
+- **Every currently actionable medication reaches Today.** Equal-time doses no
+  longer collapse to one row, overdue doses win deterministic ties, and weekly
+  or custom intake windows use the scheduling engine's real availability
+  boundary. The shared digest fixes both the web start page and iOS Home.
+
+Migration `0263_apple_health_aggregate_authority`. No breaking changes.
+
+## [1.31.6] — 2026-07-21
+
+- **The hardened runtime image can run database migrations again.** The
+  isolated Prisma CLI now exposes its pinned `dotenv` and `prisma/config`
+  dependencies to the copied production configuration while package managers
+  remain absent from the final image.
+
+No migrations. No breaking changes.
+
+## [1.31.5] — 2026-07-21
+
+- **The production image no longer ships build-time package managers.** pnpm 11
+  verifies the lockfile under explicit build-script policy, npm and Corepack
+  are removed after migrations are prepared, and linked worktrees stay out of
+  local Docker build contexts.
+
+No migrations. No breaking changes.
+
+## [1.31.4] — 2026-07-21
+
+- **Web and background processes now start and recover predictably.** Invalid
+  encryption-key configuration fails before the service accepts traffic,
+  worker-only processes report their real health, connection limits are
+  divided safely across replicas, and provider backfills keep their bounded
+  queues during reconnects.
+- **Published images are reproducible and verified before promotion.** The
+  release pipeline builds one multi-architecture image, validates its digest,
+  startup, migrations, health, and reported version, and only then promotes
+  that exact artifact to production.
+- **CI now uses isolated, deterministic test environments.** Integration tests
+  receive their own database and cryptographic settings before application
+  code loads, worktrees install hooks consistently, and browser tests use the
+  intended application process on every platform.
+- **Concurrent iOS registrations no longer fail intermittently.** Device and
+  APNs notification-channel reconciliation now share one database lock and
+  transaction, so simultaneous first registration remains idempotent.
+
+No migrations. No breaking changes.
+
+## [1.31.3] — 2026-07-20
+
+- **Document summaries now stay in the language you chose.** The same account
+  language is used whether a summary is created in the background or requested
+  from the document sheet. A saved summary remains visible and can be replaced
+  with **Generate again** after you switch languages.
+- **The Coach composer has more room on phones.** The writing field now gets
+  its own line, with document and conversation actions below it and Send on the
+  right. The unreliable browser dictation button and its dead-end permission
+  states are gone.
+
+No migrations. No breaking changes.
+
+## [1.31.2] — 2026-07-20
+
+- **Provider imports now commit identity and progress atomically.** Withings,
+  WHOOP, Oura, Polar, Strava, and Apple Health reconcile external and natural
+  measurement identities under database locks, preserve tombstones, emit
+  arrivals only for genuine inserts, and advance cursors only after durable
+  writes. OAuth refresh-token rotation is serialized per user and provider.
+- **Webhook and import success now means the source data is durable.** moodLog
+  writes before acknowledging delivery, while Withings ECG callbacks enter a
+  durable queue with bounded retry and replay-safe processing. WHOOP backfills
+  commit bounded chunks without advancing failed resource cursors, and legacy
+  mood imports use deterministic, collision-free retry identities. Operational
+  JSON import failures are reported as failures instead of misleading
+  duplicate skips.
+- **Recovery is complete, exact, and owner-safe.** Canonical backups round-trip
+  every supported record class, including encrypted document content,
+  measurement reconciliation identities, and tombstones. Restore rejects
+  account mismatches before writing, validates backup enums at the boundary,
+  processes stable measurement IDs in bounded batches, and preserves recovery
+  integrity across both uploaded and off-host payloads.
+- **Device and mood edits no longer lose related state.** Same-user APNs
+  registrations merge transactionally without crossing account boundaries,
+  refresh-token bindings follow the surviving device, and mood edits preserve
+  rated factors unless the caller explicitly replaces them.
+- **Polar sync follows the current AccessLink collection API.** Collection
+  requests no longer include the obsolete user ID path segment, and current
+  activity, Nightly Recharge, cardio-load, sleep, and SpO2 response shapes are
+  normalized without losing stable measurement identity.
+- **The July dependency bundle is included.** PDF.js 6 now releases its loading
+  task correctly; Canvas 1.0, Radix UI 1.6.2, Tailwind CSS 4.3.3, the Tailwind
+  Prettier plugin 0.8.1, and setup-node 7 are integrated.
+
+No migrations. No breaking changes.
+
+## [1.31.1] — 2026-07-19
+
+- **Arrival events now follow committed inserts across every writer.** Provider
+  re-sync updates stay silent, partial Apple Health imports retain arrivals
+  from earlier committed batches, all newly inserted workouts emit, and sleep
+  refreshes distinguish new stages from updates. Web-only processes now retry
+  their bounded send-only queue connection instead of permanently losing
+  arrival jobs after one transient startup failure.
+- **Reaction and workout generation are single-spend operations.** Durable
+  database claims close worker races and provider-retry gaps, daily token
+  reservations are atomic and reconciled on every terminal path, and both
+  generation and display honor the user's Insights and Workouts module choices
+  plus server-managed consent.
+- **AI context is narrower and more accurate.** Arrival reactions use the
+  record that actually landed, completed sleep uses the reconstructed night
+  rather than one stage segment, user-authored lab fields are fenced as data,
+  workout comparisons use canonical sessions and dates, and every metric and
+  derived-score coach entry carries its exact supported scope.
+- **Dashboard state survives old and partial clients.** Saved comparison range
+  points and newly supported metric widgets are preserved, while Today
+  freshness remains aligned across local-day boundaries, DST, tab focus, and
+  split web/worker deployments.
+
+Three migrations (0260, 0261, 0262). No breaking changes.
+
+## [1.31.0] — "The record that reacts" — 2026-07-19
+
+A milestone release: the record now visibly responds when something lands,
+instead of waiting for a daily rollup to notice.
+
+- **Today shows what just came in.** A completed night's sleep, a workout, a
+  first weigh-in of the day — the home screen now carries a calm "just in"
+  note for a few hours after each one, and at most one written line a day per
+  kind, grounded in your own numbers. Nothing changes if you run without an
+  AI provider: the sentence is the garnish, not the feature — the arrival
+  itself still appears, including on an otherwise-empty record, and an open
+  dashboard refreshes it as soon as the tab becomes visible again. The
+  underlying change that makes this possible without new polling or a flood of
+  background work: every write path that can produce a genuinely new reading
+  now emits a single typed event, day-scoped and de-duplicated, that a mass
+  import or a provider re-sync produces none of — a ten-year import or a
+  month of catch-up sync stays silent, by construction, not by luck.
+- **A finished workout gets its own paragraph.** Opening a recent session now
+  shows a short, grounded read of that one activity — duration, effort,
+  where it sits against your own recent sessions for the sport — with no
+  training advice and no target zones. It is generated once, the first time
+  you open a fresh session, never on re-sync and never for older workouts
+  already in your record.
+- **"Ask why" reaches every read-only card.** Every per-metric status card,
+  every derived-score page, and a finished workout now carries a way straight
+  into the coach, pre-loaded with just that card's own data so the
+  conversation starts already grounded — not with a blank prompt.
+- **The lab-marker card and the offline metric texts speak with the same
+  voice as everything else** — meaning first, in your own language across
+  all six locales, checked by an automated tone pass that now runs on every
+  change to these surfaces so this kind of drift gets caught before it ships
+  again.
+- **The dashboard layout stops discarding a comparison choice on save,** and
+  four clinical widgets stop disappearing from a saved layout — both from a
+  save made by a client that does not know those particular fields yet.
+- **Mood and BMI reach the app's home screen**, and a medication pen can now
+  carry the maker and printed strength that show up in the native pen list.
+- **Every new AI call this release can cause is metered and bounded**: a
+  daily cap per kind, a duplicate-content check that makes a re-post free,
+  and a token reservation that is always reconciled, including on every
+  failure path — the same discipline the rest of the AI surface already
+  holds to.
+
+Two migrations this release (0257, 0259); an additional dashboard-widget
+migration carried over from the prior line. No breaking changes.
+
+## [1.30.35] — 2026-07-19
+
+- **The metric texts you see without an AI provider now speak your
+  language.** They shipped in German and English only; French, Spanish,
+  Italian and Polish fell through to English. These are what nine metric
+  cards render whenever no provider is reachable — no key configured, an
+  outage, a spent budget — so for those readers this text was the app's
+  voice, in the wrong language. Written per language rather than
+  translated: where a sentence could not be formed naturally, that
+  language got its own sentence.
+- **The lab-marker card leads with what a value means**, like every other
+  card already did. It was the last one still instructed to state the
+  number first.
+- **The response length for a metric assessment is set in one place**
+  again, instead of one card carrying its own inline pair.
+- **The fallback texts open on something honest** rather than on an
+  instruction, and the lab-marker card no longer shows the multi-metric
+  overview tip on a single value.
+
+No migrations. No breaking changes.
+
+## [1.30.34] — 2026-07-19
+
+- **Rearranging your dashboard no longer wipes the comparison baseline.**
+  A layout save from a client that does not know about that setting — the
+  app never sends it — silently reset it to "none". Every field of the
+  layout now has to declare whether an absent value means "clear it" or
+  "leave it alone", so the next field added cannot repeat this.
+- **Four clinical widgets stopped disappearing from a saved layout.**
+  Pain, grip strength, waist and waist-to-height were dropped by the save
+  as unknown, so a placed widget was lost every time.
+- **Mood and BMI reach the app's home screen.** Both existed in the
+  record but were absent from the summary the app reads, so those two
+  tiles could not be shown while every other one worked.
+- **A pen carries its manufacturer and printed strength.** Without them,
+  containers entered on the web could not be shown in the app's pen list.
+- **Destructive controls ask first.** Signing every other device out,
+  revoking a session, and revoking a trusted device fired on a single
+  tap. A sweep found two more with neither a confirmation nor an undo: a
+  Coach reminder and a travel entry. Deleting a document still does not
+  ask — it can be undone, which covers the mis-tap.
+- **Delete confirmations stop overclaiming.** Four of them promised the
+  deletion could not be undone while the same screen offered an undo.
+  Warnings that are wrong make the ones that are right easier to ignore.
+- **The sleep-debt figure is described correctly again.** The calculation
+  changed to a running balance that credits surplus in v1.19.0; the label
+  still said "cumulative shortfall". The wrong description had spread to
+  the Coach, which was reasoning about the number on the old definition,
+  and to the published API description.
+- **The glucose reference band can be chosen on the web.** The setting
+  already worked and already fed the Coach — nothing on the web set it.
+  It selects a reference range; it is not a diagnosis and is never
+  inferred from a reading.
+
+One migration (0256), additive. No breaking changes.
+
 ## [1.30.33] — 2026-07-19
 
 Security release. It ships on its own because it changes how a browser

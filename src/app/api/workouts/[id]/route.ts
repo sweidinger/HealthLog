@@ -29,8 +29,9 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { pickCanonicalWorkoutRows } from "@/lib/measurements/pick-canonical-workout-rows";
-import { requireModuleEnabled } from "@/lib/modules/gate";
+import { isModuleEnabled, requireModuleEnabled } from "@/lib/modules/gate";
 import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
+import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { buildWorkoutHrSeries } from "@/lib/workouts/hr-series";
 import {
   computeZones,
@@ -38,14 +39,10 @@ import {
   parseWhoopZoneDurations,
 } from "@/lib/workouts/zones";
 import { computeSplits } from "@/lib/workouts/splits";
+import { buildSportContext } from "@/lib/workouts/sport-context";
 import type { RouteCoordinate } from "@/lib/workouts/route-svg";
 
 type RouteParams = { params: Promise<{ id: string }> };
-
-/** Own-history lookback for the sport-average comparison line. */
-const SPORT_CONTEXT_LOOKBACK_DAYS = 180;
-/** Slim-row cap for the sport-average read. */
-const SPORT_CONTEXT_MAX_ROWS = 500;
 
 export const GET = apiHandler(
   async (request: NextRequest, { params }: RouteParams) => {
@@ -61,6 +58,7 @@ export const GET = apiHandler(
     // v1.18.0 B1 — gate the detail surface behind the workouts module.
     const gate = await requireModuleEnabled(user.id, "workouts");
     if (!gate.enabled) return gate.response;
+    const insightsEnabled = await isModuleEnabled(user.id, "insights");
 
     const row = await prisma.workout.findUnique({
       where: { id },
@@ -79,6 +77,11 @@ export const GET = apiHandler(
             sampleCount: true,
           },
         },
+        insight: insightsEnabled
+          ? {
+              select: { paragraphEncrypted: true, generatedAt: true },
+            }
+          : false,
       },
     });
 
@@ -183,6 +186,7 @@ export const GET = apiHandler(
       user.id,
       row.sportType,
       userRow?.sourcePriorityJson ?? null,
+      row.id,
     );
 
     const route = row.route
@@ -209,6 +213,26 @@ export const GET = apiHandler(
         }
       : null;
 
+    // Decrypt the stored paragraph. Fail-SOFT here and only here: `decrypt` is
+    // fail-closed by design, so a rotated-away key would otherwise turn the
+    // whole workout-detail page into a 500 over a garnish field. An
+    // undecryptable paragraph degrades to no card, exactly like a workout that
+    // never had one.
+    let aiInsight: { paragraph: string; generatedAt: string } | null = null;
+    if (insightsEnabled && row.insight) {
+      try {
+        aiInsight = {
+          paragraph: decryptFromBytes(row.insight.paragraphEncrypted),
+          generatedAt: row.insight.generatedAt.toISOString(),
+        };
+      } catch {
+        annotate({
+          action: { name: "workouts.detail.insight_undecryptable" },
+          meta: { workoutId: row.id },
+        });
+      }
+    }
+
     return apiSuccess({
       id: row.id,
       sportType: row.sportType,
@@ -233,12 +257,13 @@ export const GET = apiHandler(
       zones,
       splits,
       sportContext,
-      // Reserved Activity-Insight seam (strategic-concept Wave C, bet 5):
-      // always null today. The Phase-2 pg-boss job writes a cached
-      // paragraph onto the workout row and maps it here — the detail page
-      // already composes `{aiInsight ? <card/> : null}`, so the card
-      // mounts with zero layout rework.
-      aiInsight: null,
+      // The per-workout Activity Insight. A pure READ of a row the
+      // `workout-insight-generate` worker wrote when this workout landed —
+      // this route never generates, never enqueues, and never falls back to
+      // a provider. A workout with no row (every historical one, every
+      // re-synced one, every one on a provider-less install) serves null and
+      // the page's `{aiInsight ? <card/> : null}` renders nothing.
+      aiInsight,
       // v1.4.32 — when the requested id is a non-canonical twin the
       // caller can redirect to `canonicalId` to land on the cluster
       // winner. `canonicalId === id` when the requested row already
@@ -247,64 +272,3 @@ export const GET = apiHandler(
     });
   },
 );
-
-/**
- * The user's own recent average for a sport — rendered as one muted
- * comparison line. Cross-source twins are collapsed through
- * `pickCanonicalWorkoutRows()` first so a run recorded by two paired
- * watches counts once. Comparisons are to the user's own history only
- * (non-diagnostic standard).
- */
-async function buildSportContext(
-  userId: string,
-  sportType: string,
-  sourcePriorityJson: unknown,
-): Promise<{
-  count: number;
-  avgDurationSec: number;
-  avgDistanceM: number | null;
-  avgAvgHr: number | null;
-} | null> {
-  const since = new Date(
-    Date.now() - SPORT_CONTEXT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
-  );
-  const rows = await prisma.workout.findMany({
-    where: { userId, sportType, startedAt: { gte: since } },
-    orderBy: [{ startedAt: "asc" }, { id: "asc" }],
-    take: SPORT_CONTEXT_MAX_ROWS,
-    select: {
-      id: true,
-      source: true,
-      startedAt: true,
-      sportType: true,
-      durationSec: true,
-      totalDistanceM: true,
-      avgHeartRate: true,
-    },
-  });
-  const canonical = pickCanonicalWorkoutRows(rows, sourcePriorityJson);
-  if (canonical.length === 0) return null;
-
-  let durationSum = 0;
-  let distanceSum = 0;
-  let distanceCount = 0;
-  let hrSum = 0;
-  let hrCount = 0;
-  for (const r of canonical) {
-    durationSum += r.durationSec;
-    if (r.totalDistanceM != null) {
-      distanceSum += r.totalDistanceM;
-      distanceCount += 1;
-    }
-    if (r.avgHeartRate != null) {
-      hrSum += r.avgHeartRate;
-      hrCount += 1;
-    }
-  }
-  return {
-    count: canonical.length,
-    avgDurationSec: Math.round(durationSum / canonical.length),
-    avgDistanceM: distanceCount > 0 ? distanceSum / distanceCount : null,
-    avgAvgHr: hrCount > 0 ? Math.round(hrSum / hrCount) : null,
-  };
-}

@@ -63,6 +63,10 @@ export function LayoutCoachMount() {
       // "Ask the Coach" action opens the REAL fenced conversation in the drawer
       // scoped to that document (maximizing then preserves the scope).
       documentId={launch.documentId}
+      // v1.31.0 — carry the workout scope so the workout-detail "Ask why"
+      // action opens a conversation whose first turn reads that session's own
+      // numbers.
+      workoutId={launch.workoutId}
     />
   );
 }

@@ -15,6 +15,10 @@ const {
   recordSyncFailure,
   recordSyncSuccess,
   isReauthRequired,
+  emitArrivalMock,
+  reconcileMock,
+  recomputeBucketsMock,
+  invalidateStatusMock,
 } = vi.hoisted(() => ({
   prismaMock: {
     whoopConnection: {
@@ -24,9 +28,13 @@ const {
       findMany: vi.fn(),
     },
     measurement: {
-      upsert: vi.fn(),
+      createManyAndReturn: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
     },
     $executeRaw: vi.fn(),
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn(),
   },
   refreshAccessTokenMock: vi.fn(),
   fetchRecoveriesMock: vi.fn(),
@@ -34,6 +42,14 @@ const {
   recordSyncSuccess: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
   isReauthRequired: vi.fn<(...a: unknown[]) => Promise<boolean>>(
     async () => false,
+  ),
+  reconcileMock: vi.fn(),
+  emitArrivalMock: vi.fn(),
+  recomputeBucketsMock: vi.fn<(...a: unknown[]) => Promise<void>>(
+    async () => {},
+  ),
+  invalidateStatusMock: vi.fn<(...a: unknown[]) => Promise<void>>(
+    async () => {},
   ),
 }));
 
@@ -53,6 +69,11 @@ vi.mock("../client", async (orig) => {
   };
 });
 
+vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
+  reconcileExternalMeasurement: reconcileMock,
+  MeasurementReconciliationError: class extends Error {},
+}));
+
 vi.mock("../credentials", () => ({
   getUserWhoopCredentials: vi.fn(async () => ({
     clientId: "cid",
@@ -69,11 +90,17 @@ vi.mock("@/lib/integrations/status", () => ({
 vi.mock("@/lib/rollups/measurement-rollups", () => ({
   collapseToTypeDayKeys: (rows: Array<{ type: string; measuredAt: Date }>) =>
     rows.map((r) => ({ type: r.type, measuredAt: r.measuredAt })),
-  recomputeBucketsForMeasurement: vi.fn(async () => {}),
+  recomputeBucketsForMeasurement: (...a: unknown[]) =>
+    recomputeBucketsMock(...a),
 }));
 
 vi.mock("@/lib/insights/comprehensive-generate", () => ({
-  invalidateStatusInsightsForTypes: vi.fn(async () => {}),
+  invalidateStatusInsightsForTypes: (...a: unknown[]) =>
+    invalidateStatusMock(...a),
+}));
+
+vi.mock("@/lib/arrivals/measurement-emit", () => ({
+  emitInsertedMeasurementArrivals: emitArrivalMock,
 }));
 
 vi.mock("@/lib/logging/context", () => ({
@@ -91,13 +118,31 @@ import {
   WHOOP_DEFAULT_OVERLAP_MS,
   WHOOP_FULL_SYNC_ANCHOR,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
-} from "../sync";
+} from "../sync-core";
 import { WhoopApiError } from "../response-classifier";
 import { syncUserRecovery } from "../sync-recovery";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prismaMock.$transaction.mockImplementation(
+    async (run: (tx: unknown) => unknown) => run(prismaMock),
+  );
+  reconcileMock.mockImplementation(
+    async (
+      _tx: unknown,
+      input: { type: string; measuredAt: Date; externalId: string },
+    ) => ({
+      status: "inserted",
+      row: {
+        id: `inserted:${input.externalId}`,
+        type: input.type,
+        measuredAt: input.measuredAt,
+        externalId: input.externalId,
+      },
+    }),
+  );
   isReauthRequired.mockResolvedValue(false);
+  emitArrivalMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -119,7 +164,7 @@ describe("getValidToken — rotating refresh", () => {
       refresh_token: "new-refresh",
       expires_in: 3600,
     });
-    prismaMock.whoopConnection.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.whoopConnection.update.mockResolvedValue({});
 
     const result = await getValidToken("user1");
 
@@ -128,15 +173,14 @@ describe("getValidToken — rotating refresh", () => {
       clientId: "cid",
       clientSecret: "csecret",
     });
-    const updateArg = prismaMock.whoopConnection.updateMany.mock.calls[0]![0];
-    // CAS guard: scoped to the connection AND the exact stored ciphertext spent.
+    const updateArg = prismaMock.whoopConnection.update.mock.calls[0]![0];
     expect(updateArg.where.id).toBe("conn1");
-    expect(updateArg.where.refreshToken).toBe("enc(old-refresh)");
     expect(updateArg.data.accessToken).toBe("enc(new-access)");
     expect(updateArg.data.refreshToken).toBe("enc(new-refresh)");
+    expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(1);
   });
 
-  it("reuses the peer's rotated token on a lost CAS race (no spurious reauth)", async () => {
+  it("re-reads token state under an advisory lock and reuses a peer winner", async () => {
     prismaMock.whoopConnection.findUnique
       .mockResolvedValueOnce({
         id: "conn1",
@@ -145,20 +189,26 @@ describe("getValidToken — rotating refresh", () => {
         refreshToken: "enc(old-refresh)",
         tokenExpiresAt: new Date(Date.now() - 1000),
       })
-      // Re-read after the lost race surfaces the peer's freshly rotated access.
-      .mockResolvedValueOnce({ accessToken: "enc(peer-access)" });
-    refreshAccessTokenMock.mockResolvedValue({
-      access_token: "new-access",
-      refresh_token: "new-refresh",
-      expires_in: 3600,
-    });
-    // A concurrent sync already rotated the token → zero rows match the guard.
-    prismaMock.whoopConnection.updateMany.mockResolvedValue({ count: 0 });
+      .mockResolvedValueOnce({
+        id: "conn1",
+        whoopUserId: "42",
+        accessToken: "enc(winner-access)",
+        refreshToken: "enc(winner-refresh)",
+        tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      });
 
     const result = await getValidToken("user1");
 
-    expect(result?.accessToken).toBe("peer-access");
-    expect(recordSyncFailure).not.toHaveBeenCalled();
+    expect(result?.accessToken).toBe("winner-access");
+    expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(refreshAccessTokenMock).not.toHaveBeenCalled();
+    expect(prismaMock.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        maxWait: expect.any(Number),
+        timeout: expect.any(Number),
+      }),
+    );
   });
 
   it("returns the stored token without refresh when not near expiry", async () => {
@@ -173,6 +223,20 @@ describe("getValidToken — rotating refresh", () => {
     const result = await getValidToken("user1");
 
     expect(result?.accessToken).toBe("live-access");
+    expect(refreshAccessTokenMock).not.toHaveBeenCalled();
+    expect(prismaMock.whoopConnection.update).not.toHaveBeenCalled();
+  });
+
+  it("treats an ownership-loser connection with no WHOOP user id as unavailable", async () => {
+    prismaMock.whoopConnection.findUnique.mockResolvedValue({
+      id: "conn1",
+      whoopUserId: null,
+      accessToken: "enc(live-access)",
+      refreshToken: "enc(live-refresh)",
+      tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+
+    await expect(getValidToken("user1")).resolves.toBeNull();
     expect(refreshAccessTokenMock).not.toHaveBeenCalled();
     expect(prismaMock.whoopConnection.update).not.toHaveBeenCalled();
   });
@@ -336,61 +400,287 @@ describe("markResourceSynced — atomic, independent cursor advance", () => {
   });
 });
 
-describe("upsertWhoopMeasurements — idempotent upsert", () => {
-  it("routes each reading through the (userId,type,source,externalId) key", async () => {
-    prismaMock.measurement.upsert.mockResolvedValue({});
-
-    const n = await upsertWhoopMeasurements("user1", [
-      {
-        type: "RECOVERY_SCORE",
-        value: 71,
-        unit: "score",
-        measuredAt: new Date("2026-06-01T08:00:00Z"),
-        externalId: "sleep-uuid:recovery",
-      },
-      {
-        type: "HRV_RMSSD",
-        value: 64,
-        unit: "ms",
-        measuredAt: new Date("2026-06-01T08:00:00Z"),
-        externalId: "sleep-uuid:hrv_rmssd",
-      },
-    ]);
-
-    expect(n).toBe(2);
-    const firstWhere =
-      prismaMock.measurement.upsert.mock.calls[0]![0].where
-        .userId_type_source_externalId;
-    expect(firstWhere).toEqual({
-      userId: "user1",
-      type: "RECOVERY_SCORE",
-      source: "WHOOP",
+describe("upsertWhoopMeasurements — exact insertion results", () => {
+  const measuredAt = new Date("2026-06-01T08:00:00.000Z");
+  const readings = [
+    {
+      type: "RECOVERY_SCORE" as const,
+      value: 71,
+      unit: "score",
+      measuredAt,
       externalId: "sleep-uuid:recovery",
+    },
+    {
+      type: "HRV_RMSSD" as const,
+      value: 64,
+      unit: "ms",
+      measuredAt,
+      externalId: "sleep-uuid:hrv_rmssd",
+    },
+  ];
+
+  it("emits only rows returned by the insert statement and updates a raced duplicate", async () => {
+    const inserted = {
+      id: "new-1",
+      type: "RECOVERY_SCORE",
+      measuredAt,
+      externalId: readings[0].externalId,
+    };
+    reconcileMock
+      .mockResolvedValueOnce({ status: "inserted", row: inserted })
+      .mockResolvedValueOnce({
+        status: "updated",
+        row: {
+          id: "existing-2",
+          type: "HRV_RMSSD",
+          measuredAt,
+          externalId: readings[1].externalId,
+        },
+      });
+    const onInserted = vi.fn();
+
+    expect(
+      await upsertWhoopMeasurements("user1", readings, { onInserted }),
+    ).toBe(2);
+
+    expect(onInserted).toHaveBeenCalledWith([inserted]);
+    expect(emitArrivalMock).toHaveBeenCalledWith("user1", [inserted], "whoop");
+    expect(reconcileMock.mock.calls[1]![1]).toMatchObject({
+      userId: "user1",
+      type: "HRV_RMSSD",
+      source: "WHOOP",
+      externalId: readings[1].externalId,
     });
+    expect(prismaMock.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        maxWait: expect.any(Number),
+        timeout: expect.any(Number),
+      }),
+    );
   });
 
-  it("a re-post with the same externalId is one upsert, not two rows", async () => {
-    prismaMock.measurement.upsert.mockResolvedValue({});
-    const reading = {
+  it("does not pre-probe and still emits a genuine insert", async () => {
+    prismaMock.measurement.findMany.mockRejectedValue(
+      new Error("probe unavailable"),
+    );
+    const inserted = {
+      id: "new-1",
       type: "RECOVERY_SCORE",
-      value: 60,
-      unit: "score",
-      measuredAt: new Date("2026-06-01T08:00:00Z"),
-      externalId: "sleep-uuid:recovery",
+      measuredAt,
+      externalId: readings[0].externalId,
     };
+    reconcileMock.mockResolvedValueOnce({ status: "inserted", row: inserted });
 
-    await upsertWhoopMeasurements("user1", [reading]);
-    await upsertWhoopMeasurements("user1", [{ ...reading, value: 75 }]);
+    await upsertWhoopMeasurements("user1", [readings[0]]);
 
-    // Two upsert calls, both against the SAME key — the DB collapses them.
-    expect(prismaMock.measurement.upsert).toHaveBeenCalledTimes(2);
-    const a =
-      prismaMock.measurement.upsert.mock.calls[0]![0].where
-        .userId_type_source_externalId;
-    const b =
-      prismaMock.measurement.upsert.mock.calls[1]![0].where
-        .userId_type_source_externalId;
-    expect(a).toEqual(b);
+    expect(prismaMock.measurement.findMany).not.toHaveBeenCalled();
+    expect(emitArrivalMock).toHaveBeenCalledWith("user1", [inserted], "whoop");
+  });
+
+  it("updates a re-post in place without reporting another insert", async () => {
+    reconcileMock.mockResolvedValueOnce({
+      status: "updated",
+      row: {
+        id: "existing-1",
+        type: "RECOVERY_SCORE",
+        measuredAt,
+        externalId: readings[0].externalId,
+      },
+    });
+
+    expect(await upsertWhoopMeasurements("user1", [readings[0]])).toBe(1);
+
+    expect(emitArrivalMock).toHaveBeenCalledWith("user1", [], "whoop");
+    expect(reconcileMock.mock.calls[0]![1]).toMatchObject({
+      value: 71,
+      externalId: readings[0].externalId,
+    });
+  });
+});
+
+describe("syncUserRecovery — durable cursor ordering", () => {
+  const recovery = {
+    cycle_id: 1,
+    sleep_id: "sleep-uuid",
+    user_id: 42,
+    created_at: "2026-06-01T06:00:00.000Z",
+    updated_at: "2026-06-01T07:00:00.000Z",
+    score_state: "SCORED",
+    score: {
+      user_calibrating: false,
+      recovery_score: 66,
+      resting_heart_rate: 52,
+      hrv_rmssd_milli: 48.7,
+      spo2_percentage: 97,
+      skin_temp_celsius: 33.4,
+    },
+  };
+
+  beforeEach(() => {
+    prismaMock.whoopConnection.findUnique.mockResolvedValue({
+      id: "conn1",
+      whoopUserId: "42",
+      accessToken: "enc(live-access)",
+      refreshToken: "enc(live-refresh)",
+      tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      lastSyncedAt: new Date("2026-06-01T00:00:00Z"),
+      resourceCursors: {
+        recovery: "2026-06-01T00:00:00.000Z",
+      },
+    });
+    fetchRecoveriesMock.mockResolvedValue([recovery]);
+  });
+
+  it("keeps the cursor unchanged when any represented measurement write fails", async () => {
+    reconcileMock
+      .mockResolvedValueOnce({
+        status: "inserted",
+        row: {
+          id: "inserted:first",
+          type: "RECOVERY_SCORE",
+          measuredAt: new Date(recovery.updated_at),
+          externalId: "sleep-uuid:recovery_score",
+        },
+      })
+      .mockResolvedValueOnce({
+        status: "failed",
+        reason: "db_error",
+        error: new Error("injected write failure"),
+      });
+
+    await expect(syncUserRecovery("user1")).rejects.toThrow();
+
+    expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it("keeps earlier chunks durable and resumes without duplicate rows after a later chunk fails", async () => {
+    const records = Array.from({ length: 21 }, (_, index) => ({
+      ...recovery,
+      cycle_id: index + 1,
+      sleep_id: `sleep-${index.toString().padStart(2, "0")}`,
+    }));
+    fetchRecoveriesMock.mockResolvedValue(records);
+
+    type StoredRow = {
+      id: string;
+      type: string;
+      measuredAt: Date;
+      externalId: string;
+    };
+    type TransactionState = { rows: Map<string, StoredRow> };
+
+    let committedRows = new Map<string, StoredRow>();
+    let committedInsertCount = 0;
+    let failLaterChunk = true;
+
+    prismaMock.$transaction.mockImplementation(
+      async (run: (tx: TransactionState) => unknown) => {
+        const stagedRows = new Map(committedRows);
+        const result = await run({ rows: stagedRows });
+        committedInsertCount += [...stagedRows.keys()].filter(
+          (key) => !committedRows.has(key),
+        ).length;
+        committedRows = stagedRows;
+        return result;
+      },
+    );
+    reconcileMock.mockImplementation(
+      async (
+        tx: TransactionState,
+        input: { type: string; measuredAt: Date; externalId: string },
+      ) => {
+        if (failLaterChunk && input.externalId === "sleep-20:recovery") {
+          return {
+            status: "failed",
+            reason: "db_error",
+            error: new Error("injected later-chunk failure"),
+          };
+        }
+
+        const existing = tx.rows.get(input.externalId);
+        const row = {
+          id: existing?.id ?? `row:${input.externalId}`,
+          type: input.type,
+          measuredAt: input.measuredAt,
+          externalId: input.externalId,
+        };
+        tx.rows.set(input.externalId, row);
+        return { status: existing ? "updated" : "inserted", row };
+      },
+    );
+
+    await expect(syncUserRecovery("user1")).rejects.toThrow();
+
+    expect(committedRows.size).toBeGreaterThan(0);
+    expect(committedRows.size).toBeLessThan(105);
+    expect(prismaMock.$transaction.mock.calls.length).toBeGreaterThan(1);
+    expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
+    expect(recomputeBucketsMock).toHaveBeenCalled();
+    expect(invalidateStatusMock).toHaveBeenCalledTimes(1);
+
+    failLaterChunk = false;
+    await expect(syncUserRecovery("user1")).resolves.toBe(105);
+
+    const expectedExternalIds = records.flatMap(({ sleep_id }) =>
+      ["recovery", "hrv_rmssd", "rhr", "spo2", "skin_temp"].map(
+        (fieldTag) => `${sleep_id}:${fieldTag}`,
+      ),
+    );
+    const emittedExternalIds = emitArrivalMock.mock.calls.flatMap((call) =>
+      (
+        call[1] as Array<{
+          externalId: string;
+        }>
+      ).map((row) => row.externalId),
+    );
+
+    expect(committedRows).toHaveLength(105);
+    expect(committedInsertCount).toBe(105);
+    expect([...committedRows.keys()]).toEqual(expectedExternalIds);
+    expect(emittedExternalIds).toEqual(expectedExternalIds);
+    expect(invalidateStatusMock).toHaveBeenCalledTimes(2);
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it("advances after success and replay updates identities without new arrivals", async () => {
+    expect(await syncUserRecovery("user1")).toBe(5);
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
+
+    vi.clearAllMocks();
+    prismaMock.$transaction.mockImplementation(
+      async (run: (tx: unknown) => unknown) => run(prismaMock),
+    );
+    prismaMock.whoopConnection.findUnique.mockResolvedValue({
+      id: "conn1",
+      whoopUserId: "42",
+      accessToken: "enc(live-access)",
+      refreshToken: "enc(live-refresh)",
+      tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      lastSyncedAt: new Date("2026-06-01T00:00:00Z"),
+      resourceCursors: {
+        recovery: "2026-06-01T00:00:00.000Z",
+      },
+    });
+    fetchRecoveriesMock.mockResolvedValue([recovery]);
+    reconcileMock.mockImplementation(
+      async (
+        _tx: unknown,
+        input: { type: string; measuredAt: Date; externalId: string },
+      ) => ({
+        status: "updated",
+        row: {
+          id: `existing:${input.externalId}`,
+          type: input.type,
+          measuredAt: input.measuredAt,
+          externalId: input.externalId,
+        },
+      }),
+    );
+
+    expect(await syncUserRecovery("user1")).toBe(5);
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(emitArrivalMock).toHaveBeenCalledWith("user1", [], "whoop");
   });
 });
 

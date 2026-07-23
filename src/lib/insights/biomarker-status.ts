@@ -22,13 +22,15 @@
  */
 import { prisma } from "@/lib/db";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/base-system";
+import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import {
-  instructionLocale,
-  withOutputLanguage,
-} from "@/lib/ai/prompts/output-language";
+  getBiomarkerSystemPrompt,
+  getBiomarkerUserPrompt,
+} from "@/lib/ai/prompts/biomarker";
+import { openerArchetypeHint } from "@/lib/ai/prompts/opener-archetype";
 import type { Locale } from "@/lib/i18n/config";
 import { classifyReferenceRange } from "@/lib/labs/reference-range";
-import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
+import { getNoKeyBiomarkerStatusText } from "@/lib/insights/no-key-fallbacks";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
@@ -83,51 +85,6 @@ function insufficient(): BiomarkerStatusResult {
     updatedAt: null,
     insufficient: true,
   };
-}
-
-/**
- * Unlike every other assessment prompt in the family, this one does NOT
- * compose `getBaseSystemPrompt` — it is a self-contained inline scaffold. So
- * the reader's output-language directive, which the base prompt would have
- * carried, has to be appended here. When this prompt moves onto the shared
- * base scaffold the append collapses into the shared path and this call goes
- * away; until then it is the only thing making a non-de/en reader's language
- * explicit on this surface.
- *
- * The parameter is the full `Locale` rather than `SupportedLocale` so the
- * routing is correct the moment the pipeline stops collapsing fr/es/it/pl on
- * the way in; today's callers still pass a narrowed locale.
- */
-function getSystemPrompt(locale: Locale, markerName: string): string {
-  if (instructionLocale(locale) === "de") {
-    return [
-      `Du bist ein vorsichtiger, faktenbasierter Gesundheitsbegleiter und beurteilst den Laborwert „${markerName}" einer Person.`,
-      "Beziehe dich AUSSCHLIESSLICH auf die im Snapshot gelieferten Zahlen. Erfinde keine Werte, keine Diagnosen und keine Medikamente.",
-      "Schreibe 2 bis 4 ruhige Sätze in klarer Alltagssprache: nenne den aktuellen Wert und seinen Bezug zum Referenzbereich, ordne die Tendenz über die letzten Messungen ein und gib höchstens einen sachlichen Hinweis.",
-      "Keine Panikmache, keine Marketing-Sprache, keine Befehle. Bei auffälligen Werten verweise neutral auf eine ärztliche Einordnung.",
-      'Antworte als JSON-Objekt der Form { "summary": "…" } ohne weiteren Text.',
-    ].join(" ");
-  }
-  return withOutputLanguage(
-    [
-      `You are a careful, fact-based health companion assessing a person's lab marker "${markerName}".`,
-      "Use ONLY the figures provided in the snapshot. Do not invent values, diagnoses, or medications.",
-      "Write 2 to 4 calm sentences in plain language: state the current value and how it sits against the reference range, place the trend across recent readings, and add at most one factual pointer.",
-      "No alarmism, no marketing tone, no commands. For notably out-of-range values, refer neutrally to a clinician for interpretation.",
-      'Respond as a JSON object of the form { "summary": "…" } with no other text.',
-    ].join(" "),
-    locale,
-  );
-}
-
-function getUserPrompt(
-  snapshotJson: string,
-  todayKey: string,
-  locale: Locale,
-): string {
-  return instructionLocale(locale) === "de"
-    ? `Heutiges Datum: ${todayKey}. Beurteile den folgenden Laborwert-Snapshot:\n${snapshotJson}`
-    : `Today's date: ${todayKey}. Assess the following lab-marker snapshot:\n${snapshotJson}`;
 }
 
 /**
@@ -235,7 +192,7 @@ export async function generateBiomarkerStatus(args: {
     if (outcome.kind === "no-provider" || outcome.kind === "consent-missing") {
       return {
         hasProvider: false,
-        text: getNoKeyGeneralStatusText(locale),
+        text: getNoKeyBiomarkerStatusText(locale, marker.name),
         cached: true,
         updatedAt: null,
       };
@@ -341,16 +298,26 @@ export async function generateBiomarkerStatus(args: {
     userId: args.userId,
     cacheAction,
     consentSurface: "insights",
-    systemPrompt: getSystemPrompt(locale, marker.name),
-    userPrompt: getUserPrompt(snapshotJson, todayKey, locale),
-    temperature: 0.45,
-    maxTokens: 1000,
+    systemPrompt: getBiomarkerSystemPrompt(marker.name, locale as Locale),
+    userPrompt: getBiomarkerUserPrompt(
+      snapshotJson,
+      todayKey,
+      locale as Locale,
+      // The rotating opener hint the sibling cards carry, keyed per
+      // (user, marker, day) so consecutive markers do not all open alike.
+      openerArchetypeHint(
+        `${args.userId}:biomarker:${marker.id}:${todayKey}`,
+        locale as Locale,
+      ),
+    ),
+    temperature: AI_BUDGETS.statusArchetype.temperature,
+    maxTokens: AI_BUDGETS.statusArchetype.maxTokens,
   });
 
   if (outcome.kind === "none") {
     return {
       hasProvider: false,
-      text: getNoKeyGeneralStatusText(locale),
+      text: getNoKeyBiomarkerStatusText(locale, marker.name),
       cached: true,
       updatedAt: null,
     };
@@ -361,7 +328,7 @@ export async function generateBiomarkerStatus(args: {
       reason: outcome.kind,
       userId: args.userId,
       todayKey,
-      stubText: getNoKeyGeneralStatusText(locale),
+      stubText: getNoKeyBiomarkerStatusText(locale, marker.name),
     });
   }
 
@@ -377,7 +344,7 @@ export async function generateBiomarkerStatus(args: {
       reason: "screened",
       userId: args.userId,
       todayKey,
-      stubText: getNoKeyGeneralStatusText(locale),
+      stubText: getNoKeyBiomarkerStatusText(locale, marker.name),
     });
   }
   const text = screened.text;

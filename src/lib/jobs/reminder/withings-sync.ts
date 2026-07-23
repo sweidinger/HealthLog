@@ -8,11 +8,17 @@ import { type Job } from "pg-boss";
 import { fireAndForget } from "@/lib/logging/fire-and-forget";
 import { recordError, recordWithingsSync } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
-import { syncUserMeasurements } from "@/lib/withings/sync";
+import {
+  retryDueWithingsWebhookSubscriptions,
+  syncUserMeasurements,
+} from "@/lib/withings/sync";
 import { syncUserActivity } from "@/lib/withings/sync-activity";
 import { syncUserSleep } from "@/lib/withings/sync-sleep";
+import { syncUserEcg } from "@/lib/withings/sync-ecg";
+import type { WithingsEcgSyncPayload } from "@/lib/jobs/withings-ecg-queue";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { getWorkerPrisma } from "./shared";
+export type { WithingsEcgSyncPayload } from "@/lib/jobs/withings-ecg-queue";
 
 export interface WithingsSyncPayload {
   triggeredAt: string;
@@ -50,6 +56,13 @@ export async function handleWithingsFallbackSync(
     const prisma = getWorkerPrisma();
     try {
       recordWithingsSync();
+      try {
+        await retryDueWithingsWebhookSubscriptions();
+      } catch {
+        evt.addWarning(
+          "Withings subscription repair failed; continuing fallback sync",
+        );
+      }
       const connections = await prisma.withingsConnection.findMany({
         select: { userId: true },
       });
@@ -73,10 +86,8 @@ export async function handleWithingsFallbackSync(
               action: "reminder.satisfy.enqueue",
             });
           }
-        } catch (err) {
-          evt.addWarning(
-            `Fallback sync failed for user ${connection.userId}: ${err}`,
-          );
+        } catch {
+          evt.addWarning(`Fallback sync failed for user ${connection.userId}`);
         }
       }
 
@@ -86,6 +97,37 @@ export async function handleWithingsFallbackSync(
           users_synced: usersSynced,
           total: connections.length,
           measurements_imported: measurementsImported,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+/**
+ * Drain webhook-owned ECG events. A failed source read or write is allowed to
+ * reject the handler so pg-boss retains the job and applies its retry policy.
+ */
+export async function handleWithingsEcgSync(
+  jobs: Job<WithingsEcgSyncPayload>[],
+) {
+  await withBackgroundEvent("job.withings_ecg_sync", async (evt) => {
+    try {
+      let recordingsImported = 0;
+      for (const job of jobs) {
+        recordingsImported += await syncUserEcg(job.data.userId, {
+          startdate: job.data.startdate,
+          enddate: job.data.enddate,
+        });
+      }
+      evt.setBackground({
+        task_name: "job.withings_ecg_sync",
+        result: {
+          events_processed: jobs.length,
+          recordings_imported: recordingsImported,
         },
       });
     } catch (err) {
@@ -145,10 +187,8 @@ export async function handleWithingsActivitySync(
               action: "reminder.satisfy.enqueue",
             });
           }
-        } catch (err) {
-          evt.addWarning(
-            `Withings activity sync failed for user ${userId}: ${err}`,
-          );
+        } catch {
+          evt.addWarning(`Withings activity sync failed for user ${userId}`);
         }
       }
 
@@ -205,10 +245,8 @@ export async function handleWithingsSleepSync(
               action: "reminder.satisfy.enqueue",
             });
           }
-        } catch (err) {
-          evt.addWarning(
-            `Withings sleep sync failed for user ${userId}: ${err}`,
-          );
+        } catch {
+          evt.addWarning(`Withings sleep sync failed for user ${userId}`);
         }
       }
 

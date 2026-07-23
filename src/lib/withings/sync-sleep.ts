@@ -54,6 +54,10 @@ import {
   sweepStaleSleepSegments,
   type SleepSegmentSweep,
 } from "@/lib/sleep/sweep-stale-segments";
+import {
+  MeasurementReconciliationError,
+  reconcileExternalMeasurement,
+} from "@/lib/measurements/reconcile-external-measurement";
 
 import { hasActivityScope } from "./client";
 import {
@@ -402,135 +406,57 @@ export async function syncUserSleep(
   // persistent rollup tier can be re-folded at the end. See sync.ts for
   // the full rationale.
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
+  const insertedSleepMeasuredAts: Date[] = [];
   // Fresh segment externalIds per session id, driving the session-scoped
   // sweep below. Segments without a session id can't be bounded to one night
   // and are excluded (their `no-id` prefix would span every id-less night in
   // history, not just this fetch).
   const freshBySession = new Map<number, string[]>();
-  for (const segment of segments) {
-    const stage = mapWithingsSleepState(segment.state);
-    if (!stage) {
-      // State 4 (manual / synthetic marker) is ignored — see file
-      // header.
-      continue;
-    }
-    // `measuredAt` is the segment END (`enddate`). Every reader treats
-    // `measuredAt` as the END instant — `segmentOf` resolves the span as
-    // `start = measuredAt − value·60_000` (sleep-night.ts). Stamping the START
-    // here shifted the whole night one segment-length earlier; END is correct.
-    const measuredAt = new Date(segment.enddate * 1000);
-    const durationSec = Math.max(0, segment.enddate - segment.startdate);
-    // Canonical SLEEP_DURATION unit is minutes (Apple Health alignment,
-    // v1.4.23 schema note). Round so re-sync doesn't flip values on
-    // floating-point noise.
-    const minutes = Math.round(durationSec / 60);
+  await prisma.$transaction(
+    async (tx) => {
+      for (const segment of segments) {
+        const stage = mapWithingsSleepState(segment.state);
+        if (!stage) continue;
 
-    // Keyed by the segment's own START instant — a coordinate that is stable
-    // within a session — NOT a positional index. The old running index counted
-    // across the whole 30-day fetch window, so the sliding window renumbered
-    // every segment on each sync: the probe below never matched, the update
-    // branch was dead code, and a re-aggregated night inserted a second set of
-    // rows next to the first (the same double-count bug class Google Health
-    // fixed with its stable session anchor). Legacy indexed rows are swept by
-    // the session-scoped cleanup below, so the format change self-heals.
-    const externalId = `withings:sleep:${userId}:${segment.id ?? "no-id"}:${segment.startdate}`;
-    if (typeof segment.id === "number") {
-      const fresh = freshBySession.get(segment.id) ?? [];
-      fresh.push(externalId);
-      freshBySession.set(segment.id, fresh);
-    }
+        const measuredAt = new Date(segment.enddate * 1000);
+        const durationSec = Math.max(0, segment.enddate - segment.startdate);
+        const minutes = Math.round(durationSec / 60);
+        const externalId = `withings:sleep:${userId}:${segment.id ?? "no-id"}:${segment.startdate}`;
+        if (typeof segment.id === "number") {
+          const fresh = freshBySession.get(segment.id) ?? [];
+          fresh.push(externalId);
+          freshBySession.set(segment.id, fresh);
+        }
 
-    try {
-      // Key the re-sync lookup on the STABLE `externalId` (session id +
-      // segment start), not `measuredAt`. Withings re-aggregates a night
-      // between syncs, so a segment's `enddate` — and therefore its
-      // END-stamped `measuredAt` — shifts; keying on `measuredAt` would miss
-      // the prior row and then collide with the unique `externalId`, leaving
-      // the night stuck at the stale value. Update both `value` and
-      // `measuredAt`.
-      const existing = await prisma.measurement.findFirst({
-        where: {
-          userId,
-          type: SLEEP_TYPE,
-          source: "WITHINGS",
-          externalId,
-        },
-        select: { id: true },
-      });
-      if (existing) {
-        await prisma.measurement.update({
-          where: { id: existing.id },
-          // `deletedAt: null` is a no-op on a live row, a deliberate
-          // RESURRECTION on a tombstoned one — Withings is the source of
-          // truth for its own rows, so a re-fetched segment brings the row
-          // back (mirrors Google / Fitbit).
-          data: {
-            value: minutes,
-            measuredAt,
-            sleepStage: stage,
-            deletedAt: null,
-          },
-        });
-      } else {
-        // Natural-key rescue — mirrors the measure path's findFirst in
-        // `sync.ts`. When Withings re-scores a night it can shift a segment's
-        // START (its externalId) while the END (`measuredAt`) and the stage
-        // stay put: the externalId probe above then MISSES, but the 0055
-        // natural key `(userId, type, measuredAt, source, sleepStage)`
-        // (NULLS NOT DISTINCT) is already occupied by the prior row. A blind
-        // `create` P2002s on that key; the collision is swallowed by the catch
-        // below and the sweep then tombstones the old row — so the re-keyed
-        // segment is lost and, because a tombstoned row still holds the natural
-        // key, every later sync re-collides: the night wedges permanently (the
-        // "0055 erased re-keyed sleep" class). Probe the natural key
-        // (tombstone-inclusive — no `deletedAt` filter) and re-key that row in
-        // place, so a re-scored segment updates rather than colliding.
-        const naturalKeyRow = await prisma.measurement.findFirst({
-          where: {
+        const verdict = await reconcileExternalMeasurement(
+          tx,
+          {
             userId,
             type: SLEEP_TYPE,
-            source: "WITHINGS",
+            value: minutes,
+            unit: getUnitForType(SLEEP_TYPE),
             measuredAt,
+            source: "WITHINGS",
             sleepStage: stage,
+            externalId,
           },
-          select: { id: true },
-        });
-        if (naturalKeyRow) {
-          await prisma.measurement.update({
-            where: { id: naturalKeyRow.id },
-            // Re-key the surviving row onto the new START-based externalId and
-            // resurrect it if the sweep had tombstoned it. `measuredAt` and
-            // `sleepStage` already match by construction (they ARE the natural
-            // key we matched on), so only value + externalId + deletedAt move.
-            data: {
-              value: minutes,
-              externalId,
-              deletedAt: null,
-            },
-          });
-        } else {
-          await prisma.measurement.create({
-            data: {
-              userId,
-              type: SLEEP_TYPE,
-              value: minutes,
-              unit: getUnitForType(SLEEP_TYPE),
-              measuredAt,
-              source: "WITHINGS",
-              sleepStage: stage,
-              externalId,
-            },
-          });
+          { exactExternalMatch: "update" },
+        );
+        if (verdict.status === "failed") {
+          throw new MeasurementReconciliationError(verdict);
         }
+        for (const dirty of verdict.dirtyIdentities ?? []) {
+          touched.push(dirty);
+        }
+        if (verdict.status === "inserted") {
+          insertedSleepMeasuredAts.push(measuredAt);
+        }
+        touched.push({ type: SLEEP_TYPE, measuredAt });
+        imported++;
       }
-      touched.push({ type: SLEEP_TYPE, measuredAt });
-      imported++;
-    } catch (err) {
-      getEvent()?.addWarning(
-        `Failed to upsert sleep segment (${stage}, ${measuredAt.toISOString()}): ${err}`,
-      );
-    }
-  }
+    },
+    { timeout: 60_000 },
+  );
 
   // Session-scoped sweep (mirrors Google Health's replace-by-window): for each
   // session this fetch re-produced, soft-delete any live WITHINGS
@@ -548,68 +474,53 @@ export async function syncUserSleep(
   await sweepStaleSleepSegments(userId, "WITHINGS", sweeps);
 
   // v1.18.10 P0 — nightly sleep vitals (avg HR / respiratory rate / SDNN HRV
-  // / avg SpO2 / sleep score) from the per-night summary. A summary-fetch
-  // failure must not lose the stage segments already written, so it runs in
-  // its own try/catch and only annotates on error. Each vital upserts on the
-  // stable `(userId, type, source, externalId)` composite so a re-sync
-  // overwrites the night's value rather than inserting a duplicate.
+  // / avg SpO2 / sleep score) from the per-night summary. Fetch failure stays
+  // isolated from the stage writes; database failures are hard sync failures.
+  let summaries: WithingsSleepSummary[] = [];
   try {
-    const startYmd = ymdUtc(start);
-    const endYmd = ymdUtc(now);
-    const summaries = await fetchWithingsSleepSummary(
+    summaries = await fetchWithingsSleepSummary(
       tokenInfo.accessToken,
-      startYmd,
-      endYmd,
+      ymdUtc(start),
+      ymdUtc(now),
     );
-    for (const summary of summaries) {
-      const measuredAt = new Date(summary.enddate * 1000);
-      const sessionId = summary.id ?? "no-id";
-      const vitals = mapWithingsSleepSummary(summary.data);
-      for (const vital of vitals) {
-        const externalId = `withings:sleep:${userId}:${sessionId}:${vital.fieldTag}`;
-        try {
-          await prisma.measurement.upsert({
-            where: {
-              userId_type_source_externalId: {
-                userId,
-                type: vital.type,
-                source: "WITHINGS",
-                externalId,
-              },
-            },
-            create: {
+  } catch (err) {
+    getEvent()?.addWarning(
+      `withings sleep: summary fetch failed for ${userId}: ${err}`,
+    );
+  }
+
+  await prisma.$transaction(
+    async (tx) => {
+      for (const summary of summaries) {
+        const measuredAt = new Date(summary.enddate * 1000);
+        const sessionId = summary.id ?? "no-id";
+        for (const vital of mapWithingsSleepSummary(summary.data)) {
+          const verdict = await reconcileExternalMeasurement(
+            tx,
+            {
               userId,
               type: vital.type,
               value: vital.value,
               unit: getUnitForType(vital.type),
               measuredAt,
               source: "WITHINGS",
-              externalId,
+              externalId: `withings:sleep:${userId}:${sessionId}:${vital.fieldTag}`,
             },
-            update: {
-              value: vital.value,
-              measuredAt,
-              // No-op on a live row, a deliberate RESURRECTION on a
-              // tombstoned one — Withings is the source of truth for its
-              // own rows (mirrors Google / Fitbit).
-              deletedAt: null,
-              syncVersion: { increment: 1 },
-            },
-          });
+            { exactExternalMatch: "update" },
+          );
+          if (verdict.status === "failed") {
+            throw new MeasurementReconciliationError(verdict);
+          }
+          for (const dirty of verdict.dirtyIdentities ?? []) {
+            touched.push(dirty);
+          }
           touched.push({ type: vital.type, measuredAt });
           imported++;
-        } catch (err) {
-          getEvent()?.addWarning(
-            `withings sleep: failed to upsert vital (${vital.type}, ${measuredAt.toISOString()}): ${err}`,
-          );
         }
       }
-    }
-  } catch (err) {
-    getEvent()?.addWarning(
-      `withings sleep: summary fetch failed for ${userId}: ${err}`,
-    );
-  }
+    },
+    { timeout: 60_000 },
+  );
 
   // v1.4.39.1 — refresh the persistent rollup table for every distinct
   // (type, day) the sync touched. Sleep segments collapse heavily —
@@ -641,10 +552,9 @@ export async function syncUserSleep(
   // morning refresh so the digest/score finalise with the current sleep. The
   // trigger judges "last night" in the user's profile tz and no-ops on a
   // backfill; fire-and-forget so a freshness enqueue never fails the sync.
-  void maybeEnqueueMorningRefresh(
-    userId,
-    touched.filter((tt) => tt.type === SLEEP_TYPE).map((tt) => tt.measuredAt),
-  ).catch(() => {});
+  void maybeEnqueueMorningRefresh(userId, insertedSleepMeasuredAts).catch(
+    () => {},
+  );
 
   await recordSyncSuccess(userId, "withings");
   return imported;

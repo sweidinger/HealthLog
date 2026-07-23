@@ -9,6 +9,10 @@ import {
   IOS_PIN_ONLY_WIDGET_IDS,
   DEFAULT_HERO_RING_ORDER,
   resolveHeroRingOrder,
+  LAYOUT_FIELD_MERGE_DISPOSITION,
+  PRESERVED_LAYOUT_FIELDS,
+  layoutNeedsPreserveRead,
+  mergePreservedLayoutFields,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 
@@ -438,7 +442,7 @@ describe("resolveDashboardLayout() — retired heroVisible field", () => {
  * iOS-only ids extend it without touching the writable PUT enum.
  */
 describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
-  it("carries exactly 37 distinct ids (28 server-known + 9 iOS-only)", () => {
+  it("carries exactly 42 distinct ids (29 server-known + 13 iOS-only)", () => {
     // v1.11.2 B5 — the 8 v1.10 additive metrics became web-writable, so
     // the server-known set grew 16 → 24 and the catalogue 27 → 35.
     // v1.18.2 — the Vorsorge summary widget added one server-known id
@@ -450,10 +454,42 @@ describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
     // v1.29 — the nutrients-store-backed fluid-intake strip tile
     // (`waterIntake`) added one server-known id, so the catalogue grew
     // 37 → 38.
+    // The four clinical signals the native client pins (grip strength, pain
+    // NRS, waist circumference, waist-to-height) joined the iOS-only set
+    // (9 → 13), so the catalogue grew 38 → 42. Before they were catalogued
+    // the widgets PUT dropped them as unknown ids and every native layout
+    // save lost the user's placement of those tiles.
     expect(DASHBOARD_WIDGET_IDS).toHaveLength(29);
-    expect(DASHBOARD_IOS_ONLY_WIDGET_IDS).toHaveLength(9);
-    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(38);
-    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(38);
+    expect(DASHBOARD_IOS_ONLY_WIDGET_IDS).toHaveLength(13);
+    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(42);
+    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(42);
+  });
+
+  it("catalogues the four clinical signals the native client pins", () => {
+    // Regression guard: these four reached the widgets PUT as unknown ids,
+    // were filtered out before Zod, and vanished from the persisted layout
+    // — a silent loss of the user's tile placement on every save.
+    for (const id of [
+      "gripStrength",
+      "painNRS",
+      "waistCircumference",
+      "waistToHeight",
+    ]) {
+      expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toContain(id);
+    }
+  });
+
+  it("keeps the four clinical signals out of the web-writable set", () => {
+    // The web dashboard has no render path for them — their charts live on
+    // the /insights sub-pages — so a web Settings toggle would do nothing.
+    for (const id of [
+      "gripStrength",
+      "painNRS",
+      "waistCircumference",
+      "waistToHeight",
+    ]) {
+      expect(DASHBOARD_WIDGET_IDS).not.toContain(id);
+    }
   });
 
   it("ships the sleep / steps / glucose strip tiles default-on (v1.20.0)", () => {
@@ -498,6 +534,9 @@ describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
   it("carries the locked iOS-only ids verbatim", () => {
     // v1.28.52 — `hrv` + `respiratoryRate` left this set for the writable
     // DASHBOARD_WIDGET_IDS (they gained a web strip tile).
+    // The four clinical signals joined so the widgets PUT stops dropping
+    // them as unknown ids; `painNRS` is spelled as the native client sends
+    // it, which differs in case from the `painNrs` chart-overlay slot.
     expect([...DASHBOARD_IOS_ONLY_WIDGET_IDS]).toEqual([
       "restingHeartRate",
       "walkingSpeed",
@@ -508,6 +547,10 @@ describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
       "walkingDoubleSupport",
       "audioExposureEnvironment",
       "audioExposureHeadphone",
+      "gripStrength",
+      "painNRS",
+      "waistCircumference",
+      "waistToHeight",
     ]);
   });
 });
@@ -907,5 +950,139 @@ describe("resolveDashboardLayout() / serialize — heroRingOrder", () => {
       DEFAULT_HERO_RING_ORDER,
     );
     expect(DEFAULT_HERO_RING_ORDER[0]).toBe("HEALTH_SCORE");
+  });
+});
+
+/**
+ * Preserve-when-absent contract for the widgets PUT.
+ *
+ * `comparisonBaseline` was a top-level layout field that the merge forgot.
+ * Because `serializeDashboardLayout` clamps a missing baseline to `"none"`,
+ * every layout save from a client that doesn't send the field — the native
+ * client documents it as web-only and never sends it — silently reset the
+ * comparison baseline the user had picked on the web. No error, no audit row.
+ *
+ * The fix is not "remember to add the field to the merge". It is a
+ * disposition map the type system forces to cover every field of
+ * `DashboardLayout`, from which the preserve set is derived. These tests pin
+ * the behaviour that map buys.
+ */
+describe("layout field merge disposition", () => {
+  /**
+   * A layout with EVERY top-level field populated. Typed as
+   * `Required<DashboardLayout>` so adding a field to the interface without
+   * adding it here is a type error too — the runtime assertion below then
+   * proves the disposition map covers it.
+   */
+  const fullyPopulatedLayout: Required<DashboardLayout> = {
+    version: 1,
+    widgets: [{ id: "weight", visible: true, tileVisible: true, order: 0 }],
+    comparisonBaseline: "lastYear",
+    chartOverlayPrefs: {
+      weight: {
+        showTrendIndicator: true,
+        showTrendArrow: false,
+        showTargetRange: false,
+        comparisonBaseline: "none",
+      },
+    },
+    selectedScoreRings: ["MED_COMPLIANCE"],
+    heroRingOrder: ["HEALTH_SCORE", "MED_COMPLIANCE"],
+  };
+
+  it("assigns a disposition to every top-level layout field", () => {
+    // The guard that makes the next field impossible to forget. Adding a
+    // field to `DashboardLayout` without a disposition fails typecheck at
+    // the `satisfies Record<keyof DashboardLayout, …>`; this asserts the
+    // same coverage at runtime so the failure is loud in the suite too.
+    expect(Object.keys(LAYOUT_FIELD_MERGE_DISPOSITION).sort()).toEqual(
+      Object.keys(fullyPopulatedLayout).sort(),
+    );
+  });
+
+  it("only ever assigns a known disposition", () => {
+    for (const disposition of Object.values(LAYOUT_FIELD_MERGE_DISPOSITION)) {
+      expect(["replace", "preserve"]).toContain(disposition);
+    }
+  });
+
+  it("preserves comparisonBaseline alongside the other client-owned fields", () => {
+    // The regression itself: `comparisonBaseline` must be in the preserve
+    // set, not merely present in the disposition map.
+    expect([...PRESERVED_LAYOUT_FIELDS].sort()).toEqual([
+      "chartOverlayPrefs",
+      "comparisonBaseline",
+      "heroRingOrder",
+      "selectedScoreRings",
+    ]);
+  });
+
+  it("replaces the fields the request itself owns", () => {
+    expect(LAYOUT_FIELD_MERGE_DISPOSITION.version).toBe("replace");
+    expect(LAYOUT_FIELD_MERGE_DISPOSITION.widgets).toBe("replace");
+  });
+
+  it("skips the stored-layout read when the client sent every preserved field", () => {
+    expect(layoutNeedsPreserveRead(fullyPopulatedLayout)).toBe(false);
+  });
+
+  it("requires the stored-layout read when any preserved field is absent", () => {
+    for (const field of PRESERVED_LAYOUT_FIELDS) {
+      const incoming: Partial<DashboardLayout> = { ...fullyPopulatedLayout };
+      delete incoming[field];
+      expect(layoutNeedsPreserveRead(incoming)).toBe(true);
+    }
+  });
+
+  it("carries an omitted comparisonBaseline forward from the stored layout", () => {
+    // A widgets-only save, which is exactly what the native client sends.
+    const incoming: Partial<DashboardLayout> = {
+      version: 1,
+      widgets: fullyPopulatedLayout.widgets,
+    };
+    const merged = mergePreservedLayoutFields(incoming, fullyPopulatedLayout);
+    expect(merged.comparisonBaseline).toBe("lastYear");
+  });
+
+  it("carries every omitted preserved field forward, one field at a time", () => {
+    for (const field of PRESERVED_LAYOUT_FIELDS) {
+      const incoming: Partial<DashboardLayout> = { ...fullyPopulatedLayout };
+      delete incoming[field];
+      const merged = mergePreservedLayoutFields(incoming, fullyPopulatedLayout);
+      expect(merged[field]).toEqual(fullyPopulatedLayout[field]);
+    }
+  });
+
+  it("never overwrites a preserved field the client did send", () => {
+    const stored: DashboardLayout = {
+      ...fullyPopulatedLayout,
+      comparisonBaseline: "lastMonth",
+      selectedScoreRings: ["MED_COMPLIANCE"],
+    };
+    const incoming: Partial<DashboardLayout> = {
+      version: 1,
+      widgets: fullyPopulatedLayout.widgets,
+      comparisonBaseline: "none",
+      chartOverlayPrefs: fullyPopulatedLayout.chartOverlayPrefs,
+      selectedScoreRings: [],
+      heroRingOrder: fullyPopulatedLayout.heroRingOrder,
+    };
+    const merged = mergePreservedLayoutFields(incoming, stored);
+    // An explicit "none" is a real choice — clearing must survive the merge.
+    expect(merged.comparisonBaseline).toBe("none");
+    expect(merged.selectedScoreRings).toEqual([]);
+  });
+
+  it("leaves the replace-fields untouched by the merge", () => {
+    const stored: DashboardLayout = {
+      ...fullyPopulatedLayout,
+      widgets: [{ id: "bp", visible: false, tileVisible: false, order: 0 }],
+    };
+    const incoming: Partial<DashboardLayout> = {
+      version: 1,
+      widgets: fullyPopulatedLayout.widgets,
+    };
+    const merged = mergePreservedLayoutFields(incoming, stored);
+    expect(merged.widgets).toEqual(fullyPopulatedLayout.widgets);
   });
 });

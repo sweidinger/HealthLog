@@ -71,6 +71,9 @@ import { coachScopeSourceSchema } from "@/lib/ai/coach/types";
  *     fresh conversation reads (validated against the closed enum; an
  *     unrecognised value is silently dropped rather than reaching the chat
  *     route with a free-form string).
+ *   - `?workout=<id>` — scopes a fresh chat to ONE workout (v1.31.0). The
+ *     server narrows by `{ id, userId }` on the first turn only, so an unknown
+ *     or foreign id resolves to nothing and the chat proceeds unscoped.
  *   - `?ask=<text>` — seeds the composer prefill (mirrors `prefill` on the
  *     in-app `askCoach()` launch call). The user still reviews/sends it —
  *     this is a prefill, not an auto-send.
@@ -89,6 +92,17 @@ function CoachPageBody() {
   // explicit `?c=<id>` thread wins over it (that thread carries its own scope).
   const rawDoc = searchParams.get("doc");
   const seedDocumentId = deepLinkedId === null && rawDoc ? rawDoc : null;
+  // v1.31.0 — `?workout=<id>` seeds a fresh chat scoped to ONE workout (the
+  // workout-detail "Ask why" hand-off, and the drawer's maximize target). An
+  // explicit `?c=` thread wins, and a `?doc=` chat wins too: that path is the
+  // hardened fenced transport, so it must never be diluted by a second scope.
+  // The id is not validated here beyond its presence — the server narrows by
+  // `{ id, userId }`, so an unknown or foreign id simply resolves to nothing.
+  const rawWorkout = searchParams.get("workout");
+  const seedWorkoutId =
+    deepLinkedId === null && seedDocumentId === null && rawWorkout
+      ? rawWorkout
+      : null;
 
   // A fresh conversation only — an existing thread (`?c=`) or a doc-scoped
   // chat (`?doc=`) keeps its own established scope.
@@ -112,6 +126,7 @@ function CoachPageBody() {
     deepLinkedId === null &&
     rawC !== "new" &&
     seedDocumentId === null &&
+    seedWorkoutId === null &&
     launchScope === null &&
     !seedPrefill;
   const { data: nudge } = useQuery({
@@ -131,6 +146,7 @@ function CoachPageBody() {
       // v1.28.51 — seed the document scope for a `?doc=<id>` open so the first
       // turn is created + sent through the hardened fenced document endpoint.
       initialDocumentId={seedDocumentId}
+      initialWorkoutId={seedWorkoutId}
       // 2026-07-17 UX-flows audit F1-2/F4-1/F6-1 — seed the scope/prefill a
       // cross-surface hand-off carried in the URL.
       launchScope={launchScope}

@@ -80,6 +80,8 @@ describe("buildCreateInventoryInput", () => {
       containerType: "PEN",
       printedExpiry: printed,
       purchasedAt: null,
+      manufacturer: null,
+      doseStrength: null,
       notes: null,
     });
     expect(input).toMatchObject({
@@ -100,6 +102,8 @@ describe("buildCreateInventoryInput", () => {
       containerType: "OTHER",
       printedExpiry: null,
       purchasedAt: null,
+      manufacturer: null,
+      doseStrength: null,
       notes: null,
     });
     expect(input.expiresAt).toBeNull();
@@ -155,5 +159,42 @@ describe("serializeInventoryItem (iOS#31)", () => {
       unitsRemaining: "10",
     });
     expect(out).toMatchObject({ id: "i5", state: "ACTIVE" });
+  });
+});
+
+describe("buildCreateInventoryInput — carton labelling", () => {
+  it("carries manufacturer + doseStrength onto the create input", () => {
+    // The native pen list renders these as its headline and subhead; a
+    // container created on the web carried neither, so the row could not be
+    // shown there without fabricating an empty card.
+    const input = buildCreateInventoryInput({
+      userId: "u",
+      medicationId: "m",
+      unitsTotal: 4,
+      containerType: "PEN",
+      printedExpiry: null,
+      purchasedAt: null,
+      manufacturer: "Example Pharma",
+      doseStrength: "5 mg/0.5 ml",
+      notes: null,
+    });
+    expect(input.manufacturer).toBe("Example Pharma");
+    expect(input.doseStrength).toBe("5 mg/0.5 ml");
+  });
+
+  it("leaves both null for a plain supply container", () => {
+    const input = buildCreateInventoryInput({
+      userId: "u",
+      medicationId: "m",
+      unitsTotal: 30,
+      containerType: "BLISTER",
+      printedExpiry: null,
+      purchasedAt: null,
+      manufacturer: null,
+      doseStrength: null,
+      notes: null,
+    });
+    expect(input.manufacturer).toBeNull();
+    expect(input.doseStrength).toBeNull();
   });
 });

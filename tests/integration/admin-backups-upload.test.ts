@@ -70,7 +70,34 @@ async function seedAdminSession() {
   return admin;
 }
 
-function buildPayload(userId: string) {
+interface UploadPayloadFixture {
+  schemaVersion: string;
+  exportedAt: string;
+  userId: string;
+  measurements: Array<{
+    type: string;
+    value: number;
+    unit: string;
+    measuredAt: string;
+    source: string;
+    notes: null;
+  }>;
+  medications: Array<{
+    name: string;
+    dose: string;
+    active: boolean;
+    schedules: Array<{
+      windowStart: string;
+      windowEnd: string;
+      label: string;
+      dose: null;
+    }>;
+  }>;
+  intakeEvents: [];
+  moodEntries: [];
+}
+
+function buildPayload(userId: string): UploadPayloadFixture {
   return {
     schemaVersion: "1",
     exportedAt: "2026-05-09T10:00:00.000Z",
@@ -211,6 +238,45 @@ describe("POST /api/admin/backups/upload", () => {
     expect(denied[0]?.details ?? "").toContain("owner_not_found");
   });
 
+  it.each([
+    [
+      "measurement type",
+      (payload: UploadPayloadFixture) => {
+        payload.measurements[0]!.type = "NOT_A_MEASUREMENT";
+      },
+    ],
+    [
+      "measurement source",
+      (payload: UploadPayloadFixture) => {
+        payload.measurements[0]!.source = "NOT_A_SOURCE";
+      },
+    ],
+  ])(
+    "rejects an invalid %s with 422 and zero backup writes",
+    async (_label, mutate) => {
+      const prisma = getPrismaClient();
+      const admin = await seedAdminSession();
+      const payload = buildPayload(admin.id);
+      mutate(payload);
+      const file = new File([JSON.stringify(payload)], "invalid-enum.json", {
+        type: "application/json",
+      });
+
+      const { POST } = await import("@/app/api/admin/backups/upload/route");
+      const res = await POST(
+        buildMultipart(file) as unknown as Parameters<typeof POST>[0],
+      );
+
+      expect(res.status).toBe(422);
+      expect(await res.json()).toMatchObject({
+        data: null,
+        error: "Backup payload failed schema validation",
+        meta: { issues: expect.any(Array) },
+      });
+      expect(await prisma.dataBackup.count()).toBe(0);
+    },
+  );
+
   it("rejects an incompatible schemaVersion with 422", async () => {
     const prisma = getPrismaClient();
     const admin = await seedAdminSession();
@@ -224,6 +290,11 @@ describe("POST /api/admin/backups/upload", () => {
       buildMultipart(file) as unknown as Parameters<typeof POST>[0],
     );
 
+    expect(await res.json()).toMatchObject({
+      data: null,
+      error: expect.stringContaining("not supported"),
+    });
+    expect(await prisma.dataBackup.count()).toBe(0);
     expect(res.status).toBe(422);
     const denied = await prisma.auditLog.findMany({
       where: { action: "admin.backups.upload.denied", userId: admin.id },

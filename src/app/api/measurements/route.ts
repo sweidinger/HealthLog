@@ -32,6 +32,8 @@ import {
 import { withIdempotency } from "@/lib/idempotency";
 import { encryptNote, shapeMeasurementNotes } from "@/lib/crypto/note-cipher";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { enqueueReminderSatisfy } from "@/lib/jobs/reminder-satisfy";
 import { runSafetyFloorCheck } from "@/lib/illness/safety-floor-check";
@@ -787,7 +789,9 @@ async function postMeasurement(request: NextRequest) {
         .catch(() => {
           /* swallow — 422 response is the contract */
         });
-      return returnAllZodIssues(parsed.error, 422);
+      return returnAllZodIssues(parsed.error, 422, {
+        errorCode: "measurement.create.invalid",
+      });
     }
 
     const results = await prisma.$transaction(
@@ -845,6 +849,22 @@ async function postMeasurement(request: NextRequest) {
     fireAndForget(enqueueReminderSatisfy(user.id), {
       action: "reminder.satisfy.enqueue",
     });
+
+    // v1.31.0 — feed the shared arrival seams only the rows returned by the
+    // create-only transaction. Both callbacks are best-effort: arrival or
+    // morning-refresh infrastructure can never turn a committed write into an
+    // error response.
+    void emitInsertedMeasurementArrivals(user.id, results, "manual").catch(
+      () => {},
+    );
+    const sleepMeasuredAts = results
+      .filter((row) => row.type === "SLEEP_DURATION")
+      .map((row) => row.measuredAt);
+    if (sleepMeasuredAts.length > 0) {
+      void maybeEnqueueMorningRefresh(user.id, sleepMeasuredAts).catch(
+        () => {},
+      );
+    }
 
     // v1.18.6 — absolute clinical safety-floor check on the just-written
     // readings (confirm-gated, module-gated, never diagnoses). The combined
@@ -926,7 +946,9 @@ async function postMeasurement(request: NextRequest) {
       .catch(() => {
         /* swallow — 422 response is the contract */
       });
-    return returnAllZodIssues(parsed.error, 422);
+    return returnAllZodIssues(parsed.error, 422, {
+      errorCode: "measurement.create.invalid",
+    });
   }
 
   const {
@@ -967,7 +989,9 @@ async function postMeasurement(request: NextRequest) {
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
     ) {
-      return apiError("A measurement with this data already exists", 409);
+      return apiError("A measurement with this data already exists", 409, {
+        errorCode: "measurement.duplicate_timestamp",
+      });
     }
     throw err;
   }
@@ -997,6 +1021,17 @@ async function postMeasurement(request: NextRequest) {
   fireAndForget(enqueueReminderSatisfy(user.id), {
     action: "reminder.satisfy.enqueue",
   });
+
+  // v1.31.0 — `measurement` is the exact successful create result. A P2002
+  // duplicate returns above and never reaches either best-effort callback.
+  void emitInsertedMeasurementArrivals(user.id, [measurement], "manual").catch(
+    () => {},
+  );
+  if (measurement.type === "SLEEP_DURATION") {
+    void maybeEnqueueMorningRefresh(user.id, [measurement.measuredAt]).catch(
+      () => {},
+    );
+  }
 
   // v1.18.6 — absolute clinical safety-floor check (confirm-gated,
   // module-gated, never diagnoses). A single-entry POST carries only one arm

@@ -46,6 +46,61 @@
     "durationHoursMinutes": "{hours} h {minutes} min",
     "durationMinutes": "{minutes} min"
   },
+  "apiErrors": {
+    "measurement": {
+      "create": { "invalid": "Controlla i dati della misurazione e riprova." },
+      "duplicate_timestamp": "Esiste già una misurazione per questo orario."
+    },
+    "mood": {
+      "list": { "invalid": "I filtri dell’elenco dell’umore non sono validi." },
+      "create": { "invalid": "Controlla la voce dell’umore e riprova." },
+      "update": { "invalid": "Controlla la voce dell’umore e riprova." },
+      "duplicate_timestamp": "Esiste già una voce dell’umore per questo orario.",
+      "not_found": "Questa voce dell’umore non è più disponibile.",
+      "ratedFactor": {
+        "out_of_range": "Una valutazione non rientra nell’intervallo consentito."
+      }
+    },
+    "labs": {
+      "create": {
+        "invalid": "Controlla il risultato di laboratorio e riprova."
+      },
+      "result": {
+        "notFound": "Questo risultato di laboratorio non è più disponibile."
+      },
+      "biomarker": {
+        "notFound": "Questo biomarcatore non è più disponibile.",
+        "duplicate": "Esiste già un biomarcatore con questo nome.",
+        "create": { "invalid": "Controlla i dati del biomarcatore e riprova." },
+        "update": {
+          "invalid": "Controlla i dati del biomarcatore e riprova.",
+          "referenceRangeInvalid": "Il valore di riferimento inferiore non può superare quello superiore."
+        }
+      },
+      "update": {
+        "invalid": "Controlla il risultato di laboratorio e riprova.",
+        "linkedFieldsImmutable": "Modifica il biomarcatore per cambiare nome, unità, pannello o intervallo di riferimento.",
+        "qualitativeExpected": "Inserisci un risultato testuale per questa lettura qualitativa.",
+        "numericExpected": "Inserisci un numero per questa lettura numerica.",
+        "referenceRangeInvalid": "Il valore di riferimento inferiore non può superare quello superiore."
+      }
+    },
+    "onboarding": {
+      "disclaimer": { "invalid": "Conferma nuovamente l’avviso medico." },
+      "tour": {
+        "invalid": "Non è stato possibile salvare l’avanzamento del tour."
+      },
+      "complete": { "invalid": "Controlla i dati del profilo e riprova." },
+      "user": { "notFound": "Impossibile trovare il tuo account." },
+      "step": {
+        "rateLimited": "Troppi tentativi. Attendi e riprova.",
+        "invalid": "Non è stato possibile salvare questo passaggio introduttivo.",
+        "completed": "La procedura introduttiva è già completata.",
+        "outOfOrder": "I tuoi progressi sono cambiati. Aggiorna la pagina e continua.",
+        "concurrent": "I tuoi progressi sono cambiati. Aggiorna la pagina e continua."
+      }
+    }
+  },
   "doctorReport": {
     "title": "Rapporto sanitario",
     "subtitle": "HealthLog — Rapporto personale di salute",
@@ -255,7 +310,9 @@
       "medication": "Farmaco",
       "medicationDescription": "Segna una dose come assunta",
       "mood": "Umore",
-      "moodDescription": "Registra umore e tag"
+      "moodDescription": "Registra umore e tag",
+      "water": "Acqua",
+      "waterDescription": "Aggiungi rapidamente l’acqua bevuta"
     },
     "cycle": "Ciclo",
     "labs": "Esami",
@@ -358,6 +415,7 @@
     "quickAddMeasurement": "Registra misurazione",
     "quickAddMood": "Registra umore",
     "quickAddMedicationIntake": "Registra assunzione",
+    "quickAddWater": "Registra acqua",
     "customizeDashboard": "Personalizza dashboard",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Registra assunzione del farmaco",
@@ -425,7 +483,9 @@
         "steps": "Passi",
         "totalBodyWater": "Acqua corporea totale",
         "boneMass": "Massa ossea",
-        "oxygenSaturation": "Saturazione di ossigeno"
+        "oxygenSaturation": "Saturazione di ossigeno",
+        "mood": "Umore",
+        "bmi": "IMC"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +497,9 @@
         "steps": "passi",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "/5",
+        "bmi": "kg/m²"
       }
     }
   },
@@ -578,7 +640,7 @@
     "bulkDeleteSuccess": "{count} misurazioni eliminate",
     "bulkDeleteError": "Errore durante l'eliminazione delle misurazioni selezionate",
     "bulkDeleteConfirmTitle": "Eliminare {count} misurazioni?",
-    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate definitivamente.",
+    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate. Subito dopo potrai annullare l’operazione per un breve momento.",
     "typePhq9Score": "Punteggio PHQ-9",
     "typeGad7Score": "Punteggio GAD-7",
     "typeGripStrength": "Forza di presa",
@@ -726,7 +788,7 @@
     "bulkDeleteSuccess": "{count} voci eliminate",
     "bulkDeleteError": "Errore durante l'eliminazione delle voci selezionate",
     "bulkDeleteConfirmTitle": "Eliminare {count} voci?",
-    "bulkDeleteConfirmBody": "Le {count} voci dell'umore selezionate verranno eliminate definitivamente.",
+    "bulkDeleteConfirmBody": "Le {count} voci dell'umore selezionate verranno eliminate. Subito dopo potrai annullare l’operazione per un breve momento.",
     "customize": "Personalizza i tag dell’umore",
     "addTagInline": "Aggiungi tag",
     "manage": {
@@ -1683,7 +1745,10 @@
         "packagingDefaultPackLabel": "Dimensione confezione predefinita (unità)",
         "packagingDefaultPackHelper": "Precompila la quantità quando registri nuove confezioni (1–1000). Lascia vuoto se non applicabile.",
         "packagingSuccess": "Dati confezione salvati",
-        "packagingFailed": "Salvataggio non riuscito"
+        "packagingFailed": "Salvataggio non riuscito",
+        "addManufacturerLabel": "Produttore",
+        "addDoseStrengthLabel": "Dosaggio",
+        "addDoseStrengthHint": "Come stampato sul contenitore, ad es. 5 mg/0,5 ml."
       },
       "erweitert": {
         "group": {
@@ -2324,6 +2389,13 @@
       "historyEmpty": "Le tue conversazioni compaiono qui. Fai una domanda per iniziare.",
       "historyDeleteAria": "Elimina conversazione",
       "historyDeleted": "Conversazione eliminata",
+      "rename": {
+        "action": "Rinomina conversazione",
+        "input": "Titolo della conversazione",
+        "save": "Salva titolo",
+        "cancel": "Annulla rinomina",
+        "error": "Impossibile salvare il titolo della conversazione."
+      },
       "historySearchEmpty": "Nessuna conversazione corrisponde alla tua ricerca.",
       "historyLoadingMore": "Caricamento…",
       "sourcesTitle": "A cosa accedo",
@@ -2462,10 +2534,6 @@
       "settingsClustersHint": "Scegli quali gruppi di dati il Coach può leggere. Più dati significano risposte più ricche e un prompt più grande.",
       "settingsClusterNoData": "Ancora nessun dato",
       "sourcesMemberCount": "{count} metriche",
-      "dictate": "Detta",
-      "dictateStop": "Interrompi dettatura",
-      "voiceUnsupported": "L'inserimento vocale non è supportato in questo browser",
-      "dictateError": "Impossibile avviare l'inserimento vocale. Controlla l'autorizzazione del microfono e riprova.",
       "showConversations": "Mostra conversazioni",
       "hideConversations": "Nascondi conversazioni",
       "heroGreeting": "Chiedimi qualcosa sui tuoi dati",
@@ -2862,9 +2930,9 @@
       "debt": {
         "title": "Debito di sonno",
         "value": "{hours} h {minutes} min in meno",
-        "caption": "Deficit cumulato nelle ultime {nights} notti",
+        "caption": "Bilancio in sospeso nelle ultime {nights} notti",
         "clearValue": "In pari",
-        "clearCaption": "Nessun deficit accumulato nelle ultime {nights} notti",
+        "clearCaption": "Niente in sospeso nelle ultime {nights} notti",
         "learning": "Stiamo ancora misurando il tuo sonno — {counted} notti finora, ne mancano {remaining} per un bilancio affidabile.",
         "computedInfo": "Questa è la stima propria di HealthLog: un bilancio mobile tra fabbisogno e sonno delle ultime notti, che il sonno di recupero riduce. Può differire dal dato di debito di sonno nativo di un dispositivo indossabile, che usa un proprio modello di fabbisogno."
       },
@@ -2968,6 +3036,8 @@
     "navRecovery": "Recupero",
     "workouts": {
       "title": "Allenamenti",
+      "askWhy": "Perché",
+      "askWhyPrompt": "Perché questa sessione è andata così? Spiegami i miei dati di questa sessione.",
       "description": "Corse, uscite in bici, camminate e sessioni di forza recenti, deduplicati tra Apple Watch e Withings.",
       "emptyState": {
         "title": "Nessun allenamento",
@@ -3037,7 +3107,10 @@
         "mixedCardio": "Cardio misto",
         "other": "Altro"
       },
-      "loadError": "Non è stato possibile caricare i tuoi allenamenti"
+      "loadError": "Non è stato possibile caricare i tuoi allenamenti",
+      "loadMore": "Carica altri allenamenti",
+      "loadingMore": "Caricamento di altri allenamenti",
+      "loadMoreError": "Non è stato possibile caricare altri allenamenti"
     },
     "bloodGlucose": {
       "title": "Glicemia",
@@ -4514,6 +4587,7 @@
             "failed": "L'importazione non è riuscita.",
             "rowsImported": "{count} righe importate finora",
             "doneSummary": "Fatto: {imported} di {read} record importati, {skipped} record clinici saltati.",
+            "estimateWarning": "I totali cumulativi di {count} giorno/i sono stati stimati dalla fonte di esportazione più alta. Le statistiche native di Apple Salute restano autorevoli.",
             "phase": {
               "queued": "In coda…",
               "unpacking": "Estrazione dell'archivio…",
@@ -4672,7 +4746,9 @@
           "description": "Aggiungi un luogo e un intervallo di date: un viaggio o un tratto della tua cronologia passata. Il periodo prevale sulla tua residenza nei giorni che copre, così il meteo corrisponde a dove ti trovavi davvero. È così che correggi il passato.",
           "none": "Nessun periodo di posizione.",
           "add": "Aggiungi {label}",
-          "remove": "Rimuovi periodo di posizione"
+          "remove": "Rimuovi periodo di posizione",
+          "removeConfirmTitle": "Rimuovere questo viaggio?",
+          "removeConfirmBody": "Le misurazioni di quel periodo restano nel tuo archivio; sparisce solo la voce del viaggio."
         },
         "backfill": {
           "title": "Recupera i giorni passati",
@@ -4953,7 +5029,10 @@
           "surfaced": "Mostrato",
           "done": "Fatto",
           "dismissed": "Ignorato"
-        }
+        },
+        "deleteConfirmTitle": "Eliminare questo promemoria?",
+        "deleteConfirmBody": "Non verrà più mostrato. Quanto hai già registrato resta invariato.",
+        "deleteConfirmAction": "Elimina"
       },
       "aboutMe": {
         "title": "Su di me",
@@ -5628,8 +5707,16 @@
         "revokeAllDone": "Dimenticati {count} dispositivo/i attendibile/i.",
         "unnamed": "Dispositivo sconosciuto",
         "current": "Questo dispositivo",
-        "expires": "Attendibile fino al {date}"
-      }
+        "expires": "Attendibile fino al {date}",
+        "revokeConfirmTitle": "Non fidarsi più di questo dispositivo?",
+        "revokeConfirmBody": "Al prossimo accesso da questo dispositivo chiederà di nuovo il secondo fattore.",
+        "revokeAllConfirmTitle": "Non fidarsi più di alcun dispositivo?",
+        "revokeAllConfirmBody": "Ogni dispositivo chiederà di nuovo il secondo fattore al prossimo accesso, questo compreso."
+      },
+      "revokeSessionConfirmTitle": "Disconnettere questo dispositivo?",
+      "revokeSessionConfirmBody": "{device} dovrà accedere di nuovo. Quanto registrato su di esso non viene toccato.",
+      "signOutEverywhereConfirmTitle": "Disconnettere tutti gli altri dispositivi?",
+      "signOutEverywhereConfirmBody": "Ogni dispositivo tranne questo dovrà accedere di nuovo. Questo resta connesso. Nulla di ciò che hai registrato viene toccato."
     },
     "privacy": {
       "intro": {
@@ -5729,10 +5816,34 @@
       "rate_limited": "Troppi tentativi di connessione. Attendi un momento e riprova.",
       "generic": "Errore sconosciuto durante la connessione. Riavvia la connessione."
     },
+    "appleHealth": {
+      "title": "Apple Health",
+      "description": "La sincronizzazione in tempo reale avviene tramite l’app HealthLog per iOS, non tramite una connessione web o OAuth.",
+      "status": {
+        "checking": "Controllo dei dati Apple Health…",
+        "dataReceived": "Dati Apple Health ricevuti",
+        "setup": "Configura nell’app iOS",
+        "unavailable": "Stato di Apple Health non disponibile"
+      },
+      "lastDataLabel": "Ultimi dati Apple Health:",
+      "setupTitle": "Attiva la sincronizzazione in tempo reale",
+      "permissionStep": "Nell’app HealthLog per iOS, apri Impostazioni → Apple Health e autorizza le categorie di salute che vuoi condividere.",
+      "backgroundStep": "Mantieni attivo l’aggiornamento in background. L’app sincronizza automaticamente i nuovi dati in primo piano e quando iOS concede tempo in background.",
+      "importNote": "Ti serve lo storico precedente o non puoi usare l’app iOS? Il caricamento XML/ZIP di Apple Health è un’alternativa una tantum e non attiva la sincronizzazione in tempo reale.",
+      "importAction": "Apri importazione una tantum"
+    },
     "garminInfo": {
       "title": "Garmin",
       "body": "Garmin non ha una connessione diretta qui. Collegalo tramite Apple Health (iOS) o Google Health Connect (Android). I punteggi proprietari di Garmin — Body Battery, Training Load, stato HRV, VO₂ max — non vengono condivisi da Garmin con nessuna delle due piattaforme.",
       "docsLink": "Leggi la guida"
+    },
+    "glucoseReference": {
+      "title": "Banda di riferimento della glicemia",
+      "description": "La banda con cui vengono valutati i tuoi valori glicemici.",
+      "enable": "Usa la banda obiettivo per il diabete",
+      "explainer": "Disattivato, i valori vengono valutati con la banda di riferimento generale non diabetica. Attivato, vengono valutati con la banda obiettivo glicemica più stretta degli ADA Standards of Care, e il Coach fonda su quella banda le sue osservazioni sulla glicemia. I tuoi valori obiettivo personalizzati qui sotto hanno comunque la precedenza.",
+      "disclaimer": "Questo seleziona una banda di riferimento. Non è una diagnosi, non viene mai dedotto da una misurazione e l'app non agisce clinicamente di conseguenza. Quali obiettivi valgano per te è una domanda per il tuo medico.",
+      "error": "Non è stato possibile salvare l'impostazione."
     }
   },
   "admin": {
@@ -7471,7 +7582,7 @@
     "referenceLabel": "Riferimento",
     "readingsCount": "{count} misurazioni",
     "deleteConfirmTitle": "Eliminare il risultato di laboratorio?",
-    "deleteConfirmDescription": "Questo risultato di laboratorio verrà eliminato definitivamente.",
+    "deleteConfirmDescription": "Questo risultato di laboratorio verrà eliminato. Subito dopo potrai annullare l’operazione per un breve momento.",
     "deletedToast": "Risultato eliminato",
     "deleteError": "Impossibile eliminare il risultato",
     "loadError": "Impossibile caricare i risultati",
@@ -7950,7 +8061,7 @@
     },
     "deleteConfirm": {
       "title": "Eliminare questo episodio?",
-      "body": "«{label}» e tutti i relativi registri giornalieri verranno rimossi. L'operazione non può essere annullata."
+      "body": "«{label}» e tutti i relativi registri giornalieri verranno rimossi. Subito dopo potrai annullare l’operazione per un breve momento."
     },
     "vital": {
       "RESTING_HEART_RATE": "Frequenza cardiaca a riposo",
@@ -8506,6 +8617,7 @@
         "withheld": "Un riepilogo è stato generato ma non ha superato il controllo di sicurezza, quindi non viene mostrato. Puoi riprovare o leggere il documento stesso.",
         "unavailable": "Non è stato possibile generare un riepilogo per questo documento.",
         "generate": "Genera riepilogo",
+        "regenerate": "Genera di nuovo",
         "generating": "Generazione…"
       },
       "loadError": "Impossibile caricare questo documento.",
@@ -8743,6 +8855,7 @@
       "quickAddCustomPlaceholder": "250",
       "quickAddSubmit": "Aggiungi",
       "quickAddError": "Salvataggio non riuscito. Riprova.",
+      "quickAddSuccess": "Aggiunti {amount} mL di acqua.",
       "editTotal": "Modifica il totale di oggi"
     },
     "caffeine": {
@@ -8828,6 +8941,8 @@
       "deltaVsBaseline": "{delta} rispetto al tuo valore di riferimento",
       "deltaFlat": "In linea con il tuo valore di riferimento",
       "sleepPending": "Il sonno di stanotte non è ancora arrivato: la lettura di oggi è provvisoria.",
+      "justIn": "Appena arrivato",
+      "justInAt": "Appena arrivato · {time}",
       "worthALook": "Da tenere d'occhio",
       "allClear": "Oggi nulla richiede la tua attenzione.",
       "ringLink": "Apri i dettagli di {metric}"

@@ -166,13 +166,13 @@ describe("dashboard layout save — every layout source is covered (source pins)
     expect(pageSrc).not.toMatch(/analytics[A-Za-z]*\??\.(data\.)?layout/);
   });
 
-  it("refetchOnMount stays false on the snapshot hook (the reason refetchType-all is required)", () => {
+  it("keeps remounts disabled while focus refresh remains unconditional", () => {
     const hookSrc = readFileSync(
       join(process.cwd(), "src/lib/queries/use-dashboard-snapshot.ts"),
       "utf8",
     );
     expect(hookSrc).toContain("refetchOnMount: false");
-    // v1.28.28 — focus refetch stays on (cross-tab freshness); do not revert.
-    expect(hookSrc).toContain("refetchOnWindowFocus: true");
+    // Arrival freshness is out-of-band, so staleTime must not suppress focus.
+    expect(hookSrc).toContain('refetchOnWindowFocus: "always"');
   });
 });

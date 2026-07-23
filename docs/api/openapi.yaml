@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.30.33
+  version: 1.32.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -3054,11 +3054,11 @@ paths:
         - Measurements
       summary: Sleep rhythm — sleep-debt + chronotype (v1.17.0)
       description: "Returns the two server-authoritative sleep-timing signals the Sleep page + iOS render off the same
-        canonical night reconstruction the Sleep Score uses: cumulative `sleepDebt` over the rolling window (calm
-        `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag, `learning`
-        state until enough free-day nights exist). Free vs work nights default to weekend = free in the user's timezone
-        (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no new measurement
-        type."
+        canonical night reconstruction the Sleep Score uses: the outstanding `sleepDebt` balance over the rolling window
+        (calm `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag,
+        `learning` state until enough free-day nights exist). Free vs work nights default to weekend = free in the
+        user's timezone (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no
+        new measurement type."
       responses:
         "200":
           description: Sleep-debt + chronotype DTO.
@@ -3126,10 +3126,12 @@ paths:
       summary: Workout detail (v1.4.32)
       description: Single-workout envelope. Owns the optional `WorkoutRoute` GeoJSON geometry + `canonicalId` pointer that
         resolves to the cluster winner so deep-links into non-canonical twin rows can redirect cleanly. Additive
-        enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`, reserved `aiInsight`) are computed
-        server-side. `compact=1` (sent by the web client) drops the raw `samples.samples` HR blob and
-        `route.sampleTimestamps` array from the response; without it the payload is byte-identical to the v1.4.32
-        contract. Cross-user rows surface as 404 (existence channel sealed).
+        enrichment fields (`hrSeries`, `zones`, `splits`, `sportContext`) are computed server-side. `aiInsight` is a
+        pure read of a per-workout paragraph written by a background job when the workout landed; it is null for every
+        workout that predates the feature or was re-synced, and reading this endpoint never generates one. `compact=1`
+        (sent by the web client) drops the raw `samples.samples` HR blob and `route.sampleTimestamps` array from the
+        response; without it the payload is byte-identical to the v1.4.32 contract. Cross-user rows surface as 404
+        (existence channel sealed).
       parameters:
         - in: path
           name: id
@@ -5671,6 +5673,9 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 500
+                workoutId:
+                  type: string
+                  maxLength: 64
               required:
                 - message
       responses:
@@ -10309,13 +10314,13 @@ paths:
     post:
       tags:
         - Documents
-      summary: Summarise or transcribe a document (session-only)
-      description: 'On-demand, SESSION-ONLY description of a stored document. `?mode=summary` (default) returns a short
-        plain-language summary of WHAT the document is; `?mode=text` returns its raw transcribed text. The result is
-        transient — nothing is persisted except the AI-budget ledger + audit log; it never reaches coach memory,
-        snapshots, the structured stores, or the search index. The summary is descriptive only and never a diagnosis.
-        Same VISION (empty body) / TEXT (`application/json` `{ mode: "text", text }`, opt-in local OCR) dispatch as
-        extract. AI-consent / rate / budget gated. 422 with no provider.'
+      summary: Summarise or transcribe a document
+      description: 'On-demand description of a stored document. `?mode=summary` (default) returns a short plain-language
+        summary of WHAT the document is; it remains transient unless `persist=true` fills the empty stored-summary slot,
+        while `persist=true&replace=true` explicitly replaces an existing summary. `?mode=text` returns transient raw
+        transcribed text. Neither result reaches coach memory, snapshots, structured stores, or the search index. The
+        summary is descriptive only and never a diagnosis. Same VISION (empty body) / TEXT (`application/json` `{ mode:
+        "text", text }`, opt-in local OCR) dispatch as extract. AI-consent / rate / budget gated. 422 with no provider.'
       parameters:
         - name: id
           in: path
@@ -10332,6 +10337,20 @@ paths:
               - text
             default: summary
           description: "`summary` (plain-language description) or `text` (raw)."
+        - name: persist
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: "For summary mode only: persist into an empty stored-summary slot."
+        - name: replace
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: With `persist=true`, explicitly replace an existing stored summary.
       requestBody:
         required: false
         content:
@@ -10361,7 +10380,7 @@ paths:
                 - text
       responses:
         "200":
-          description: The session-only summary (`{ summary }`) or extracted text (`{ text }`).
+          description: The summary and its persistence outcome, or transient extracted text.
           content:
             application/json:
               schema:
@@ -12648,6 +12667,19 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
+        manufacturer:
+          description: Marketing-authorisation holder / maker as printed on the carton. Free text, max 120 chars.
+          anyOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        doseStrength:
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, max 60 chars — deliberately not split
+            into a number + unit because pens state strength per dose, per ml, or per cartridge.
+          anyOf:
+            - type: string
+              maxLength: 60
+            - type: "null"
         notes:
           anyOf:
             - type: string
@@ -12681,6 +12713,19 @@ components:
           type: number
           minimum: 0
           maximum: 1000
+        manufacturer:
+          description: Marketing-authorisation holder / maker as printed on the carton. Free text, max 120 chars.
+          anyOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        doseStrength:
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, max 60 chars — deliberately not split
+            into a number + unit because pens state strength per dose, per ml, or per cartridge.
+          anyOf:
+            - type: string
+              maxLength: 60
+            - type: "null"
         notes:
           anyOf:
             - type: string
@@ -17710,6 +17755,10 @@ components:
           type: integer
           minimum: 0
           maximum: 9007199254740991
+        failed:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
         skipped:
           type: array
           items:
@@ -17734,6 +17783,7 @@ components:
         - inserted
         - updated
         - duplicates
+        - failed
         - skipped
         - entries
       additionalProperties: false
@@ -17751,9 +17801,10 @@ components:
             - updated
             - duplicate
             - skipped
-          description: "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate (per-day
-            cumulative total or hourly heart-rate bucket) overwrote an existing row. `skipped` — not stored (e.g.
-            unmappable identifier, out-of-range value, or `malformed_hr_bucket_id`); see `reason`."
+            - failed
+          description: "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate overwrote
+            an existing row. `skipped` — validation no-op; see `reason`. `failed` — retryable database failure that must
+            not advance the entry cursor; the response is marked `Cache-Control: no-store`."
         reason:
           type: string
       required:
@@ -18237,12 +18288,13 @@ components:
                 - partial
                 - ready
               description: "`partial` until enough tracked nights exist (calm 'still learning'); `ready` once the rolling window can
-                assert a cumulative debt."
+                assert a balance."
             debtMinutes:
               type: integer
               minimum: 0
               maximum: 9007199254740991
-              description: Cumulative sleep debt over the window, in minutes, after caps.
+              description: Outstanding sleep-debt balance over the window, in minutes, after caps. A night below need adds its
+                shortfall; a night above need pays the balance down (floored at 0).
             needMinutes:
               type: integer
               minimum: 0
@@ -18383,9 +18435,9 @@ components:
         - chronotype
         - averagePerNight
       additionalProperties: false
-      description: "Server-authoritative sleep-rhythm read: cumulative sleep debt over the rolling window + MCTQ chronotype
-        (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work
-        calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type."
+      description: "Server-authoritative sleep-rhythm read: the outstanding sleep-debt balance over the rolling window + MCTQ
+        chronotype (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone
+        (no work calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type."
     ListWorkoutsResponse:
       type: object
       properties:
@@ -18648,7 +18700,9 @@ components:
             - $ref: "#/components/schemas/WorkoutSportContext"
             - type: "null"
         aiInsight:
-          type: "null"
+          anyOf:
+            - $ref: "#/components/schemas/WorkoutActivityInsight"
+            - type: "null"
         canonicalId:
           type: string
       required:
@@ -18846,6 +18900,19 @@ components:
         - avgDurationSec
         - avgDistanceM
         - avgAvgHr
+      additionalProperties: false
+    WorkoutActivityInsight:
+      type: object
+      properties:
+        paragraph:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - paragraph
+        - generatedAt
       additionalProperties: false
     BatchWorkoutsResponse:
       type: object
@@ -19727,6 +19794,18 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
+        manufacturer:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Marketing-authorisation holder / maker as printed on the carton. NULL for a container registered before the
+            field existed, and for plain supply rows that never carried one.
+        doseStrength:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Strength as printed on the container, e.g. "5 mg/0.5 ml". Free text, not split into a number + unit — pens
+            state strength per dose, per ml, or per cartridge. NULL when unknown.
         notes:
           anyOf:
             - type: string
@@ -19751,6 +19830,8 @@ components:
         - expiresAt
         - printedExpiry
         - purchasedAt
+        - manufacturer
+        - doseStrength
         - notes
         - createdAt
         - updatedAt
@@ -25250,6 +25331,28 @@ components:
               anyOf:
                 - type: string
                 - type: "null"
+            dueCandidates:
+              type: array
+              items:
+                type: object
+                properties:
+                  medicationId:
+                    type: string
+                  medicationName:
+                    type: string
+                  dueAt:
+                    type: string
+                  overdue:
+                    type: boolean
+                  availableFrom:
+                    type: string
+                required:
+                  - medicationId
+                  - medicationName
+                  - dueAt
+                  - overdue
+                  - availableFrom
+                additionalProperties: false
           required:
             - activeCount
             - scheduledToday
@@ -25260,12 +25363,11 @@ components:
             - nextDueMedicationName
             - nextDueMedicationId
           additionalProperties: false
-          description: "Today's medication block: active-medication count, today-window tally (scheduled / taken / skipped), and
-            the earliest next-due slot across active medications. `nextDueOverdue: true` marks an OPEN overdue slot
-            (anchor passed, still inside its catch-up band). `nextDueMedicationId` deep-links a consumer straight to the
-            overdue medication's card. Staleness contract: the snapshot is cache-served, so a `nextDueAt` in the past
-            with `nextDueOverdue: false` means the anchor passed after the snapshot was built — render the plain day
-            summary, never an overdue state."
+          description: "Today's medication block: active-medication count, today-window tally (scheduled / taken / skipped), every
+            active medication's current display-due candidate, and legacy scalar fields projected from candidate zero.
+            `overdue: true` marks an OPEN overdue slot (anchor passed, still inside its catch-up band); `availableFrom`
+            is the canonical cadence- and dose-window-derived attribution-band start. `dueCandidates` is optional so
+            older cached snapshots remain valid. Medication ids let consumers deep-link straight to the relevant card."
         healthScore:
           anyOf:
             - type: object
@@ -30629,6 +30731,12 @@ components:
           type: string
         text:
           type: string
+        persistence:
+          type: string
+          enum:
+            - stored
+            - withheld
+            - failed
       additionalProperties: false
     DocumentIndexEnvelope:
       type: object
@@ -31663,6 +31771,37 @@ components:
           items:
             $ref: "#/components/schemas/DailyPriorityItem"
           description: Bounded 0–3 rail items, never padded.
+        justIn:
+          anyOf:
+            - type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - sleep_night
+                    - workout
+                    - weight
+                    - blood_pressure
+                    - labs_panel
+                  description: Closed arrival kind that landed.
+                at:
+                  type: string
+                  description: ISO-8601 instant of the newest sample. NEVER pre-formatted server-side — the client formats it in its own
+                    locale and timezone.
+              required:
+                - kind
+                - at
+              additionalProperties: false
+            - type: "null"
+          description: The day's newest data arrival while it is still news (under three hours old), else null. Additive since
+            v1.31.0.
+        reactionLine:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: One-sentence generated reaction to that arrival, standing for the rest of the local day. Null whenever no
+            line was generated (no provider, no consent, budget exhausted, or generation failed) — consumers fall back
+            to `briefingLead` / `line`. Additive since v1.31.0.
       required:
         - generatedAt
         - phase
@@ -31672,6 +31811,8 @@ components:
         - briefingLead
         - line
         - worthALook
+        - justIn
+        - reactionLine
       additionalProperties: false
       description: The one data spine of the daily-value system — composed from already-cached data, never a fresh AI call.
         Consumed by the Today surface, the daily push, and a future iOS widget.

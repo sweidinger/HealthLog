@@ -227,7 +227,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/version || exit 1",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1",
         ]
       interval: 30s
       timeout: 5s
@@ -245,7 +245,7 @@ services:
   #     dockerfile: Dockerfile
   #   container_name: healthlog-worker
   #   environment:
-  #     DATABASE_URL: "postgresql://healthlog:${POSTGRES_PASSWORD}@db:5432/healthlog?schema=public"
+  #     DATABASE_URL: "postgresql://healthlog:${POSTGRES_PASSWORD}@db:5432/healthlog?schema=public&connection_limit=${DB_CONNECTION_LIMIT:-20}&pool_timeout=${DB_POOL_TIMEOUT:-20}"
   #     NODE_ENV: production
   #     ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
   #     ENCRYPTION_KEYS: "${ENCRYPTION_KEYS:-}"

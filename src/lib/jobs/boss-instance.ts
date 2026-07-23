@@ -1,17 +1,184 @@
 /**
- * Global pg-boss instance accessor.
- * Uses globalThis to share the instance across Turbopack chunks.
- * Set by the reminder worker on startup, read by notification senders
- * for scheduling delayed cleanup jobs.
+ * Process-local pg-boss access.
+ *
+ * Worker processes install their fully supervised consumer here. Web-only
+ * processes install a lightweight producer so request-time writes can enqueue
+ * jobs across the documented split deployment.
  */
-import type { PgBoss } from "pg-boss";
+import { PgBoss } from "pg-boss";
+
+import { getPgBossPoolMax, getPoolConnectionTimeoutMs } from "@/lib/db";
 
 const BOSS_KEY = "__healthlog_pgboss__" as const;
+const BOSS_START_KEY = "__healthlog_pgboss_start__" as const;
+const PRODUCER_START_MAX_ATTEMPTS = 5;
+const PRODUCER_RETRY_BASE_DELAY_MS = 250;
+const PRODUCER_RETRY_MAX_DELAY_MS = 2_000;
 
-export function setGlobalBoss(boss: PgBoss) {
-  (globalThis as Record<string, unknown>)[BOSS_KEY] = boss;
+export interface ProducerStartOptions {
+  maxAttempts?: number;
+  retryBaseDelayMs?: number;
+  retryMaxDelayMs?: number;
+}
+
+interface ProducerRetryPolicy {
+  maxAttempts: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+}
+
+function wait(ms: number): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  setTimeout(resolve, ms);
+  return promise;
+}
+
+function resolveRetryPolicy(
+  options: ProducerStartOptions,
+): ProducerRetryPolicy {
+  const maxAttempts = Math.max(
+    1,
+    Math.trunc(options.maxAttempts ?? PRODUCER_START_MAX_ATTEMPTS),
+  );
+  const baseDelayMs = Math.max(
+    0,
+    Math.trunc(options.retryBaseDelayMs ?? PRODUCER_RETRY_BASE_DELAY_MS),
+  );
+  const maxDelayMs = Math.max(
+    baseDelayMs,
+    Math.trunc(options.retryMaxDelayMs ?? PRODUCER_RETRY_MAX_DELAY_MS),
+  );
+  return { maxAttempts, baseDelayMs, maxDelayMs };
+}
+
+function retryDelayMs(
+  failedAttempt: number,
+  policy: ProducerRetryPolicy,
+): number {
+  return Math.min(
+    policy.maxDelayMs,
+    policy.baseDelayMs * 2 ** Math.max(0, failedAttempt - 1),
+  );
+}
+
+export function setGlobalBoss(boss: PgBoss | null): void {
+  const globalState = globalThis as Record<string, unknown>;
+  if (boss) globalState[BOSS_KEY] = boss;
+  else delete globalState[BOSS_KEY];
 }
 
 export function getGlobalBoss(): PgBoss | null {
   return ((globalThis as Record<string, unknown>)[BOSS_KEY] as PgBoss) ?? null;
+}
+
+function databaseOptions(connectionString: string) {
+  return {
+    connectionString,
+    max: getPgBossPoolMax(),
+    connectionTimeoutMillis: getPoolConnectionTimeoutMs(),
+  } as const;
+}
+
+export function createWorkerBoss(connectionString: string): PgBoss {
+  return new PgBoss(databaseOptions(connectionString));
+}
+
+function producerOptions(connectionString: string) {
+  return {
+    ...databaseOptions(connectionString),
+    migrate: false,
+    schedule: false,
+    supervise: false,
+  } as const;
+}
+
+async function startProducerAttempts(
+  connectionString: string,
+  policy: ProducerRetryPolicy,
+): Promise<PgBoss> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= policy.maxAttempts; attempt += 1) {
+    const boss = new PgBoss(producerOptions(connectionString));
+    let ready = false;
+    boss.on("error", (error: unknown) => {
+      console.error("[pg-boss-producer] error", error);
+      if (ready) superviseProducerReconnect(boss, connectionString, policy);
+    });
+    try {
+      await boss.start();
+      ready = true;
+      setGlobalBoss(boss);
+      return boss;
+    } catch (error) {
+      lastError = error;
+      await boss.stop({ graceful: false }).catch(() => undefined);
+      if (attempt < policy.maxAttempts) {
+        await wait(retryDelayMs(attempt, policy));
+      }
+    }
+  }
+  throw lastError;
+}
+
+function superviseProducerReconnect(
+  failedBoss: PgBoss,
+  connectionString: string,
+  policy: ProducerRetryPolicy,
+): void {
+  const globalState = globalThis as Record<string, unknown>;
+  if (getGlobalBoss() !== failedBoss || globalState[BOSS_START_KEY]) return;
+
+  setGlobalBoss(null);
+  const reconnecting = (async () => {
+    await failedBoss.stop({ graceful: false }).catch(() => undefined);
+    for (;;) {
+      try {
+        return await startProducerAttempts(connectionString, policy);
+      } catch (error) {
+        console.error("[pg-boss-producer] reconnect batch exhausted", error);
+        await wait(policy.maxDelayMs);
+      }
+    }
+  })();
+  globalState[BOSS_START_KEY] = reconnecting;
+  void reconnecting.finally(() => {
+    if (globalState[BOSS_START_KEY] === reconnecting) {
+      delete globalState[BOSS_START_KEY];
+    }
+  });
+}
+
+/**
+ * Start the web process's send-only pg-boss connection exactly once.
+ *
+ * `PgBoss.start()` is required to confirm the worker-owned schema exists.
+ * Migration, schedules, and pg-boss maintenance stay disabled in web mode;
+ * this module only supervises the producer connection itself.
+ */
+export async function startGlobalBossProducer(
+  connectionString: string | null | undefined,
+  options: ProducerStartOptions = {},
+): Promise<PgBoss | null> {
+  if (!connectionString) return null;
+
+  const globalState = globalThis as Record<string, unknown>;
+  const existing = getGlobalBoss();
+  if (existing) return existing;
+
+  const starting = globalState[BOSS_START_KEY] as
+    Promise<PgBoss | null> | undefined;
+  if (starting) return starting;
+
+  const startPromise = startProducerAttempts(
+    connectionString,
+    resolveRetryPolicy(options),
+  );
+  globalState[BOSS_START_KEY] = startPromise;
+  try {
+    return await startPromise;
+  } finally {
+    if (globalState[BOSS_START_KEY] === startPromise) {
+      delete globalState[BOSS_START_KEY];
+    }
+  }
 }

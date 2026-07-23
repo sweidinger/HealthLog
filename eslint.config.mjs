@@ -13,22 +13,22 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // v1.4.41 — ignore local tool worktrees so a worktree on an older
-    // commit can't poison `pnpm lint` locally.
-    // CI never sees this path; the rule is for the dev environment.
+    // v1.31.4 — ignore local tool worktrees so a worktree on another
+    // commit cannot poison `pnpm lint` locally.
+    // CI never sees these paths; the rules protect the dev environment.
     ".claude/**",
+    ".worktrees/**",
     // The project-local ESLint rule plugin is CommonJS (require/module
     // .exports) by ESLint convention; it is not application source and
     // is not linted by the app's TypeScript ruleset.
     "eslint-plugins/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
-  // v1.4.41 — custom rule that flags any bare-array
-  // `queryKey: [ … ]` / `mutationKey: [ … ]` declaration inside the
-  // files the queryKeys factory currently guards. Promotes the earlier
-  // v1.4.40 test-guard substitute to a real ESLint rule so IDE + CI
-  // both fail fast on a factory bypass. See
-  // `eslint-plugins/healthlog/queryKey-factory.js` for the
-  // whitelist + rationale.
+  // Factory enforcement for every client module: all components/hooks plus
+  // `"use client"` app/lib modules. Tests and `src/lib/query-keys/**` own
+  // literal fixtures/tuples and are exempt inside the rule.
   {
     plugins: { healthlog: healthlogPlugin },
     rules: {
@@ -38,11 +38,11 @@ const eslintConfig = defineConfig([
       // requirePublicHost connect-time pin). The wrapper internals and
       // test files are exempt; see the rule file for the allowlist.
       "healthlog/safe-fetch-required": "error",
-      // v1.16.4 — same-origin `/api/...` calls in the client surface
-      // (src/components + src/app) must route through the typed apiFetch
-      // wrapper (`src/lib/api/api-fetch.ts`): one `.ok` check, one
-      // envelope unwrap, one ApiError shape. Wrapper internals and test
-      // files are exempt; see the rule file for the allowlist.
+      // Every raw fetch in the complete client surface is rejected regardless
+      // of whether the endpoint is a literal, template, variable, or map
+      // lookup. Envelope JSON uses the verb helpers; deliberate Response-level
+      // work and non-API external calls use the explicit `apiFetchRaw` escape
+      // hatch. Server-only modules, wrapper internals, and tests are exempt.
       "healthlog/api-fetch-required": "error",
       // v1.26.0 — the design-consistency wave locked the app's colour
       // vocabulary onto semantic tokens. Raw Tailwind palette utilities

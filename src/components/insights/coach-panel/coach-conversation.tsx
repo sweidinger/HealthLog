@@ -233,6 +233,15 @@ export interface CoachConversationProps {
    */
   initialDocumentId?: string | null;
   /**
+   * v1.31.0 — the workout a FRESH conversation is scoped to ("Ask why" on the
+   * workout-detail page, or `/coach?workout=<id>`). Threads onto the first
+   * turn only, exactly like `launchScope`: once the thread exists the server
+   * has already pinned the workout's evidence section onto its snapshot, so
+   * re-sending it would be per-turn work that buys nothing. That gate is what
+   * keeps snapshot-once intact.
+   */
+  initialWorkoutId?: string | null;
+  /**
    * v1.28.52 (Documents R3) — hand the chrome an imperative getter for the
    * live conversation id (parallel to `registerReset`). The drawer reads it at
    * maximize time so it can hand off to `/coach?c=<id>` when a thread already
@@ -258,6 +267,7 @@ export function CoachConversation({
   initialConversationId,
   autoOpenMostRecent = false,
   initialDocumentId,
+  initialWorkoutId,
   registerConversationIdGetter,
 }: CoachConversationProps) {
   const { t } = useTranslations();
@@ -266,6 +276,9 @@ export function CoachConversation({
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(initialConversationId ?? null);
+  const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(
+    initialWorkoutId ?? null,
+  );
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
   const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
@@ -628,12 +641,18 @@ export function CoachConversation({
     // `guidedQuestion`) are suppressed on a fenced turn — that endpoint has no
     // snapshot and no guided flow. `pendingAttachmentIds` travels ONLY on a
     // brand-new conversation (first-turn attach).
+    // Same first-turn gate as `scope` — see `initialWorkoutId`.
+    const workoutId =
+      currentConversationId === null
+        ? (activeWorkoutId ?? undefined)
+        : undefined;
     const wasFreshFenced = currentConversationId === null && fenced;
     const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
       guidedQuestion: fenced ? undefined : (guidedQuestion ?? undefined),
       scope: fenced ? undefined : scope,
+      workoutId: fenced ? undefined : workoutId,
       fenced,
       pendingAttachmentIds:
         currentConversationId === null ? pendingAttachmentIds : undefined,
@@ -706,6 +725,10 @@ export function CoachConversation({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
       scope: fenced ? undefined : scope,
+      workoutId:
+        fenced || currentConversationId !== null
+          ? undefined
+          : (activeWorkoutId ?? undefined),
       fenced,
       pendingAttachmentIds:
         currentConversationId === null ? pendingAttachmentIds : undefined,
@@ -719,6 +742,7 @@ export function CoachConversation({
     // v1.29.x (S7) — a new chat is always a health thread; drop any staged
     // attachments so a fenced scope can never leak onto a fresh health thread.
     setPendingAttachmentIds([]);
+    setActiveWorkoutId(null);
     dispatchGuided({ type: "RESET" });
     send.reset();
   }
@@ -1066,6 +1090,7 @@ export function CoachConversation({
         className={cn("flex min-h-0 flex-1 flex-col", className)}
       >
         {docScopeBanner}
+        {!heroActive ? <h1 className="sr-only">{title}</h1> : null}
         {/* v1.21.4 (A) — the page-toolbar gear was removed; Settings now lives
             in the composer's `+` actions menu alongside New chat and
             Conversations, keeping the page chrome to the composer alone. */}

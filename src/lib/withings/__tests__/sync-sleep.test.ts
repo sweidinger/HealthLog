@@ -8,6 +8,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const { reconcileMock, transactionMock } = vi.hoisted(() => ({
+  reconcileMock: vi.fn(),
+  transactionMock: vi.fn(),
+}));
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: {
@@ -18,7 +23,13 @@ vi.mock("@/lib/db", () => ({
       updateMany: vi.fn(),
     },
     withingsConnection: { findUnique: vi.fn() },
+    $transaction: transactionMock,
   },
+}));
+
+vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
+  reconcileExternalMeasurement: reconcileMock,
+  MeasurementReconciliationError: class extends Error {},
 }));
 
 vi.mock("@/lib/integrations/status", () => ({
@@ -96,6 +107,23 @@ function installFetchMock(segments: FakeSegment[]) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  transactionMock.mockImplementation(async (run: (tx: unknown) => unknown) =>
+    run({}),
+  );
+  reconcileMock.mockImplementation(
+    async (
+      _tx: unknown,
+      input: { type: string; measuredAt: Date; externalId: string },
+    ) => ({
+      status: "inserted",
+      row: {
+        id: `inserted:${input.externalId}`,
+        type: input.type,
+        measuredAt: input.measuredAt,
+        externalId: input.externalId,
+      },
+    }),
+  );
   // v1.4.26 — every syncUserSleep call now reads the connection's
   // scope to short-circuit legacy `user.metrics`-only connections.
   // Default-mock to "scope is fine" so the existing segment-mapping
@@ -249,16 +277,14 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     const imported = await syncUserSleep("user-1");
     expect(imported).toBe(4);
 
-    const stages = vi
-      .mocked(prisma.measurement.create)
-      .mock.calls.map((c) => (c[0].data as { sleepStage: string }).sleepStage);
-    expect(stages).toEqual(["CORE", "DEEP", "REM", "AWAKE"]);
-
-    // First segment: 60 minutes (3600s / 60).
-    const firstDuration = vi.mocked(prisma.measurement.create).mock
-      .calls[0][0] as { data: { value: number; unit: string } };
-    expect(firstDuration.data.value).toBe(60);
-    expect(firstDuration.data.unit).toBe("minutes");
+    const writes = reconcileMock.mock.calls.map((call) => call[1]);
+    expect(writes.map((row) => row.sleepStage)).toEqual([
+      "CORE",
+      "DEEP",
+      "REM",
+      "AWAKE",
+    ]);
+    expect(writes[0]).toMatchObject({ value: 60, unit: "minutes" });
   });
 
   it("stamps measuredAt at the segment END (enddate, unix seconds → Date)", async () => {
@@ -269,13 +295,11 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
 
     await syncUserSleep("user-1");
-    const arg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
-      data: { measuredAt: Date };
-    };
+    const row = reconcileMock.mock.calls[0]![1] as { measuredAt: Date };
     // measuredAt is the segment END — every reader treats it as the END and
     // resolves the span as start = end − duration. Stamping the START shifted
     // the night one segment-length earlier.
-    expect(arg.data.measuredAt.getTime()).toBe(1715003600 * 1000);
+    expect(row.measuredAt.getTime()).toBe(1715003600 * 1000);
   });
 
   it("skips state 4 (synthetic marker) without throwing", async () => {
@@ -288,9 +312,7 @@ describe("syncUserSleep — segment writes + idempotency", () => {
 
     const imported = await syncUserSleep("user-1");
     expect(imported).toBe(1);
-    const stages = vi
-      .mocked(prisma.measurement.create)
-      .mock.calls.map((c) => (c[0].data as { sleepStage: string }).sleepStage);
+    const stages = reconcileMock.mock.calls.map((call) => call[1].sleepStage);
     expect(stages).toEqual(["DEEP"]);
   });
 
@@ -298,27 +320,23 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     installFetchMock([
       { startdate: 1715000000, enddate: 1715003600, state: 2, id: 1 },
     ]);
-    // findFirst returns an existing row → writer takes the update path.
-    vi.mocked(prisma.measurement.findFirst).mockResolvedValue({
-      id: "row-1",
-    } as never);
-    vi.mocked(prisma.measurement.update).mockResolvedValue({} as never);
+    reconcileMock.mockResolvedValueOnce({
+      status: "updated",
+      row: {
+        id: "row-1",
+        type: "SLEEP_DURATION",
+        measuredAt: new Date(1715003600 * 1000),
+        externalId: "withings:sleep:user-1:1:1715000000",
+      },
+    });
 
     const imported = await syncUserSleep("user-1");
     expect(imported).toBe(1);
-    expect(prisma.measurement.create).not.toHaveBeenCalled();
-    // Re-sync keys on the stable externalId and refreshes value, the
-    // END-stamped measuredAt (enddate may shift) and the stage.
-    expect(prisma.measurement.update).toHaveBeenCalledWith({
-      where: { id: "row-1" },
-      data: {
-        value: 60,
-        measuredAt: new Date(1715003600 * 1000),
-        sleepStage: "DEEP",
-        // No-op on a live row, resurrection on a tombstoned one — the
-        // source-owned resurrect rule.
-        deletedAt: null,
-      },
+    expect(reconcileMock.mock.calls[0]![1]).toMatchObject({
+      value: 60,
+      measuredAt: new Date(1715003600 * 1000),
+      sleepStage: "DEEP",
+      externalId: "withings:sleep:user-1:1:1715000000",
     });
   });
 
@@ -333,32 +351,13 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     installFetchMock([
       { startdate: 1715000500, enddate: 1715003600, state: 2, id: 42 },
     ]);
-    vi.mocked(prisma.measurement.findFirst).mockImplementation((async (args: {
-      where: Record<string, unknown>;
-    }) => {
-      const where = args.where;
-      // externalId probe (START shifted ⇒ new id) → miss.
-      if ("externalId" in where) return null;
-      // natural-key probe (END + stage unchanged) → the surviving prior row.
-      if ("measuredAt" in where) return { id: "old-row" };
-      return null;
-    }) as never);
-    vi.mocked(prisma.measurement.update).mockResolvedValue({} as never);
-    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
-
     const imported = await syncUserSleep("user-1");
     expect(imported).toBe(1);
-
-    // No collision: the survivor is re-keyed in place, never re-created.
-    expect(prisma.measurement.create).not.toHaveBeenCalled();
-    expect(prisma.measurement.update).toHaveBeenCalledWith({
-      where: { id: "old-row" },
-      data: {
-        value: expect.any(Number),
-        // Re-keyed onto the shifted START-based externalId and resurrected.
-        externalId: "withings:sleep:user-1:42:1715000500",
-        deletedAt: null,
-      },
+    expect(reconcileMock.mock.calls[0]![1]).toMatchObject({
+      value: expect.any(Number),
+      measuredAt: new Date(1715003600 * 1000),
+      sleepStage: "DEEP",
+      externalId: "withings:sleep:user-1:42:1715000500",
     });
   });
 
@@ -370,14 +369,12 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
 
     await syncUserSleep("user-1");
-    const arg = vi.mocked(prisma.measurement.create).mock.calls[0][0] as {
-      data: { externalId: string };
-    };
+    const row = reconcileMock.mock.calls[0]![1] as { externalId: string };
     // Session id + the segment's own startdate — both stable within a session.
     // The retired running index counted across the whole rolling 30-day fetch
     // window, so the window slide renumbered every segment on each sync and a
     // re-aggregated night inserted a duplicate set.
-    expect(arg.data.externalId).toBe("withings:sleep:user-1:42:1715000000");
+    expect(row.externalId).toBe("withings:sleep:user-1:42:1715000000");
   });
 
   it("mints IDENTICAL externalIds when the fetch window slides (re-fetch of the same night)", async () => {
@@ -395,19 +392,18 @@ describe("syncUserSleep — segment writes + idempotency", () => {
 
     installFetchMock(night);
     await syncUserSleep("user-1");
-    const firstIds = vi
-      .mocked(prisma.measurement.create)
-      .mock.calls.map((c) => (c[0].data as { externalId: string }).externalId);
+    const firstIds = reconcileMock.mock.calls.map(
+      (call) => call[1].externalId as string,
+    );
 
-    vi.mocked(prisma.measurement.create).mockClear();
+    reconcileMock.mockClear();
     installFetchMock([
       { startdate: 1714990000, enddate: 1714993600, state: 1, id: 7 },
       ...night,
     ]);
     await syncUserSleep("user-1");
-    const secondIds = vi
-      .mocked(prisma.measurement.create)
-      .mock.calls.map((c) => (c[0].data as { externalId: string }).externalId)
+    const secondIds = reconcileMock.mock.calls
+      .map((call) => call[1].externalId as string)
       .filter((id) => id.includes(":42:"));
 
     expect(secondIds).toEqual(firstIds);
@@ -496,28 +492,20 @@ describe("syncUserSleep — segment writes + idempotency", () => {
         },
       ],
     );
-    vi.mocked(prisma.measurement.upsert).mockResolvedValue({} as never);
+    reconcileMock.mockResolvedValue({ status: "updated", row: {} });
 
     const imported = await syncUserSleep("user-1");
     // Five vitals upserted (no stage segments in this fixture).
     expect(imported).toBe(5);
 
-    const calls = vi.mocked(prisma.measurement.upsert).mock.calls;
     const byType = new Map(
-      calls.map((c) => {
-        const w = c[0] as {
-          where: {
-            userId_type_source_externalId: { type: string; externalId: string };
-          };
-          create: { value: number };
+      reconcileMock.mock.calls.map((call) => {
+        const row = call[1] as {
+          type: string;
+          externalId: string;
+          value: number;
         };
-        return [
-          w.where.userId_type_source_externalId.type,
-          {
-            externalId: w.where.userId_type_source_externalId.externalId,
-            value: w.create.value,
-          },
-        ];
+        return [row.type, { externalId: row.externalId, value: row.value }];
       }),
     );
     expect(byType.get("RESTING_HEART_RATE")).toEqual({
@@ -565,7 +553,7 @@ describe("syncUserSleep — segment writes + idempotency", () => {
     const imported = await syncUserSleep("user-1");
     // The one stage segment is still written; the summary failure is swallowed.
     expect(imported).toBe(1);
-    expect(prisma.measurement.create).toHaveBeenCalledTimes(1);
+    expect(reconcileMock).toHaveBeenCalledTimes(1);
     expect(recordSyncSuccess).toHaveBeenCalledWith("user-1", "withings");
   });
 
@@ -582,9 +570,7 @@ describe("syncUserSleep — segment writes + idempotency", () => {
 
     const imported = await syncUserSleep("user-1");
     expect(imported).toBe(2);
-    const stages = vi
-      .mocked(prisma.measurement.create)
-      .mock.calls.map((c) => (c[0].data as { sleepStage: string }).sleepStage);
+    const stages = reconcileMock.mock.calls.map((call) => call[1].sleepStage);
     expect(stages).not.toContain("REM");
   });
 });
@@ -601,7 +587,7 @@ describe("syncUserSleep — scope-skip guard (v1.4.26)", () => {
 
     expect(imported).toBe(0);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(prisma.measurement.create).not.toHaveBeenCalled();
+    expect(reconcileMock).not.toHaveBeenCalled();
     expect(recordSyncSuccess).not.toHaveBeenCalled();
   });
 

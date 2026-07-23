@@ -80,9 +80,12 @@ describe("signal-grounded no-key fallbacks", () => {
     expect(text).not.toContain("Schnitt von");
   });
 
-  it("falls back to the generic tip when no signal is given (mood, en)", () => {
+  it("falls back to the no-signal floor when no signal is given (mood, en)", () => {
     const text = getNoKeyMoodStatusText("en");
-    expect(text).toContain("Evaluate mood trends over several weeks");
+    // The floor states the absence plainly before saying anything else — it
+    // has no signal to ground against, so it may not imply a read.
+    expect(text).toContain("No assessment on this one right now");
+    expect(text).toContain("Mood reads over weeks");
   });
 
   it("falls back to the generic tip when the signal has no finite current (adherence, en)", () => {
@@ -90,7 +93,8 @@ describe("signal-grounded no-key fallbacks", () => {
       "en",
       signal({ current: Number.NaN }),
     );
-    expect(text).toContain("Consistency in intake matters more");
+    expect(text).toContain("No assessment on this one right now");
+    expect(text).toContain("Adherence reads as consistency over weeks");
   });
 
   it("adherence grounds with a percent value and a routine pointer (en)", () => {

@@ -32,9 +32,10 @@ import {
   markResourceSynced,
   resolveResourceCursor,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
-} from "./sync";
+} from "./sync-core";
 import { mapWhoopSportType } from "./sport-map";
 import { prisma } from "@/lib/db";
+import { emitInsertedWorkoutArrival } from "@/lib/arrivals/workout-emit";
 import { getEvent } from "@/lib/logging/context";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -162,22 +163,32 @@ export async function upsertWhoopWorkout(
   };
 
   try {
-    await prisma.workout.upsert({
-      where: {
-        userId_source_externalId: {
-          userId,
-          source: "WHOOP",
-          externalId: w.id,
-        },
-      },
-      create: {
+    const [inserted] = await prisma.workout.createManyAndReturn({
+      data: {
         userId,
         source: "WHOOP",
         externalId: w.id,
         ...row,
       },
-      update: row,
+      skipDuplicates: true,
+      select: { id: true, startedAt: true },
     });
+    if (inserted) {
+      void emitInsertedWorkoutArrival(userId, inserted, "whoop").catch(
+        () => {},
+      );
+    } else {
+      await prisma.workout.update({
+        where: {
+          userId_source_externalId: {
+            userId,
+            source: "WHOOP",
+            externalId: w.id,
+          },
+        },
+        data: row,
+      });
+    }
     return 1;
   } catch (err) {
     getEvent()?.addWarning(`WHOOP: failed to upsert workout: ${err}`);

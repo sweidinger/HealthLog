@@ -11,14 +11,14 @@ vi.mock("@/lib/api-handler", () => ({
 vi.mock("@/lib/db", () => {
   const measurement = {
     findMany: vi.fn(),
-    createMany: vi.fn(),
+    createManyAndReturn: vi.fn(),
     updateMany: vi.fn(),
   };
   return {
     prisma: {
       measurement,
       // Run the batched write callback against the same measurement mock so
-      // createMany / updateMany calls are observable.
+      // createManyAndReturn / updateMany calls are observable.
       $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
         fn({ measurement }),
       ),
@@ -99,14 +99,15 @@ beforeEach(() => {
   // db mock factory (resetAllMocks clears its implementation), so restore it.
   const measurement = prisma.measurement as unknown as {
     findMany: ReturnType<typeof vi.fn>;
-    createMany: ReturnType<typeof vi.fn>;
+    createManyAndReturn: ReturnType<typeof vi.fn>;
     updateMany: ReturnType<typeof vi.fn>;
   };
   measurement.findMany.mockResolvedValue([]);
-  // Echo the attempted chunk size, matching Postgres semantics when no row
-  // collides — the route now reconciles `inserted` against this count.
-  measurement.createMany.mockImplementation(
-    async (arg: { data: unknown[] }) => ({ count: arg.data.length }),
+  // Echo the attempted rows, matching Postgres semantics when no row
+  // collides — the route reconciles `inserted` against this result.
+  measurement.createManyAndReturn.mockImplementation(
+    async (arg: { data: Array<Record<string, unknown>> }) =>
+      arg.data.map((row, index) => ({ ...row, id: `inserted-${index}` })),
   );
   measurement.updateMany.mockResolvedValue({ count: 0 });
   (
@@ -139,7 +140,7 @@ describe("POST /api/import/csv — rate limit", () => {
 const mMeasurement = () =>
   prisma.measurement as unknown as {
     findMany: ReturnType<typeof vi.fn>;
-    createMany: ReturnType<typeof vi.fn>;
+    createManyAndReturn: ReturnType<typeof vi.fn>;
     updateMany: ReturnType<typeof vi.fn>;
   };
 
@@ -147,7 +148,7 @@ describe("POST /api/import/csv — fatal header error", () => {
   it("returns 422 when a required column is missing", async () => {
     const res = await POST(csvRequest("type,value,unit\nWEIGHT,80,kg"));
     expect(res.status).toBe(422);
-    expect(mMeasurement().createMany).not.toHaveBeenCalled();
+    expect(mMeasurement().createManyAndReturn).not.toHaveBeenCalled();
   });
 });
 
@@ -173,15 +174,15 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
     const reasons = body.data?.rows.map((r) => r.reason);
     expect(reasons).toContain("unknown_type");
     expect(reasons).toContain("missing_timezone_offset");
-    // One bulk createMany carrying the single valid survivor.
-    expect(mMeasurement().createMany).toHaveBeenCalledTimes(1);
-    const arg = mMeasurement().createMany.mock.calls[0][0];
+    // One bulk createManyAndReturn carrying the single valid survivor.
+    expect(mMeasurement().createManyAndReturn).toHaveBeenCalledTimes(1);
+    const arg = mMeasurement().createManyAndReturn.mock.calls[0][0];
     expect(arg.data).toHaveLength(1);
     // Rollup re-fold fired for the touched (type, day).
     expect(vi.mocked(recomputeBucketsForMeasurement)).toHaveBeenCalled();
   });
 
-  it("batches many rows into a single createMany (no per-row round-trip)", async () => {
+  it("batches many rows into a single createManyAndReturn", async () => {
     const rows = [HEADER];
     for (let i = 0; i < 50; i++) {
       const mm = String(i).padStart(2, "0"); // unique minute → unique measuredAt
@@ -191,9 +192,11 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as CsvEnvelope;
     expect(body.data?.inserted).toBe(50);
-    // 50 rows, one createMany call — the whole point of the batch.
-    expect(mMeasurement().createMany).toHaveBeenCalledTimes(1);
-    expect(mMeasurement().createMany.mock.calls[0][0].data).toHaveLength(50);
+    // 50 rows, one bulk call — the whole point of the batch.
+    expect(mMeasurement().createManyAndReturn).toHaveBeenCalledTimes(1);
+    expect(
+      mMeasurement().createManyAndReturn.mock.calls[0][0].data,
+    ).toHaveLength(50);
   });
 
   it("dryRun previews without writing and reports projected inserts", async () => {
@@ -208,7 +211,7 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
     expect(body.data?.dryRun).toBe(true);
     expect(body.data?.inserted).toBe(1);
     expect(body.data?.rows[0].status).toBe("inserted");
-    expect(mMeasurement().createMany).not.toHaveBeenCalled();
+    expect(mMeasurement().createManyAndReturn).not.toHaveBeenCalled();
     expect(vi.mocked(recomputeBucketsForMeasurement)).not.toHaveBeenCalled();
   });
 
@@ -227,7 +230,7 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
     expect(body.data?.inserted).toBe(0);
     expect(body.data?.rows[0].status).toBe("updated");
     expect(mMeasurement().updateMany).toHaveBeenCalledTimes(1);
-    expect(mMeasurement().createMany).not.toHaveBeenCalled();
+    expect(mMeasurement().createManyAndReturn).not.toHaveBeenCalled();
   });
 
   it("resurrects a tombstoned externalId row on re-import (deletedAt: null in update)", async () => {
@@ -264,7 +267,7 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
     expect(body.data?.inserted).toBe(1);
     expect(body.data?.updated).toBe(0);
     expect(body.data?.rows[0].status).toBe("inserted");
-    expect(mMeasurement().createMany).toHaveBeenCalledTimes(1);
+    expect(mMeasurement().createManyAndReturn).toHaveBeenCalledTimes(1);
   });
 
   it("counts a pre-existing natural-key row as skipped/duplicate", async () => {
@@ -282,7 +285,7 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
       status: "skipped",
       reason: "duplicate",
     });
-    expect(mMeasurement().createMany).not.toHaveBeenCalled();
+    expect(mMeasurement().createManyAndReturn).not.toHaveBeenCalled();
   });
 
   it("collapses an in-file duplicate (same type+measuredAt) to one insert + one duplicate", async () => {
@@ -299,16 +302,21 @@ describe("POST /api/import/csv — batched write + per-row envelope", () => {
     expect(body.data?.inserted).toBe(1);
     expect(body.data?.skipped).toBe(1);
     // Only the first survivor reaches the bulk insert.
-    expect(mMeasurement().createMany.mock.calls[0][0].data).toHaveLength(1);
+    expect(
+      mMeasurement().createManyAndReturn.mock.calls[0][0].data,
+    ).toHaveLength(1);
   });
 
-  it("reconciles `inserted` against the createMany count when skipDuplicates absorbs a race", async () => {
+  it("reconciles `inserted` against returned rows after a race", async () => {
     // Two fresh rows attempted, but a concurrent double-submit already
     // landed one of them — `skipDuplicates` absorbs the conflict and the
     // count comes back short. The envelope must sum to the DB truth: one
     // inserted, one downgraded to skipped/duplicate.
-    mMeasurement().createMany.mockImplementation(
-      async (arg: { data: unknown[] }) => ({ count: arg.data.length - 1 }),
+    mMeasurement().createManyAndReturn.mockImplementation(
+      async (arg: { data: Array<Record<string, unknown>> }) =>
+        arg.data
+          .slice(0, -1)
+          .map((row, index) => ({ ...row, id: `inserted-${index}` })),
     );
 
     const res = await POST(

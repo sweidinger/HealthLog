@@ -121,9 +121,9 @@ const batchEntryResult = z
   .object({
     index: z.number().int().nonnegative(),
     status: z
-      .enum(["inserted", "updated", "duplicate", "skipped"])
+      .enum(["inserted", "updated", "duplicate", "skipped", "failed"])
       .describe(
-        "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate (per-day cumulative total or hourly heart-rate bucket) overwrote an existing row. `skipped` — not stored (e.g. unmappable identifier, out-of-range value, or `malformed_hr_bucket_id`); see `reason`.",
+        "`inserted`/`duplicate` — the row landed (advance the cursor). `updated` — a `stats:` aggregate overwrote an existing row. `skipped` — validation no-op; see `reason`. `failed` — retryable database failure that must not advance the entry cursor; the response is marked `Cache-Control: no-store`.",
       ),
     reason: z.string().optional(),
   })
@@ -135,6 +135,7 @@ const batchResponse = z
     inserted: z.number().int().nonnegative(),
     updated: z.number().int().nonnegative(),
     duplicates: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
     skipped: z.array(
       z.object({
         index: z.number().int().nonnegative(),
@@ -417,13 +418,15 @@ const sleepDebtResource = z.object({
   state: z
     .enum(["partial", "ready"])
     .describe(
-      "`partial` until enough tracked nights exist (calm 'still learning'); `ready` once the rolling window can assert a cumulative debt.",
+      "`partial` until enough tracked nights exist (calm 'still learning'); `ready` once the rolling window can assert a balance.",
     ),
   debtMinutes: z
     .number()
     .int()
     .nonnegative()
-    .describe("Cumulative sleep debt over the window, in minutes, after caps."),
+    .describe(
+      "Outstanding sleep-debt balance over the window, in minutes, after caps. A night below need adds its shortfall; a night above need pays the balance down (floored at 0).",
+    ),
   needMinutes: z
     .number()
     .int()
@@ -513,7 +516,7 @@ const sleepRhythmResponse = z
   .meta({
     id: "SleepRhythmResource",
     description:
-      "Server-authoritative sleep-rhythm read: cumulative sleep debt over the rolling window + MCTQ chronotype (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type.",
+      "Server-authoritative sleep-rhythm read: the outstanding sleep-debt balance over the rolling window + MCTQ chronotype (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type.",
   });
 
 // ── Time-series adapter (iOS chart source) ───────────────────────────
@@ -1004,7 +1007,7 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Measurements"],
       summary: "Sleep rhythm — sleep-debt + chronotype (v1.17.0)",
       description:
-        "Returns the two server-authoritative sleep-timing signals the Sleep page + iOS render off the same canonical night reconstruction the Sleep Score uses: cumulative `sleepDebt` over the rolling window (calm `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag, `learning` state until enough free-day nights exist). Free vs work nights default to weekend = free in the user's timezone (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no new measurement type.",
+        "Returns the two server-authoritative sleep-timing signals the Sleep page + iOS render off the same canonical night reconstruction the Sleep Score uses: the outstanding `sleepDebt` balance over the rolling window (calm `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag, `learning` state until enough free-day nights exist). Free vs work nights default to weekend = free in the user's timezone (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no new measurement type.",
       responses: {
         "200": {
           description: "Sleep-debt + chronotype DTO.",

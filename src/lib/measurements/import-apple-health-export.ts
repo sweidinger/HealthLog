@@ -4,18 +4,18 @@
  * Reads an `export.xml` byte-stream via `sax` (event-driven SAX, no
  * DOM) and folds every `<Record>`, `<Workout>`, and `<Correlation>`
  * element into the row shape the existing `Measurement` and
- * `Workout` models expect. Cumulative-quantity `<Record>` rows
- * (steps, energy, distance, flights, daylight) collapse into one
- * `stats:<HKType>:<YYYY-MM-DD>` `Measurement` per user-local day
- * — mirroring iOS's `HKStatisticsCollectionQuery` daily-aggregation
- * convention locked in v1.4.30. Spot rows (BP, weight, HRV, …)
- * survive verbatim, keyed by `HKSample.uuid` when present.
+ * `Workout` models expect. Cumulative-quantity `<Record>` rows are folded by
+ * `(type, local day, hashed source identity)`, summed within each source-day,
+ * then reduced to the largest source subtotal. The resulting
+ * `stats:<HKType>:<YYYY-MM-DD>` row is explicitly an export estimate; native
+ * HealthKit statistics remain authoritative.
  *
- * Memory profile: SAX callbacks fire as the byte cursor advances,
- * so peak RSS stays bounded regardless of the input file size. The
- * cumulative-bucket map holds at most one `(type, day)` entry per
- * observed day per cumulative type — a 10-year export with five
- * cumulative types lands at ~18 000 entries (~1 MB).
+ * Spot rows (BP, weight, HRV, …) survive verbatim, keyed by `HKSample.uuid`
+ * when present. SAX callbacks fire as the byte cursor advances, so peak RSS
+ * stays bounded regardless of input size. The cumulative map grows with the
+ * observed `(type, day, source hash)` combinations; every record without source
+ * metadata shares one bounded bucket, and raw source/device labels are never
+ * retained.
  *
  * Locks per `.planning/research/v1434-r-1-xml-import.md` §6.
  */
@@ -39,7 +39,11 @@ import {
   dayKeyForUserTz,
   canonicalDailyTimestamp,
 } from "@/lib/measurements/drain-per-sample-cumulative";
+import { reconcileExternalMeasurement } from "@/lib/measurements/reconcile-external-measurement";
 import { resolveHkWorkoutSportType } from "@/lib/measurements/hk-workout-activity-type-map";
+import { emitInsertedMeasurementArrivals } from "@/lib/arrivals/measurement-emit";
+import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
 import {
   CycleImportAccumulator,
@@ -110,6 +114,12 @@ export interface ImportJobResult {
   cycle: CycleImportStats;
   deferred: Record<string, number>;
   unknown: Record<string, number>;
+  cumulativeEstimates: {
+    /** Distinct local calendar days containing at least one estimated total. */
+    days: number;
+    /** Estimated `(measurement type, local day)` aggregate rows considered. */
+    rows: number;
+  };
   totals: {
     recordsRead: number;
     rowsUpserted: number;
@@ -144,6 +154,8 @@ interface PreparedWorkout {
   metadata: Prisma.JsonValue | null;
 }
 
+type CumulativeSourceSubtotals = Map<string, number>;
+
 /** Per-type running stats accumulator. */
 interface MutableTypeStat {
   read: number;
@@ -177,6 +189,34 @@ export function hashSampleKey(
       .digest("hex")
       .slice(0, 28)
   );
+}
+
+const UNATTRIBUTED_CUMULATIVE_SOURCE_HASH = createHash("sha256")
+  .update(JSON.stringify(["unattributed"]))
+  .digest("hex");
+
+/**
+ * Hash the source tuple used only to keep overlapping export.xml contributors
+ * separate. Records without source metadata share one stable bucket so parser
+ * state remains bounded by actual source cardinality rather than record count.
+ * Raw source/device labels never leave the parser.
+ */
+export function hashCumulativeSourceIdentity(
+  sourceName: string | undefined,
+  sourceVersion: string | undefined,
+  device: string | undefined,
+): string {
+  const sourceTuple = [
+    sourceName?.trim() ?? "",
+    sourceVersion?.trim() ?? "",
+    device?.trim() ?? "",
+  ];
+  if (!sourceTuple.some(Boolean)) {
+    return UNATTRIBUTED_CUMULATIVE_SOURCE_HASH;
+  }
+  return createHash("sha256")
+    .update(JSON.stringify(["source", ...sourceTuple]))
+    .digest("hex");
 }
 
 /**
@@ -232,7 +272,7 @@ export interface StreamParseInput {
   /** IANA timezone, used to anchor cumulative-type day-keys. */
   userTimezone: string;
   /** Prisma client to flush rows through. */
-  prisma: Pick<PrismaClient, "measurement" | "workout">;
+  prisma: Pick<PrismaClient, "measurement" | "workout" | "$transaction">;
   /**
    * Live progress hook. Called every `PROGRESS_TICK_RECORDS` records
    * read, and once on terminal `done`. Best-effort; the parser
@@ -302,8 +342,11 @@ export async function streamParseExportXml(
     protectionUsed?: boolean;
   } | null = null;
 
-  // Cumulative-type fold: type -> dayKey -> running sum.
-  const cumulativeBucket = new Map<MeasurementType, Map<string, number>>();
+  // Cumulative fold: type -> local day -> hashed source identity -> subtotal.
+  const cumulativeBucket = new Map<
+    MeasurementType,
+    Map<string, CumulativeSourceSubtotals>
+  >();
   // Spot-row batch awaiting flush.
   const spotBatch: PreparedMeasurement[] = [];
   // Workout-row batch awaiting flush.
@@ -311,6 +354,8 @@ export async function streamParseExportXml(
 
   let recordsRead = 0;
   let rowsUpserted = 0;
+  const cumulativeEstimatedDays = new Set<string>();
+  let cumulativeEstimatedRows = 0;
   // Per R-1 §8 the percent stays best-effort and may remain null
   // until the parser sees the closing `</HealthData>` tag. We don't
   // currently mutate this in v1.4.34 — the iOS app keeps polling on
@@ -353,29 +398,100 @@ export async function streamParseExportXml(
   const flushSpotBatch = async (): Promise<void> => {
     if (spotBatch.length === 0) return;
     const chunk = spotBatch.splice(0, spotBatch.length);
-    // Look up existing rows by the compound unique key so we can
-    // attribute inserts vs updates accurately for the per-type stats.
-    const existingRows = await prisma.measurement.findMany({
-      where: {
+    const insertedArrivals: Array<{
+      id: string;
+      type: MeasurementType;
+      measuredAt: Date;
+    }> = [];
+    const createData: Prisma.MeasurementCreateManyInput[] = chunk.map(
+      (row) => ({
         userId,
+        type: row.type,
+        value: row.value,
+        unit: row.unit,
         source: "APPLE_HEALTH",
-        OR: chunk.map((r) => ({
-          type: r.type,
-          externalId: r.externalId,
-        })),
-      },
-      select: { type: true, externalId: true },
-    });
-    const existingKey = new Set(
-      existingRows.map((r) => `${r.type}::${r.externalId}`),
+        measuredAt: row.measuredAt,
+        externalId: row.externalId,
+        externalSourceVersion: row.externalSourceVersion,
+        sleepStage: row.sleepStage ?? null,
+        deviceType: row.deviceType,
+      }),
     );
+    const insertStartedAt = Date.now();
+    let createdRows: Array<{
+      id: string;
+      type: MeasurementType;
+      measuredAt: Date;
+      externalId: string | null;
+    }> = [];
+    const failedInsertIndexes = new Set<number>();
+    try {
+      createdRows = await prisma.measurement.createManyAndReturn({
+        data: createData,
+        skipDuplicates: true,
+        select: {
+          id: true,
+          type: true,
+          measuredAt: true,
+          externalId: true,
+        },
+      });
+    } catch {
+      // Retain the old per-sample failure isolation if an unexpected database
+      // error rejects the bulk statement. Conflicts remain non-errors because
+      // every retry still uses skipDuplicates.
+      for (let index = 0; index < createData.length; index += 1) {
+        try {
+          const created = await prisma.measurement.createManyAndReturn({
+            data: [createData[index]],
+            skipDuplicates: true,
+            select: {
+              id: true,
+              type: true,
+              measuredAt: true,
+              externalId: true,
+            },
+          });
+          createdRows.push(...created);
+        } catch {
+          failedInsertIndexes.add(index);
+        }
+      }
+    }
+    const insertDurationShare =
+      chunk.length > 0 ? (Date.now() - insertStartedAt) / chunk.length : 0;
+    const createdByKey = new Map<string, Array<(typeof createdRows)[number]>>();
+    for (const created of createdRows) {
+      if (!created.externalId) continue;
+      const key = `${created.type}::${created.externalId}`;
+      const matches = createdByKey.get(key);
+      if (matches) matches.push(created);
+      else createdByKey.set(key, [created]);
+    }
 
-    for (const row of chunk) {
+    for (let index = 0; index < chunk.length; index += 1) {
+      const row = chunk[index];
       const stat = bumpStat(row.type);
       const rowStart = Date.now();
-      const exists = existingKey.has(`${row.type}::${row.externalId}`);
+      if (failedInsertIndexes.has(index)) {
+        unknown[`${row.type}::upsert_failed`] =
+          (unknown[`${row.type}::upsert_failed`] ?? 0) + 1;
+        stat.durationMs += insertDurationShare + (Date.now() - rowStart);
+        continue;
+      }
+
+      const key = `${row.type}::${row.externalId}`;
+      const inserted = createdByKey.get(key)?.shift();
+      if (inserted) {
+        stat.inserted += 1;
+        insertedArrivals.push(inserted);
+        rowsUpserted += 1;
+        stat.durationMs += insertDurationShare + (Date.now() - rowStart);
+        continue;
+      }
+
       try {
-        await prisma.measurement.upsert({
+        await prisma.measurement.update({
           where: {
             userId_type_source_externalId: {
               userId,
@@ -384,19 +500,7 @@ export async function streamParseExportXml(
               externalId: row.externalId,
             },
           },
-          create: {
-            userId,
-            type: row.type,
-            value: row.value,
-            unit: row.unit,
-            source: "APPLE_HEALTH",
-            measuredAt: row.measuredAt,
-            externalId: row.externalId,
-            externalSourceVersion: row.externalSourceVersion,
-            sleepStage: row.sleepStage ?? null,
-            deviceType: row.deviceType,
-          },
-          update: {
+          data: {
             value: row.value,
             measuredAt: row.measuredAt,
             externalSourceVersion: row.externalSourceVersion,
@@ -404,32 +508,16 @@ export async function streamParseExportXml(
             deviceType: row.deviceType,
           },
         });
-        stat.durationMs += Date.now() - rowStart;
-        if (exists) stat.updated += 1;
-        else stat.inserted += 1;
+        stat.updated += 1;
         rowsUpserted += 1;
       } catch (err) {
-        // Natural-key rescue. `Measurement` carries a SECOND full unique
-        // index beyond the externalId one this upsert keys on — the natural
-        // key `(userId, type, measuredAt, source, sleepStage)` (migration
-        // 0055, NULLS NOT DISTINCT). When two Apple samples share that natural
-        // key but carry DIFFERENT externalIds — two source apps writing at the
-        // same instant, or hash-derived ids on a re-import of overlapping data
-        // — the externalId leg above MISSES (the incoming externalId isn't in
-        // the table) and the create leg then collides on the natural key →
-        // P2002. A blind throw aborts the whole import mid-run (issue #486).
-        // Instead, mirror the sync providers' natural-key rescue
-        // (`withings/sync-sleep.ts`, `google-health/sync.ts`, `fitbit/sync.ts`):
-        // probe the occupied row by its natural key — tombstone-inclusive, no
-        // `deletedAt` filter, since a soft-deleted row still holds the key and
-        // would otherwise wedge the night forever — and ADOPT it: re-key onto
-        // the incoming externalId, take the new value/unit, resurrect if it was
-        // tombstoned. A single sample must NEVER abort the run: this catch sits
-        // OUTSIDE any transaction (each upsert is its own statement), so the
-        // caught P2002 can't poison a surrounding tx.
+        // A skipped INSERT can mean the second natural key won rather than
+        // this external id. Adopt that row exactly as the old upsert rescue
+        // did. P2025 is the expected "external id absent" signal; P2002 can
+        // still arise when an existing external-id row changes natural key.
         if (
           err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === "P2002"
+          (err.code === "P2002" || err.code === "P2025")
         ) {
           try {
             const twin = await prisma.measurement.findFirst({
@@ -445,9 +533,6 @@ export async function streamParseExportXml(
             if (twin) {
               await prisma.measurement.update({
                 where: { id: twin.id },
-                // `measuredAt` + `sleepStage` already match by construction
-                // (they ARE the natural key we probed on), so only value/unit,
-                // the externalId re-key, provenance, and the resurrect move.
                 data: {
                   value: row.value,
                   unit: row.unit,
@@ -457,14 +542,9 @@ export async function streamParseExportXml(
                   deletedAt: null,
                 },
               });
-              // An adopted natural-key twin is an in-place UPDATE, not a fresh
-              // row — keep the inserted/updated split honest.
               stat.updated += 1;
               rowsUpserted += 1;
             } else {
-              // P2002 with no findable natural-key twin (a race, or a collision
-              // we can't reconcile here). Skip this one sample and keep going —
-              // surfaced under `unknown` so operators can see the skip.
               unknown[`${row.type}::natural_key_unresolved`] =
                 (unknown[`${row.type}::natural_key_unresolved`] ?? 0) + 1;
             }
@@ -473,12 +553,25 @@ export async function streamParseExportXml(
               (unknown[`${row.type}::natural_key_rescue_failed`] ?? 0) + 1;
           }
         } else {
-          // Any other single-row write error: skip the sample, never abort the
-          // import over one bad row.
           unknown[`${row.type}::upsert_failed`] =
             (unknown[`${row.type}::upsert_failed`] ?? 0) + 1;
         }
-        stat.durationMs += Date.now() - rowStart;
+      }
+      stat.durationMs += insertDurationShare + (Date.now() - rowStart);
+    }
+    if (insertedArrivals.length > 0) {
+      await emitInsertedMeasurementArrivals(
+        userId,
+        insertedArrivals,
+        "apple_export",
+      );
+      const insertedSleepAts = insertedArrivals
+        .filter((row) => row.type === "SLEEP_DURATION")
+        .map((row) => row.measuredAt);
+      if (insertedSleepAts.length > 0) {
+        void maybeEnqueueMorningRefresh(userId, insertedSleepAts).catch(
+          () => {},
+        );
       }
     }
   };
@@ -486,112 +579,154 @@ export async function streamParseExportXml(
   const flushWorkoutBatch = async (): Promise<void> => {
     if (workoutBatch.length === 0) return;
     const chunk = workoutBatch.splice(0, workoutBatch.length);
-    const existingRows = await prisma.workout.findMany({
-      where: {
-        userId,
-        source: "APPLE_HEALTH",
-        externalId: { in: chunk.map((r) => r.externalId) },
-      },
-      select: { externalId: true },
+    const insertedArrivals: Array<{ id: string; startedAt: Date }> = [];
+    const createData: Prisma.WorkoutCreateManyInput[] = chunk.map((row) => ({
+      userId,
+      sportType: row.sportType,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+      durationSec: row.durationSec,
+      totalEnergyKcal: row.totalEnergyKcal,
+      totalDistanceM: row.totalDistanceM,
+      source: "APPLE_HEALTH",
+      externalId: row.externalId,
+      externalSourceVersion: row.externalSourceVersion,
+      metadata: row.metadata ?? undefined,
+    }));
+    const insertStartedAt = Date.now();
+    const createdRows = await prisma.workout.createManyAndReturn({
+      data: createData,
+      skipDuplicates: true,
+      select: { id: true, startedAt: true, externalId: true },
     });
-    const existingKey = new Set(existingRows.map((r) => r.externalId));
+    const insertDurationShare =
+      chunk.length > 0 ? (Date.now() - insertStartedAt) / chunk.length : 0;
+    const createdByExternalId = new Map<
+      string,
+      Array<(typeof createdRows)[number]>
+    >();
+    for (const created of createdRows) {
+      if (!created.externalId) continue;
+      const matches = createdByExternalId.get(created.externalId);
+      if (matches) matches.push(created);
+      else createdByExternalId.set(created.externalId, [created]);
+    }
 
     for (const row of chunk) {
       const rowStart = Date.now();
-      const exists = existingKey.has(row.externalId);
-      await prisma.workout.upsert({
-        where: {
-          userId_source_externalId: {
-            userId,
-            source: "APPLE_HEALTH",
-            externalId: row.externalId,
+      const inserted = createdByExternalId.get(row.externalId)?.shift();
+      if (inserted) {
+        workouts.inserted += 1;
+        insertedArrivals.push(inserted);
+      } else {
+        await prisma.workout.update({
+          where: {
+            userId_source_externalId: {
+              userId,
+              source: "APPLE_HEALTH",
+              externalId: row.externalId,
+            },
           },
-        },
-        create: {
-          userId,
-          sportType: row.sportType,
-          startedAt: row.startedAt,
-          endedAt: row.endedAt,
-          durationSec: row.durationSec,
-          totalEnergyKcal: row.totalEnergyKcal,
-          totalDistanceM: row.totalDistanceM,
-          source: "APPLE_HEALTH",
-          externalId: row.externalId,
-          externalSourceVersion: row.externalSourceVersion,
-          metadata: row.metadata ?? undefined,
-        },
-        update: {
-          sportType: row.sportType,
-          startedAt: row.startedAt,
-          endedAt: row.endedAt,
-          durationSec: row.durationSec,
-          totalEnergyKcal: row.totalEnergyKcal,
-          totalDistanceM: row.totalDistanceM,
-          externalSourceVersion: row.externalSourceVersion,
-          metadata: row.metadata ?? undefined,
-        },
-      });
-      workouts.durationMs += Date.now() - rowStart;
-      if (exists) workouts.updated += 1;
-      else workouts.inserted += 1;
+          data: {
+            sportType: row.sportType,
+            startedAt: row.startedAt,
+            endedAt: row.endedAt,
+            durationSec: row.durationSec,
+            totalEnergyKcal: row.totalEnergyKcal,
+            totalDistanceM: row.totalDistanceM,
+            externalSourceVersion: row.externalSourceVersion,
+            metadata: row.metadata ?? undefined,
+          },
+        });
+        workouts.updated += 1;
+      }
+      workouts.durationMs += insertDurationShare + (Date.now() - rowStart);
       rowsUpserted += 1;
+    }
+    for (const workout of insertedArrivals.sort(
+      (a, b) => b.startedAt.getTime() - a.startedAt.getTime(),
+    )) {
+      await emitDataArrival({
+        userId,
+        kind: "workout",
+        newestSampleAt: workout.startedAt,
+        insertedCount: 1,
+        refId: workout.id,
+        source: "apple_export",
+      });
     }
   };
 
   const flushCumulativeBuckets = async (): Promise<void> => {
     for (const [type, byDay] of cumulativeBucket.entries()) {
-      // Re-resolve the HK identifier from the mapping table — the
-      // bucket keys are MeasurementType, but the externalId carries
-      // the HK identifier so a future re-import collides on the
-      // same string.
+      // Re-resolve the HK identifier from the mapping table — the bucket keys
+      // are MeasurementType, but the shared externalId carries the HK
+      // identifier used by native HealthKit statistics.
       const mapping = Object.values(APPLE_HEALTH_TYPE_MAP).find(
-        (m) => m.measurementType === type,
+        (candidate) => candidate.measurementType === type,
       );
       if (!mapping) continue;
       const stat = bumpStat(type);
 
-      for (const [dayKey, sum] of byDay.entries()) {
+      for (const [dayKey, bySource] of byDay.entries()) {
+        let selected: [sourceHash: string, subtotal: number] | undefined;
+        for (const entry of bySource.entries()) {
+          if (
+            !selected ||
+            entry[1] > selected[1] ||
+            (entry[1] === selected[1] && entry[0] < selected[0])
+          ) {
+            selected = entry;
+          }
+        }
+        if (!selected) continue;
+        const [selectedSourceHash, selectedSubtotal] = selected;
+        if (validateMeasurementRange(type, selectedSubtotal) !== null) {
+          unknown[`${type}::aggregate_out_of_range`] =
+            (unknown[`${type}::aggregate_out_of_range`] ?? 0) + 1;
+          continue;
+        }
         const externalId = dailyStatsExternalId(mapping.hkIdentifier, dayKey);
         const measuredAt = canonicalDailyTimestamp(dayKey, userTimezone);
         const rowStart = Date.now();
-        const existing = await prisma.measurement.findUnique({
-          where: {
-            userId_type_source_externalId: {
+        const verdict = await prisma.$transaction((tx) =>
+          reconcileExternalMeasurement(
+            tx,
+            {
               userId,
               type,
+              value: selectedSubtotal,
+              unit: mapping.dbUnit,
               source: "APPLE_HEALTH",
+              measuredAt,
               externalId,
+              externalSourceVersion: null,
+              sleepStage: null,
+              deviceType: null,
+              aggregationProvenance: "EXPORT_XML_SOURCE_MAX",
+              aggregationContributorCount: bySource.size,
+              aggregationSelectedSourceHash: selectedSourceHash,
             },
-          },
-          select: { id: true },
-        });
-        await prisma.measurement.upsert({
-          where: {
-            userId_type_source_externalId: {
-              userId,
-              type,
-              source: "APPLE_HEALTH",
-              externalId,
-            },
-          },
-          create: {
-            userId,
-            type,
-            value: sum,
-            unit: mapping.dbUnit,
-            source: "APPLE_HEALTH",
-            measuredAt,
-            externalId,
-          },
-          update: {
-            value: sum,
-            measuredAt,
-          },
-        });
+            { exactExternalMatch: "update" },
+          ),
+        );
+
+        cumulativeEstimatedDays.add(dayKey);
+        cumulativeEstimatedRows += 1;
+        if (verdict.status === "inserted") {
+          stat.inserted += 1;
+          rowsUpserted += 1;
+        } else if (
+          verdict.status === "updated" ||
+          verdict.status === "resurrected"
+        ) {
+          stat.updated += 1;
+          rowsUpserted += 1;
+        } else if (verdict.status === "failed") {
+          unknown[`${type}::upsert_failed`] =
+            (unknown[`${type}::upsert_failed`] ?? 0) + 1;
+        }
         stat.durationMs += Date.now() - rowStart;
-        if (existing) stat.updated += 1;
-        else stat.inserted += 1;
-        rowsUpserted += 1;
       }
     }
   };
@@ -683,12 +818,25 @@ export async function streamParseExportXml(
 
       if (CUMULATIVE_HK_TYPES.has(mapped.type)) {
         const dayKey = dayKeyForUserTz(mapped.takenAt, userTimezone);
+        const sourceHash = hashCumulativeSourceIdentity(
+          attrs.sourceName,
+          attrs.sourceVersion,
+          attrs.device,
+        );
         let byDay = cumulativeBucket.get(mapped.type);
         if (!byDay) {
           byDay = new Map();
           cumulativeBucket.set(mapped.type, byDay);
         }
-        byDay.set(dayKey, (byDay.get(dayKey) ?? 0) + mapped.value);
+        let bySource = byDay.get(dayKey);
+        if (!bySource) {
+          bySource = new Map();
+          byDay.set(dayKey, bySource);
+        }
+        bySource.set(
+          sourceHash,
+          (bySource.get(sourceHash) ?? 0) + mapped.value,
+        );
       } else {
         // Spot row: derive a stable externalId, queue for flush.
         const externalId = hashSampleKey(
@@ -933,6 +1081,10 @@ export async function streamParseExportXml(
     cycle,
     deferred,
     unknown,
+    cumulativeEstimates: {
+      days: cumulativeEstimatedDays.size,
+      rows: cumulativeEstimatedRows,
+    },
     totals: {
       recordsRead,
       rowsUpserted,

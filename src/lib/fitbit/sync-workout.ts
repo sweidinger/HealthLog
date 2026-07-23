@@ -16,18 +16,12 @@
  * covers the incremental window comfortably; a deep backfill is bounded by the
  * backfill horizon `afterDate`. A per-endpoint 403 soft-skips the resource.
  */
-import {
-  fetchActivityList,
-  mapWorkout,
-  readActivityList,
-  type FitbitMappedWorkout,
-} from "./client";
-import {
-  getValidToken,
-  handleCollectionFetchError,
-  type FitbitResourceSyncOptions,
-} from "./sync";
+import { fetchActivityList, mapWorkout, readActivityList } from "./client";
+import type { FitbitMappedWorkout } from "./client";
+import { getValidToken, handleCollectionFetchError } from "./sync-core";
+import type { FitbitResourceSyncOptions } from "./sync-core";
 import { prisma } from "@/lib/db";
+import { emitInsertedWorkoutArrival } from "@/lib/arrivals/workout-emit";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 
@@ -75,41 +69,44 @@ export async function syncUserWorkout(
     const w: FitbitMappedWorkout | null = mapWorkout(entry, tz);
     if (!w) continue; // no usable time span — not a workout
 
+    const data = {
+      sportType: w.sportType,
+      startedAt: w.startedAt,
+      endedAt: w.endedAt,
+      durationSec: w.durationSec,
+      totalEnergyKcal: w.totalEnergyKcal,
+      totalDistanceM: w.totalDistanceM,
+      avgHeartRate: w.avgHeartRate,
+      maxHeartRate: w.maxHeartRate,
+      minHeartRate: w.minHeartRate,
+    };
     try {
-      await prisma.workout.upsert({
-        where: {
-          userId_source_externalId: {
-            userId,
-            source: "FITBIT",
-            externalId: w.externalId,
-          },
-        },
-        create: {
+      const [inserted] = await prisma.workout.createManyAndReturn({
+        data: {
           userId,
           source: "FITBIT",
           externalId: w.externalId,
-          sportType: w.sportType,
-          startedAt: w.startedAt,
-          endedAt: w.endedAt,
-          durationSec: w.durationSec,
-          totalEnergyKcal: w.totalEnergyKcal,
-          totalDistanceM: w.totalDistanceM,
-          avgHeartRate: w.avgHeartRate,
-          maxHeartRate: w.maxHeartRate,
-          minHeartRate: w.minHeartRate,
+          ...data,
         },
-        update: {
-          sportType: w.sportType,
-          startedAt: w.startedAt,
-          endedAt: w.endedAt,
-          durationSec: w.durationSec,
-          totalEnergyKcal: w.totalEnergyKcal,
-          totalDistanceM: w.totalDistanceM,
-          avgHeartRate: w.avgHeartRate,
-          maxHeartRate: w.maxHeartRate,
-          minHeartRate: w.minHeartRate,
-        },
+        skipDuplicates: true,
+        select: { id: true, startedAt: true },
       });
+      if (inserted) {
+        void emitInsertedWorkoutArrival(userId, inserted, "fitbit").catch(
+          () => {},
+        );
+      } else {
+        await prisma.workout.update({
+          where: {
+            userId_source_externalId: {
+              userId,
+              source: "FITBIT",
+              externalId: w.externalId,
+            },
+          },
+          data,
+        });
+      }
       imported++;
     } catch (err) {
       getEvent()?.addWarning(`fitbit: failed to upsert workout: ${err}`);

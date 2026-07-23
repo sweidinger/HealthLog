@@ -1,5 +1,6 @@
 import type { CoachScopeSource, CoachScopeWindow } from "@/lib/ai/coach/types";
 import { COACH_SOURCE_DOMAIN_LABEL } from "@/lib/ai/coach/tools/source-keys";
+import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 
 /**
  * v1.21.0 (C4 H1/H4) — metric → Coach scope + seed-question map.
@@ -126,32 +127,114 @@ export function metricScopeFromExplainer(
 }
 
 /**
- * Resolve a recommendation / correlation `metricSource.type` — the
- * model's snapshot-key vocabulary ("bloodPressure", "weight", "pulse",
- * "mood", "medications.compliance30", "sleep", "steps", …) — to a single
- * `CoachScopeSource`, or null when the key has no snapshot block to
- * narrow to. Lets a card's "Ask the Coach" affordance pre-scope the
- * conversation to the metric the card is about.
+ * Every generic metric-assessment id is classified here, including the ones
+ * that intentionally cannot scope the Coach. A null entry means the snapshot
+ * has no source backed by the exact data assessed on that card; near-matches
+ * (for example wrist temperature → skin temperature) must stay unscoped.
+ */
+const STATUS_METRIC_SCOPE_SOURCE = {
+  RESTING_HEART_RATE: "resting_hr",
+  HEART_RATE_VARIABILITY: "hrv",
+  OXYGEN_SATURATION: "spo2",
+  RESPIRATORY_RATE: "respiratory_rate",
+  BODY_TEMPERATURE: "body_temp",
+  SKIN_TEMPERATURE: "skin_temp",
+  BLOOD_GLUCOSE: "glucose",
+  WALKING_HEART_RATE_AVERAGE: "walking_hr",
+  PULSE_WAVE_VELOCITY: "pulse_wave_velocity",
+  VASCULAR_AGE: "vascular_age",
+  STEPS: "steps",
+  ACTIVE_ENERGY: "active_energy",
+  FLIGHTS_CLIMBED: "flights",
+  WALKING_RUNNING_DISTANCE: "distance",
+  TIME_IN_DAYLIGHT: "daylight",
+  VO2_MAX: "vo2_max",
+  TOTAL_BODY_WATER: "total_body_water",
+  BONE_MASS: "bone_mass",
+  FAT_FREE_MASS: "fat_free_mass",
+  FAT_MASS: "fat_mass",
+  MUSCLE_MASS: "muscle_mass",
+  LEAN_BODY_MASS: "lean_body_mass",
+  VISCERAL_FAT: "visceral_fat",
+  WALKING_STEADINESS: "walking_steadiness",
+  WALKING_ASYMMETRY: "walking_asymmetry",
+  WALKING_DOUBLE_SUPPORT: "walking_double_support",
+  WALKING_STEP_LENGTH: "walking_step_length",
+  WALKING_SPEED: "walking_speed",
+  AUDIO_EXPOSURE_ENV: "audio_env",
+  AUDIO_EXPOSURE_HEADPHONE: "audio_headphone",
+  AUDIO_EXPOSURE_EVENT: "audio_event",
+  SLEEP_DURATION: "sleep",
+  CARDIO_RECOVERY: null,
+  WRIST_TEMPERATURE: null,
+  FALL_COUNT: null,
+  SIX_MINUTE_WALK_DISTANCE: null,
+  STAIR_ASCENT_SPEED: null,
+  STAIR_DESCENT_SPEED: null,
+  BREATHING_DISTURBANCES: null,
+  SLEEP_SCORE: null,
+  ANS_CHARGE: null,
+  DAY_STRAIN: null,
+  WORKOUT_STRAIN: null,
+  CARDIO_LOAD: null,
+  AVERAGE_HEART_RATE: null,
+  MAX_HEART_RATE: null,
+  ENERGY_EXPENDITURE_KJ: null,
+  GRIP_STRENGTH: null,
+  PAIN_NRS: null,
+  WAIST_CIRCUMFERENCE: null,
+  WAIST_TO_HEIGHT: null,
+} as const satisfies Readonly<
+  Record<MetricStatusMetricId, CoachScopeSource | null>
+>;
+
+/**
+ * Recommendation cards use the insight snapshot's section-key vocabulary.
+ * Keep those aliases declarative as well; status-card ids are resolved by the
+ * exhaustive table above.
+ */
+const SNAPSHOT_METRIC_SCOPE_SOURCE: Readonly<Record<string, CoachScopeSource>> =
+  {
+    bloodpressure: "bp",
+    blood_pressure: "bp",
+    weight: "weight",
+    pulse: "pulse",
+    resting_hr: "resting_hr",
+    restinghr: "resting_hr",
+    hrv: "hrv",
+    mood: "mood",
+    sleep: "sleep",
+    steps: "steps",
+    activity: "steps",
+    bloodglucose: "glucose",
+    blood_glucose: "glucose",
+    bmi: "bmi",
+    medication: "compliance",
+    "medications.compliance": "compliance",
+    "medications.compliance7": "compliance",
+    "medications.compliance30": "compliance",
+    "medications.compliance90": "compliance",
+  };
+
+/**
+ * Resolve a generic assessment id or recommendation `metricSource.type` to
+ * the exact Coach snapshot source it is based on. Unsupported assessment ids
+ * resolve to null explicitly through `STATUS_METRIC_SCOPE_SOURCE`.
  */
 export function scopeSourceFromMetricKey(
   metricKey: string | undefined,
 ): CoachScopeSource | null {
   if (!metricKey) return null;
-  const lower = metricKey.toLowerCase();
-  if (lower.startsWith("medications.compliance") || lower === "medication") {
-    return "compliance";
+
+  if (
+    Object.prototype.hasOwnProperty.call(STATUS_METRIC_SCOPE_SOURCE, metricKey)
+  ) {
+    return STATUS_METRIC_SCOPE_SOURCE[
+      metricKey as MetricStatusMetricId
+    ] as CoachScopeSource | null;
   }
-  if (lower === "bloodpressure" || lower === "blood_pressure") return "bp";
-  if (lower === "weight") return "weight";
-  if (lower === "pulse") return "pulse";
-  if (lower === "resting_hr" || lower === "restinghr") return "resting_hr";
-  if (lower === "hrv") return "hrv";
-  if (lower === "mood") return "mood";
-  if (lower === "sleep" || lower.startsWith("sleep")) return "sleep";
-  if (lower === "steps" || lower === "activity") return "steps";
-  if (lower === "bloodglucose" || lower === "blood_glucose") return "glucose";
-  if (lower === "bmi") return "bmi";
-  return null;
+
+  return SNAPSHOT_METRIC_SCOPE_SOURCE[metricKey.toLowerCase()] ?? null;
 }
 
 /**
@@ -186,11 +269,14 @@ const SCOPE_SOURCE_METRIC_LABEL_KEY: Partial<Record<CoachScopeSource, string>> =
     pulse: "measurements.typePulse",
     hrv: "measurements.typeHeartRateVariability",
     resting_hr: "measurements.typeRestingHeartRate",
+    walking_hr: "measurements.typeWalkingHeartRateAverage",
     respiratory_rate: "measurements.typeRespiratoryRate",
     spo2: "measurements.typeOxygenSaturation",
     bmi: "measurements.typeBodyMassIndex",
     body_temp: "measurements.typeBodyTemperature",
     vo2_max: "measurements.typeVo2Max",
+    pulse_wave_velocity: "measurements.typePulseWaveVelocity",
+    vascular_age: "measurements.typeVascularAge",
     sleep: "measurements.typeSleep",
     body_fat: "measurements.typeBodyFat",
     fat_mass: "measurements.typeFatMass",
@@ -198,8 +284,23 @@ const SCOPE_SOURCE_METRIC_LABEL_KEY: Partial<Record<CoachScopeSource, string>> =
     muscle_mass: "measurements.typeMuscleMass",
     lean_body_mass: "measurements.typeLeanBodyMass",
     bone_mass: "measurements.typeBoneMass",
+    total_body_water: "measurements.typeTotalBodyWater",
+    visceral_fat: "measurements.typeVisceralFat",
     active_energy: "measurements.typeActiveEnergyBurned",
     flights: "measurements.typeFlightsClimbed",
+    steps: "measurements.typeSteps",
+    distance: "measurements.typeWalkingRunningDistance",
+    glucose: "measurements.typeBloodGlucose",
+    walking_steadiness: "measurements.typeWalkingSteadiness",
+    walking_asymmetry: "measurements.typeWalkingAsymmetry",
+    walking_double_support: "measurements.typeWalkingDoubleSupport",
+    walking_step_length: "measurements.typeWalkingStepLength",
+    walking_speed: "measurements.typeWalkingSpeed",
+    audio_env: "measurements.typeAudioExposureEnv",
+    audio_headphone: "measurements.typeAudioExposureHeadphone",
+    audio_event: "measurements.typeAudioExposureEvent",
+    daylight: "measurements.typeTimeInDaylight",
+    skin_temp: "measurements.typeSkinTemperature",
   };
 
 export function scopeSourceMetricLabelKey(

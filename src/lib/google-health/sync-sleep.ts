@@ -35,7 +35,7 @@ import {
   type GoogleHealthMeasurementUpsert,
   type GoogleHealthResourceSyncOptions,
   type GoogleHealthSleepReplaceWindow,
-} from "./sync";
+} from "./sync-core";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
@@ -108,11 +108,13 @@ export async function syncUserSleep(
 
   await replaceStaleGoogleHealthSleep(userId, replaceWindows);
 
-  const imported = (
-    await upsertGoogleHealthMeasurements(userId, readings, {
+  const { imported, inserted } = await upsertGoogleHealthMeasurements(
+    userId,
+    readings,
+    {
       deferRollup: opts.deferRollup,
-    })
-  ).imported;
+    },
+  );
   // `markSynced` is owned by the orchestrator (`syncUserGoogleHealth`).
 
   // S4 — trigger the debounced morning refresh on a last-night segment landing
@@ -121,7 +123,7 @@ export async function syncUserSleep(
   // refresh never fired and their day stayed stuck at the 04:30 pre-pass.
   void maybeEnqueueMorningRefresh(
     userId,
-    readings
+    inserted
       .filter((r) => r.type === "SLEEP_DURATION")
       .map((r) => r.measuredAt),
   ).catch(() => {});

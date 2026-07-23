@@ -30,6 +30,7 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getClientIp, safeJson } from "@/lib/api-response";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
+import { enqueueWithingsEcgSync } from "@/lib/jobs/withings-ecg-queue";
 
 /**
  * v1.4.25 W17b/c — appli categories that have their own sync routine
@@ -94,6 +95,8 @@ export async function processWithingsNotification(
   const contentType = request.headers.get("content-type") ?? "";
   let withingsUserId: string | null = null;
   let appli: number | null = null;
+  let startdate: string | null = null;
+  let enddate: string | null = null;
 
   if (contentType.includes("application/x-www-form-urlencoded")) {
     const formData = await request.formData();
@@ -103,10 +106,16 @@ export async function processWithingsNotification(
       const parsed = Number.parseInt(String(rawAppli), 10);
       if (Number.isFinite(parsed)) appli = parsed;
     }
+    const rawStartdate = formData.get("startdate");
+    const rawEnddate = formData.get("enddate");
+    startdate = rawStartdate == null ? null : String(rawStartdate);
+    enddate = rawEnddate == null ? null : String(rawEnddate);
   } else {
     const { data: body, error: jsonError } = await safeJson<{
       userid?: string | number;
       appli?: string | number;
+      startdate?: string | number;
+      enddate?: string | number;
     }>(request);
     if (jsonError) return jsonError;
     withingsUserId = body.userid?.toString() ?? null;
@@ -114,6 +123,8 @@ export async function processWithingsNotification(
       const parsed = Number.parseInt(String(body.appli), 10);
       if (Number.isFinite(parsed)) appli = parsed;
     }
+    startdate = body.startdate?.toString() ?? null;
+    enddate = body.enddate?.toString() ?? null;
   }
 
   if (!withingsUserId) {
@@ -150,27 +161,29 @@ export async function processWithingsNotification(
   } else if (appli === WITHINGS_SLEEP_APPLI) {
     await enqueueWithingsSync(WITHINGS_SLEEP_QUEUE, connection.userId);
   } else {
+    try {
+      await enqueueWithingsEcgSync({
+        userId: connection.userId,
+        withingsUserId,
+        appli,
+        startdate,
+        enddate,
+      });
+    } catch (err) {
+      getEvent()?.addWarning(
+        `Failed to durably enqueue Withings ECG event for ${connection.userId}: ${err}`,
+      );
+      return NextResponse.json(
+        { status: "unavailable" },
+        { status: 503, headers: { "retry-after": "60" } },
+      );
+    }
+
     syncUserMeasurements(connection.userId).catch((err) => {
       getEvent()?.addWarning(
         "Sync failed for user " + connection.userId + ": " + err,
       );
     });
-    // v1.18.11 — ECG / AFib capture rides the measure path. The Heart List
-    // endpoint shares the `user.metrics` scope with the measure family, so a
-    // measure-family notification (which is what a ScanWatch ECG recording
-    // delivers) is the right trigger. Fire it non-blocking and lazy-loaded so
-    // the webhook response stays fast and the cold path doesn't pull the ECG
-    // module in until a measure notification actually lands.
-    void (async () => {
-      try {
-        const { syncUserEcg } = await import("./sync-ecg");
-        await syncUserEcg(connection.userId);
-      } catch (err) {
-        getEvent()?.addWarning(
-          "ECG sync failed for user " + connection.userId + ": " + err,
-        );
-      }
-    })();
   }
 
   return NextResponse.json({ status: "ok" }, { status: 200 });

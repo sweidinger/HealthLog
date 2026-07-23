@@ -234,6 +234,166 @@ describe("buildRecordsBackupSection", () => {
     expect(section.documents[0].summary).toBe("Routine panel.");
   });
 
+  it("preserves every canonical lab, illness, day-log, and allergy field verbatim", async () => {
+    const prisma = buildMockPrisma();
+    const deletedAt = new Date("2026-04-13T12:00:00.000Z");
+    const createdAt = new Date("2026-04-10T01:00:00.000Z");
+    const updatedAt = new Date("2026-04-12T23:00:00.000Z");
+    const labNote = encryptNoteToBytes("Canonical lab note");
+    const illnessNote = encryptToBytes("Canonical illness note");
+    const dayNote = encryptToBytes("Canonical day note");
+    const reaction = encryptToBytes("Canonical reaction");
+    const allergyNote = encryptToBytes("Canonical allergy note");
+
+    prisma.labResult.findMany.mockResolvedValueOnce([
+      {
+        id: "lab-canonical",
+        panel: "Lipid panel",
+        analyte: "LDL",
+        value: 118,
+        valueText: null,
+        unit: "mg/dL",
+        referenceLow: null,
+        referenceHigh: 130,
+        takenAt: new Date("2026-04-01T09:00:00.000Z"),
+        biomarkerId: "biomarker-canonical",
+        biomarker: { name: "LDL Cholesterol" },
+        source: "IMPORT",
+        noteEncrypted: labNote,
+        createdAt,
+        updatedAt,
+        deletedAt,
+      },
+    ]);
+    prisma.illnessEpisode.findMany.mockResolvedValueOnce([
+      {
+        id: "episode-canonical",
+        label: "Migraine",
+        type: "CHRONIC",
+        lifecycle: "CHRONIC_ONGOING",
+        onsetAt: new Date("2026-04-10T00:00:00.000Z"),
+        resolvedAt: null,
+        parentConditionId: null,
+        noteEncrypted: illnessNote,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        dayLogs: [
+          {
+            id: "day-canonical",
+            episodeId: "episode-canonical",
+            date: "2026-04-11",
+            functionalImpact: 2,
+            feverC: 38.2,
+            noteEncrypted: dayNote,
+            tz: "Europe/London",
+            createdAt,
+            updatedAt,
+            deletedAt,
+            symptomLinks: [{ severity: 3, symptom: { key: "headache" } }],
+          },
+        ],
+      },
+    ]);
+    prisma.allergy.findMany.mockResolvedValueOnce([
+      {
+        id: "allergy-canonical",
+        substance: "Penicillin",
+        category: "MEDICATION",
+        type: "ALLERGY",
+        severity: "SEVERE",
+        status: "INACTIVE",
+        onsetAt: new Date("2020-01-01T00:00:00.000Z"),
+        reactionEncrypted: reaction,
+        notesEncrypted: allergyNote,
+        createdAt,
+        updatedAt,
+        deletedAt,
+      },
+    ]);
+
+    prisma.biomarker.findMany.mockResolvedValueOnce([]);
+    prisma.familyHistoryEntry.findMany.mockResolvedValueOnce([]);
+    prisma.workout.findMany.mockResolvedValueOnce([]);
+    prisma.inboundDocument.findMany.mockResolvedValueOnce([]);
+    const section = await buildRecordsBackupSection(prisma as never, USER_ID, {
+      purpose: "disaster-recovery",
+    });
+    const episodeQuery = prisma.illnessEpisode.findMany.mock.calls.at(-1)?.[0];
+    expect(episodeQuery).toEqual(
+      expect.objectContaining({ where: { userId: USER_ID } }),
+    );
+    expect(episodeQuery.include.dayLogs).not.toHaveProperty("where");
+    expect(prisma.allergy.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: USER_ID } }),
+    );
+    expect(section.labResults[0]).toEqual({
+      id: "lab-canonical",
+      panel: "Lipid panel",
+      analyte: "LDL",
+      value: 118,
+      valueText: null,
+      unit: "mg/dL",
+      referenceLow: null,
+      referenceHigh: 130,
+      takenAt: "2026-04-01T09:00:00.000Z",
+      biomarkerId: "biomarker-canonical",
+      biomarkerName: "LDL Cholesterol",
+      source: "IMPORT",
+      note: null,
+      noteEncrypted: Buffer.from(labNote).toString("base64"),
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+      deletedAt: deletedAt.toISOString(),
+    });
+    expect(section.illnessEpisodes[0]).toEqual({
+      id: "episode-canonical",
+      label: "Migraine",
+      type: "CHRONIC",
+      lifecycle: "CHRONIC_ONGOING",
+      onsetAt: "2026-04-10T00:00:00.000Z",
+      resolvedAt: null,
+      parentConditionId: null,
+      note: null,
+      noteEncrypted: Buffer.from(illnessNote).toString("base64"),
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+      deletedAt: deletedAt.toISOString(),
+      dayLogs: [
+        {
+          id: "day-canonical",
+          episodeId: "episode-canonical",
+          date: "2026-04-11",
+          functionalImpact: 2,
+          feverC: 38.2,
+          note: null,
+          noteEncrypted: Buffer.from(dayNote).toString("base64"),
+          tz: "Europe/London",
+          createdAt: createdAt.toISOString(),
+          updatedAt: updatedAt.toISOString(),
+          deletedAt: deletedAt.toISOString(),
+          symptoms: [{ key: "headache", severity: 3 }],
+        },
+      ],
+    });
+    expect(section.allergies[0]).toEqual({
+      id: "allergy-canonical",
+      substance: "Penicillin",
+      category: "MEDICATION",
+      type: "ALLERGY",
+      severity: "SEVERE",
+      status: "INACTIVE",
+      onsetAt: "2020-01-01T00:00:00.000Z",
+      reaction: null,
+      note: null,
+      reactionEncrypted: Buffer.from(reaction).toString("base64"),
+      notesEncrypted: Buffer.from(allergyNote).toString("base64"),
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+      deletedAt: deletedAt.toISOString(),
+    });
+  });
+
   it("threads an illness flare's parentConditionId and nests its day-log + symptom", async () => {
     const prisma = buildMockPrisma();
     const section = await buildRecordsBackupSection(prisma as never, USER_ID);

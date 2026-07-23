@@ -19,8 +19,9 @@ vi.mock("../client", () => ({
 
 const getValidToken = vi.fn();
 const markResourceSynced = vi.fn();
-vi.mock("../sync", async () => {
-  const actual = await vi.importActual<typeof import("../sync")>("../sync");
+vi.mock("../sync-core", async () => {
+  const actual =
+    await vi.importActual<typeof import("../sync-core")>("../sync-core");
   return {
     ...actual,
     getValidToken: (...a: unknown[]) => getValidToken(...a),
@@ -29,13 +30,18 @@ vi.mock("../sync", async () => {
 });
 
 const whoopConnectionFindUnique = vi.fn();
-const workoutUpsert = vi.fn();
+const workoutCreateManyAndReturn = vi.fn();
+const workoutUpdate = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
     whoopConnection: {
       findUnique: (...a: unknown[]) => whoopConnectionFindUnique(...a),
     },
-    workout: { upsert: (...a: unknown[]) => workoutUpsert(...a) },
+    workout: {
+      createManyAndReturn: (...a: unknown[]) =>
+        workoutCreateManyAndReturn(...a),
+      update: (...a: unknown[]) => workoutUpdate(...a),
+    },
   },
 }));
 
@@ -47,7 +53,7 @@ import { syncUserWorkout, syncWhoopWorkoutById } from "../sync-workout";
 import {
   WHOOP_FULL_SYNC_ANCHOR,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
-} from "../sync";
+} from "../sync-core";
 
 const LAST_SYNCED = new Date("2026-06-10T12:00:00.000Z");
 
@@ -64,6 +70,10 @@ beforeEach(() => {
   });
   markResourceSynced.mockResolvedValue(undefined);
   fetchWorkouts.mockResolvedValue([]);
+  workoutCreateManyAndReturn.mockResolvedValue([
+    { id: "inserted-workout", startedAt: new Date("2026-06-14T07:00:00.000Z") },
+  ]);
+  workoutUpdate.mockResolvedValue({ id: "existing-workout" });
 });
 
 describe("syncUserWorkout — late-synced workout overlap window", () => {
@@ -122,9 +132,8 @@ describe("syncWhoopWorkoutById — webhook fetch-by-id", () => {
     },
   };
 
-  it("resolves the ONE record by id and upserts it (no collection walk)", async () => {
+  it("resolves the ONE record by id and writes it (no collection walk)", async () => {
     fetchWorkoutById.mockResolvedValue(SCORED_WORKOUT);
-    workoutUpsert.mockResolvedValue({});
 
     const imported = await syncWhoopWorkoutById("user-1", "w-123");
 
@@ -132,17 +141,18 @@ describe("syncWhoopWorkoutById — webhook fetch-by-id", () => {
     // Targeted fetch-by-id, never the collection.
     expect(fetchWorkoutById).toHaveBeenCalledWith("tok", "w-123");
     expect(fetchWorkouts).not.toHaveBeenCalled();
-    const upsertArg = workoutUpsert.mock.calls[0]![0];
-    expect(upsertArg.where.userId_source_externalId).toEqual({
-      userId: "user-1",
-      source: "WHOOP",
-      externalId: "w-123",
-    });
+    const insertArg = workoutCreateManyAndReturn.mock.calls[0]![0];
+    expect(insertArg.data).toEqual(
+      expect.objectContaining({
+        userId: "user-1",
+        source: "WHOOP",
+        externalId: "w-123",
+      }),
+    );
   });
 
   it("a single-id refresh does NOT advance the resource cursor", async () => {
     fetchWorkoutById.mockResolvedValue(SCORED_WORKOUT);
-    workoutUpsert.mockResolvedValue({});
 
     await syncWhoopWorkoutById("user-1", "w-123");
 
@@ -155,6 +165,7 @@ describe("syncWhoopWorkoutById — webhook fetch-by-id", () => {
     const imported = await syncWhoopWorkoutById("user-1", "w-123");
 
     expect(imported).toBe(0);
-    expect(workoutUpsert).not.toHaveBeenCalled();
+    expect(workoutCreateManyAndReturn).not.toHaveBeenCalled();
+    expect(workoutUpdate).not.toHaveBeenCalled();
   });
 });

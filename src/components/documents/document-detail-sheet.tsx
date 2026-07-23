@@ -260,6 +260,9 @@ export function DocumentDetailSheet({
   const autoRead = useDocumentsAutoAiRead(open && documentId !== null);
   const suggest = useSuggestDetails();
   const summary = useDocumentSummary();
+  // Stored generation has an independent mutation state so transient
+  // Summarise/Show text requests cannot change this block's spinner or result.
+  const storedSummary = useDocumentSummary();
   const indexDoc = useIndexDocument();
 
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -296,6 +299,7 @@ export function DocumentDetailSheet({
   useEffect(() => {
     suggest.reset();
     summary.reset();
+    storedSummary.reset();
     indexDoc.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId]);
@@ -399,17 +403,29 @@ export function DocumentDetailSheet({
     summary.mutate({ mode: aiMode, target: aiTarget, output });
   };
 
-  // Generate the STORED summary from the detail block. Same endpoint as the
-  // action row, but the result is not routed into the transient panel: the
-  // route persists a screened-clean summary, so refetching the document shows
-  // it in place. This runs only on a click — nothing here generates on open.
+  // Generate or regenerate the STORED summary from the detail block. Only the
+  // stored-summary branch requests replacement; the empty-state action keeps
+  // first-write-wins if another worker or tab finishes while AI is running.
   const generateStoredSummary = () => {
     if (!aiTarget || !documentId) return;
-    summary.reset();
-    summary.mutate(
-      { mode: aiMode, target: aiTarget, output: "summary" },
+    storedSummary.reset();
+    storedSummary.mutate(
       {
-        onSuccess: () => {
+        mode: aiMode,
+        target: aiTarget,
+        output: "summary",
+        persist: true,
+        replace: doc?.summary != null,
+      },
+      {
+        onSuccess: (result) => {
+          if ("summary" in result) {
+            if (result.persistence === "withheld") {
+              toast.error(result.summary);
+            } else if (result.persistence === "failed") {
+              toast.error(t("documents.detail.saveError"));
+            }
+          }
           void queryClient.invalidateQueries({
             queryKey: queryKeys.inboundDocument(documentId),
           });
@@ -611,7 +627,7 @@ export function DocumentDetailSheet({
                   : null
               }
               aiEnabled={aiEnabled}
-              isGenerating={summary.isPending}
+              isGenerating={storedSummary.isPending}
               actionsDisabled={capability.isPending}
               onGenerate={generateStoredSummary}
             />

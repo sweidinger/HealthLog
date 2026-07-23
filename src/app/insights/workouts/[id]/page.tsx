@@ -91,9 +91,11 @@ export default function InsightsWorkoutDetailPage({
       ) : (
         <>
           <WorkoutDetailHeader workout={data} />
-          {/* Reserved Activity-Insight seam — `aiInsight` is always null
-              today, so this renders nothing. When the Phase-2 job
-              populates it, the card mounts here with zero layout rework. */}
+          {/* The Activity Insight, above the stats it describes. `null` is the
+              common case and renders nothing — the paragraph is written by a
+              background job when the workout lands, so a historical or
+              re-synced workout has none and opening this page never asks for
+              one. */}
           {data.aiInsight ? (
             <WorkoutInsightCard insight={data.aiInsight} />
           ) : null}
@@ -104,8 +106,17 @@ export default function InsightsWorkoutDetailPage({
           <WorkoutDetailSplits workout={data} />
           <WorkoutDetailDayLinks workout={data} />
           {/* 2026-07-17 UX-flows audit F6-1 — `workouts` narrows the
-              snapshot the first coach turn reads. */}
-          <CoachLaunchButton scope={{ metric: "workouts" }} />
+              snapshot the first coach turn reads. v1.31.0 — `workoutId` pins
+              THIS session's own numbers as one additional snapshot section, so
+              the answer is about this workout rather than about training in
+              general, and the opener auto-sends so it lands directly. */}
+          <CoachLaunchButton
+            scope={{ metric: "workouts" }}
+            workoutId={data.id}
+            label={t("insights.workouts.askWhy")}
+            prefill={t("insights.workouts.askWhyPrompt")}
+            autoSend
+          />
         </>
       )}
     </SubPageShell>

@@ -7,18 +7,23 @@ import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
- * Reserved Activity-Insight seam (strategic-concept Wave C, bet 5).
+ * The per-workout Activity Insight card.
  *
- * NOTHING renders here today: the workout payload's `aiInsight` field is
- * always `null`, so the page composes `{aiInsight ? <WorkoutInsightCard
- * insight={aiInsight}/> : null}` and this component never mounts. The
- * shape below is what the Phase-2 pg-boss job will write onto the
- * workout row — when it lands, the server maps the row to `aiInsight`,
- * the union in `use-workouts.ts` widens from `null` to
- * `WorkoutActivityInsightData | null`, and the card mounts right under
- * the hero header with zero layout rework. Non-diagnostic by
- * construction: a descriptive paragraph, device-attributed, never a
- * verdict.
+ * Mounts only when the workout payload carries a paragraph — the page composes
+ * `{aiInsight ? <WorkoutInsightCard insight={aiInsight}/> : null}`, and `null`
+ * is the common case rather than an error state: a paragraph exists only for a
+ * session that LANDED while the feature was live, ran over ten minutes, fell
+ * under the day's cap, and found a provider. Every workout that predates the
+ * feature, every re-synced one, and every one on a provider-less install
+ * renders nothing here, permanently. Opening this page never generates one.
+ *
+ * Non-diagnostic by construction: a descriptive paragraph, device-attributed,
+ * compared only to the user's own history, never a verdict and never a training
+ * prescription (the contract lives in `@/lib/ai/prompts/workout-insight`).
+ *
+ * The paragraph renders as React TEXT CHILDREN, deliberately. There is no
+ * markdown library in this project and adding one is a security decision, not a
+ * formatting one — model output rendered as markup is an XSS surface.
  */
 export interface WorkoutActivityInsightData {
   /** The cached, plain-text insight paragraph. Rendered as text children. */
@@ -39,6 +44,7 @@ export function WorkoutInsightCard({
         <TileHeader
           icon={Sparkles}
           title={t("insights.workouts.detail.insightTitle")}
+          titleAs="h2"
         />
       </CardHeader>
       <CardContent>

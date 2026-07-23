@@ -139,6 +139,27 @@ export const DASHBOARD_IOS_ONLY_WIDGET_IDS = [
   "walkingDoubleSupport",
   "audioExposureEnvironment",
   "audioExposureHeadphone",
+  // The four clinical signals the v1.25 sub-pages already chart
+  // (`/insights/grip-strength`, `/insights/pain`, `/insights/waist`,
+  // `/insights/waist-to-height`). The native client offers a dashboard tile
+  // for each; before they joined the catalogue the widgets PUT dropped them
+  // through the unknown-id filter, so every native layout save silently lost
+  // the user's placement of those four tiles.
+  //
+  // They live here rather than in `DASHBOARD_WIDGET_IDS` because the web
+  // dashboard has no render path for them — the chart lives on the insights
+  // sub-page, not on the Startseite. That keeps them out of the web Settings
+  // list (built from `DASHBOARD_WIDGET_IDS`) while the PUT enum, the on-read
+  // resolver, and the snapshot catalogue all accept and retain them.
+  //
+  // `painNRS` matches the id the native client sends. The sibling
+  // chart-overlay slot spells it `painNrs` (see `CHART_OVERLAY_KEYS`); the
+  // two namespaces are independent and neither is derived from the other, so
+  // the casing difference is deliberate rather than a typo.
+  "gripStrength",
+  "painNRS",
+  "waistCircumference",
+  "waistToHeight",
 ] as const;
 
 /**
@@ -546,6 +567,84 @@ export interface DashboardLayout {
    * selected set on every read.
    */
   heroRingOrder?: HeroRingId[];
+}
+
+/**
+ * How the widgets PUT treats each top-level layout field when the client
+ * omits it.
+ *
+ * - `"replace"` — the field is the point of the request. A PUT that omits it
+ *   is either rejected by Zod (`version`, `widgets` are required) or means
+ *   the caller genuinely has nothing to say.
+ * - `"preserve"` — the field is owned by a surface OTHER than the one making
+ *   this request, so an omission means "I don't know about this", never
+ *   "clear it". The route reads the stored layout and carries the existing
+ *   value forward.
+ *
+ * The preserve set exists because clients legitimately don't know every
+ * field. The per-chart overlay popover PUTs through
+ * `/api/dashboard/chart-overlay-prefs`; the hero rings are a Settings-only
+ * control; `comparisonBaseline` is web-only and the native client documents
+ * that it never sends it. Without preserve-when-absent, a tile reorder on one
+ * surface silently resets a choice made on another — which is exactly what
+ * happened to `comparisonBaseline` before it joined this map: the serializer
+ * clamps a missing value to `"none"`, so every native layout save wiped the
+ * baseline the user had picked on the web.
+ *
+ * `satisfies Record<keyof DashboardLayout, …>` is the load-bearing part.
+ * Adding a field to `DashboardLayout` without adding it here is a TYPE error,
+ * so the next field cannot repeat the `comparisonBaseline` mistake by
+ * omission — somebody has to make the decision explicitly.
+ */
+export const LAYOUT_FIELD_MERGE_DISPOSITION = {
+  version: "replace",
+  widgets: "replace",
+  comparisonBaseline: "preserve",
+  chartOverlayPrefs: "preserve",
+  selectedScoreRings: "preserve",
+  heroRingOrder: "preserve",
+} as const satisfies Record<keyof DashboardLayout, "replace" | "preserve">;
+
+/**
+ * The top-level layout fields the widgets PUT carries forward from the stored
+ * layout when the request omits them. Derived from
+ * `LAYOUT_FIELD_MERGE_DISPOSITION` so the two can never drift.
+ */
+export const PRESERVED_LAYOUT_FIELDS = (
+  Object.keys(LAYOUT_FIELD_MERGE_DISPOSITION) as Array<keyof DashboardLayout>
+).filter(
+  (field) => LAYOUT_FIELD_MERGE_DISPOSITION[field] === "preserve",
+) as ReadonlyArray<keyof DashboardLayout>;
+
+/**
+ * True when the incoming layout omits at least one preserved field, i.e. the
+ * route has to read the stored layout to merge. Lets the common full-layout
+ * save from Settings skip the extra query.
+ */
+export function layoutNeedsPreserveRead(
+  incoming: Partial<DashboardLayout>,
+): boolean {
+  return PRESERVED_LAYOUT_FIELDS.some((field) => incoming[field] === undefined);
+}
+
+/**
+ * Carry every omitted preserved field forward from the stored layout.
+ * Fields the client DID send win untouched; `"replace"` fields are never
+ * consulted here. One stored-layout read covers all of them.
+ */
+export function mergePreservedLayoutFields(
+  incoming: Partial<DashboardLayout>,
+  existing: DashboardLayout,
+): Partial<DashboardLayout> {
+  const merged: Partial<DashboardLayout> = { ...incoming };
+  for (const field of PRESERVED_LAYOUT_FIELDS) {
+    if (merged[field] === undefined) {
+      // Each key maps to its own value type; the loop is homogeneous over
+      // `keyof DashboardLayout`, which TypeScript cannot express per-key.
+      (merged as Record<string, unknown>)[field] = existing[field];
+    }
+  }
+  return merged;
 }
 
 const DASHBOARD_LAYOUT_VERSION = 1;

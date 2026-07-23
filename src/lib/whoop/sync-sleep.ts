@@ -37,8 +37,16 @@ import {
   upsertWhoopMeasurements,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
   type WhoopMeasurementUpsert,
-} from "./sync";
+} from "./sync-core";
 import { prisma } from "@/lib/db";
+
+function enqueueMorningRefreshForMeasuredAts(
+  userId: string,
+  measuredAts: Date[],
+): void {
+  if (measuredAts.length === 0) return;
+  void maybeEnqueueMorningRefresh(userId, measuredAts).catch(() => {});
+}
 
 export async function syncUserSleep(
   userId: string,
@@ -94,16 +102,25 @@ export async function syncUserSleep(
   // the fresh set upserts (mirrors Google Health's replace-by-window order).
   await sweepStaleSleepSegments(userId, "WHOOP", sweeps);
 
-  const imported = await upsertWhoopMeasurements(userId, readings);
+  // Accumulate committed chunks, then trigger once after the write pass settles.
+  // The finally path also covers a later chunk failure without generating from
+  // an intermediate prefix while more chunks are still being written.
+  const insertedSleepMeasuredAts: Date[] = [];
+  let imported: number;
+  try {
+    imported = await upsertWhoopMeasurements(userId, readings, {
+      onInserted: (rows) => {
+        insertedSleepMeasuredAts.push(
+          ...rows
+            .filter((row) => row.type === "SLEEP_DURATION")
+            .map((row) => row.measuredAt),
+        );
+      },
+    });
+  } finally {
+    enqueueMorningRefreshForMeasuredAts(userId, insertedSleepMeasuredAts);
+  }
   await markResourceSynced(userId, "sleep");
-
-  // S4 — trigger the debounced morning refresh on a last-night segment landing.
-  void maybeEnqueueMorningRefresh(
-    userId,
-    readings
-      .filter((r) => r.type === "SLEEP_DURATION")
-      .map((r) => r.measuredAt),
-  ).catch(() => {});
 
   return imported;
 }
@@ -152,16 +169,16 @@ export async function syncWhoopSleepById(
     { prefix: `${record.id}:`, keepIds },
   ]);
 
-  const imported = await upsertWhoopMeasurements(userId, readings);
-
-  // S4 — a webhook-driven single-record refresh is the freshest possible
-  // last-night signal; kick the debounced morning refresh on its segments.
-  void maybeEnqueueMorningRefresh(
-    userId,
-    readings
-      .filter((r) => r.type === "SLEEP_DURATION")
-      .map((r) => r.measuredAt),
-  ).catch(() => {});
-
+  const insertedSleepMeasuredAts: Date[] = [];
+  const imported = await upsertWhoopMeasurements(userId, readings, {
+    onInserted: (rows) => {
+      insertedSleepMeasuredAts.push(
+        ...rows
+          .filter((row) => row.type === "SLEEP_DURATION")
+          .map((row) => row.measuredAt),
+      );
+    },
+  });
+  enqueueMorningRefreshForMeasuredAts(userId, insertedSleepMeasuredAts);
   return imported;
 }

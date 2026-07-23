@@ -28,9 +28,11 @@ import {
   getValidToken,
   handleCollectionFetchError,
   upsertFitbitMeasurements,
-  type FitbitMeasurementUpsert,
-  type FitbitResourceSyncOptions,
-} from "./sync";
+} from "./sync-core";
+import type {
+  FitbitMeasurementUpsert,
+  FitbitResourceSyncOptions,
+} from "./sync-core";
 import { annotate } from "@/lib/logging/context";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { maybeEnqueueMorningRefresh } from "@/lib/daily/morning-refresh-trigger";
@@ -73,18 +75,20 @@ export async function syncUserSleep(
     }
   }
 
-  const imported = (
-    await upsertFitbitMeasurements(userId, readings, {
+  const { imported, inserted } = await upsertFitbitMeasurements(
+    userId,
+    readings,
+    {
       deferRollup: opts.deferRollup,
-    })
-  ).imported;
+    },
+  );
   // `markSynced` is owned by the orchestrator (`syncUserFitbit`).
 
   // S4 — trigger the debounced morning refresh on a last-night segment landing
   // (mirrors the Withings / WHOOP / Apple seams).
   void maybeEnqueueMorningRefresh(
     userId,
-    readings
+    inserted
       .filter((r) => r.type === "SLEEP_DURATION")
       .map((r) => r.measuredAt),
   ).catch(() => {});

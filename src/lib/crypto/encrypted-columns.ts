@@ -170,6 +170,18 @@ export const ENCRYPTED_COLUMNS: readonly EncryptedColumn[] = [
   // ───── Insight narratives (Bytes column) ─────
   { model: "InsightNarrative", field: "encryptedContent", kind: "bytes" },
 
+  // ───── v1.31.0 data-arrival spine (Bytes column) ─────
+  // Nullable: the reaction marker is written on every salient arrival, but the
+  // generated line only exists where a provider was reachable and in budget.
+  // `rotateBytesColumn` skips a NULL/empty payload, so a provider-less
+  // install's rows rotate as a clean no-op.
+  { model: "ArrivalReaction", field: "lineEncrypted", kind: "bytes" },
+
+  // ───── v1.31.0 per-workout Activity Insight (Bytes column) ─────
+  // NOT nullable: a row exists only once a paragraph was actually generated,
+  // so every row here carries ciphertext and every one must rotate.
+  { model: "WorkoutInsight", field: "paragraphEncrypted", kind: "bytes" },
+
   // ───── v1.18.1 clinical-spine notes (Bytes columns) ─────
   { model: "LabResult", field: "noteEncrypted", kind: "bytes" },
   { model: "Biomarker", field: "contextEncrypted", kind: "bytes" },

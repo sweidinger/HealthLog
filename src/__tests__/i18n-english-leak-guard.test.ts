@@ -81,6 +81,8 @@ const LEGIT_IDENTICAL = new Set<string>([
   // Clinical abbreviations / SI units — identical across locales.
   "charts.vo2Max",
   "cycle.insights.crosstab.unitGlucose",
+  "dashboard.metric.unit.bmi",
+  "dashboard.metric.unit.mood",
   "dashboard.metric.unit.glucose",
   "dashboard.vo2Max",
   "dashboard.vo2MaxShort",
@@ -110,6 +112,7 @@ const LEGIT_IDENTICAL = new Set<string>([
   "settings.moodLogUrl",
   "settings.sections.export.import.appleHealth.title",
   "settings.sections.sources.sourceLabels.APPLE_HEALTH",
+  "settings.appleHealth.title",
   "mood.tag.fastFood",
   // Technical / config labels conventionally kept verbatim.
   "admin.hostMetrics.diskBusyPercent",

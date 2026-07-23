@@ -139,6 +139,23 @@ describe("MoodForm — rated factors (v1.12.0)", () => {
   });
 });
 
+describe("MoodList — rated factor editing", () => {
+  it("hydrates, renders, and submits the entry's current ratedFactors", () => {
+    expect(listSrc).toContain("ratedFactors: RatedFactor[];");
+    expect(listSrc).toContain(
+      "const [editRatedFactors, setEditRatedFactors] = useState<",
+    );
+    expect(listSrc).toContain(
+      "ratedFactors: [...(entry.ratedFactors ?? [])].sort",
+    );
+    expect(listSrc).toContain("setEditRatedFactors(seed.ratedFactors)");
+    expect(listSrc).toMatch(
+      /<MoodTagPicker[\s\S]*ratedFactors=\{editRatedFactors\}[\s\S]*onRateFactor=\{rateEditFactor\}/,
+    );
+    expect(listSrc).toContain("ratedFactors: editRatedFactors,");
+  });
+});
+
 describe("MoodList — delete failure toast (v1.11.5)", () => {
   it("surfaces a toast on a rejected delete instead of failing silently", () => {
     expect(listSrc).toContain('import { toast } from "sonner"');

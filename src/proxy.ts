@@ -194,7 +194,7 @@ export function proxy(request: NextRequest) {
   // Worker-only container: refuse HTTP traffic with a clear hint instead of
   // serving requests that would either crash (no DB pool ready for writes from
   // the worker) or duplicate work that the dedicated web container is doing.
-  if (!shouldRunWeb()) {
+  if (!shouldRunWeb() && pathname !== "/api/health") {
     return NextResponse.json(
       {
         data: null,

@@ -27,6 +27,7 @@ vi.mock("@/lib/api-handler", () => ({
 }));
 vi.mock("@/lib/modules/gate", () => ({
   requireModuleEnabled: vi.fn(async () => ({ enabled: true })),
+  isModuleEnabled: vi.fn(async () => true),
 }));
 vi.mock("@/lib/feature-flags", () => ({
   requireAssistantSurface: vi.fn(async () => undefined),
@@ -41,6 +42,25 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(async () => ({ coachPrefsJson: null })) },
     coachConversation: { findFirst: vi.fn(async () => ({ id: "c1" })) },
+    workout: {
+      findFirst: vi.fn(async () => ({
+        sportType: "running",
+        source: "APPLE_HEALTH",
+        startedAt: new Date("2026-07-01T06:00:00Z"),
+        endedAt: new Date("2026-07-01T06:40:00Z"),
+        durationSec: 2400,
+        totalEnergyKcal: 410,
+        totalDistanceM: 7200,
+        avgHeartRate: 148,
+        maxHeartRate: 171,
+        minHeartRate: 96,
+        stepCount: 6800,
+        elevationM: 62,
+        pauseDurationSec: 0,
+        metadata: null,
+        samples: null,
+      })),
+    },
   },
 }));
 
@@ -135,6 +155,17 @@ vi.mock("@/lib/ai/coach/snapshot", () => ({
     provenance: { windows: ["last30days"], metrics: ["bp"] },
     referenceGrounding: "REFERENCE RANGES",
   })),
+}));
+vi.mock("@/lib/workouts/hr-series", () => ({
+  buildWorkoutHrSeries: vi.fn(async () => null),
+}));
+vi.mock("@/lib/workouts/zones", () => ({
+  computeZones: vi.fn(() => null),
+  hrMaxFromAge: vi.fn(() => 185),
+  parseWhoopZoneDurations: vi.fn(() => null),
+}));
+vi.mock("@/lib/workouts/sport-context", () => ({
+  buildSportContext: vi.fn(async () => null),
 }));
 
 // Tool-module surface — stub the inventory + loop so we assert routing only.
@@ -256,6 +287,23 @@ describe("coach chat — tool-mode routing (F1)", () => {
     const userContent = loopArgs.messages[0].content;
     expect(userContent).toContain("DATA INVENTORY");
     expect(userContent).not.toContain(SNAPSHOT_JSON);
+  });
+
+  it("pins selected-workout evidence into the tool-mode prompt", async () => {
+    resolveProviderChain.mockResolvedValue([
+      { providerType: "anthropic", instance: {} },
+    ]);
+    await postAndDrain({
+      message: "Why was that hard?",
+      workoutId: "workout-1",
+    });
+
+    const args = (runCoachToolLoop.mock.calls[0] as unknown[])[0] as {
+      messages: Array<{ content: string }>;
+    };
+    expect(args.messages[0].content).toContain("SELECTED WORKOUT DATA");
+    expect(args.messages[0].content).toContain("thisWorkout");
+    expect(args.messages[0].content).toContain("2400");
   });
 
   it("reserves the multi-round budget in tool mode", async () => {

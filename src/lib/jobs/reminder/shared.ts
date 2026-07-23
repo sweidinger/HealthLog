@@ -4,9 +4,8 @@
  * Extracted from reminder-worker.ts, which owns the queue names, cron
  * schedules, and boss.work registrations.
  */
-import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { buildSessionOptions, getPoolMax } from "@/lib/db";
+import type { PrismaClient } from "@/generated/prisma/client";
+import { prisma } from "@/lib/db";
 
 export function parseTimeToMinutes(value: string): number {
   const [h, m] = value.split(":").map(Number);
@@ -31,31 +30,10 @@ export const DATABASE_URL = process.env.DATABASE_URL!;
 // immediate semantics.
 export const BOOT_BACKFILL_STAGGER_SECONDS = 30;
 
-// Reuse a single PrismaClient across all job handlers to avoid connection pool exhaustion
-
-let workerPrisma: PrismaClient | null = null;
-
+// Every queue handler shares the process-level client and its single bounded
+// pg.Pool. Separate worker clients multiplied the configured connection limit.
 export function getWorkerPrisma(): PrismaClient {
-  if (!workerPrisma) {
-    // Apply the same pool ceiling + session timeouts the web client uses
-    // (`src/lib/db.ts`). Without them the worker client ran unbounded: a
-    // pathological nightly drain on a heavy tenant could pin a connection
-    // indefinitely and wedge the shared worker pool. `getPoolMax()` caps the
-    // slot count; `buildSessionOptions()` applies `statement_timeout` +
-    // `idle_in_transaction_session_timeout` at connection establishment so
-    // every worker session is timeout-bounded from its first query. Both share
-    // the same `DATABASE_POOL_MAX` / `DATABASE_STATEMENT_TIMEOUT_MS` env knobs
-    // as the web tier, and the web + worker containers share one Postgres so a
-    // single ceiling covers both pools.
-    const sessionOptions = buildSessionOptions();
-    const adapter = new PrismaPg({
-      connectionString: DATABASE_URL,
-      max: getPoolMax(),
-      ...(sessionOptions ? { options: sessionOptions } : {}),
-    });
-    workerPrisma = new PrismaClient({ adapter });
-  }
-  return workerPrisma;
+  return prisma;
 }
 
 /**

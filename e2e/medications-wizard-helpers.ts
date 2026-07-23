@@ -120,8 +120,9 @@ export async function stubDashboardAnalytics(page: Page): Promise<void> {
 }
 
 /**
- * Open the wizard dialog by hitting `/medications/new` (which
- * redirects to `/medications?new=1` and opens the create dialog).
+ * Open the wizard directly on `/medications?new=1`. The redirect from the
+ * legacy `/medications/new` route is a separate concern; these cadence specs
+ * exercise the wizard without racing that server navigation.
  */
 export async function openCreateWizard(page: Page): Promise<void> {
   // Pin the German locale for the wizard flow. The app default locale is
@@ -136,12 +137,14 @@ export async function openCreateWizard(page: Page): Promise<void> {
     {
       name: "healthlog-locale",
       value: "de",
-      url: page.url().startsWith("http")
-        ? new URL(page.url()).origin
-        : "http://localhost:3000",
+      url: new URL(process.env.E2E_BASE_URL ?? "http://localhost:3000").origin,
     },
   ]);
-  await page.goto("/medications/new", { waitUntil: "domcontentloaded" });
+  await page.goto("/medications?new=1", { waitUntil: "load" });
+  await page.waitForURL(
+    (url) => url.pathname === "/medications" && !url.searchParams.has("new"),
+    { timeout: 10_000 },
+  );
   await expect(
     page.locator('[data-slot="medication-wizard-dialog"]'),
   ).toBeVisible({ timeout: 10_000 });

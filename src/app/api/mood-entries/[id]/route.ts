@@ -13,13 +13,18 @@ import {
   getScoreForMood,
 } from "@/lib/validations/moodlog";
 import { NextRequest } from "next/server";
+import { Prisma } from "@/generated/prisma/client";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { encryptNote, shapeMoodNote } from "@/lib/crypto/note-cipher";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
-import { replaceTagLinks } from "@/lib/mood/tag-links";
+import {
+  RatedFactorOutOfRangeError,
+  replaceRatedFactorLinks,
+  replaceTagLinks,
+} from "@/lib/mood/tag-links";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -71,7 +76,9 @@ export const PUT = apiHandler(
     });
 
     if (!existing || existing.userId !== user.id) {
-      return apiError("Mood entry not found", 404);
+      return apiError("Mood entry not found", 404, {
+        errorCode: "mood.not_found",
+      });
     }
 
     const { data: body, error: jsonError } = await safeJson(request, {
@@ -104,7 +111,9 @@ export const PUT = apiHandler(
         .catch(() => {
           /* swallow — 422 response is the contract */
         });
-      return returnAllZodIssues(parsed.error, 422);
+      return returnAllZodIssues(parsed.error, 422, {
+        errorCode: "mood.update.invalid",
+      });
     }
 
     const data = parsed.data;
@@ -140,38 +149,83 @@ export const PUT = apiHandler(
     // monotonic value and paired clients reconcile higher-wins.
     updateData.syncVersion = { increment: 1 };
 
-    // v1.8.5 — update the entry and replace its structured-tag links in
-    // one transaction. A tag-link failure must roll the entry update back
-    // too — otherwise a client retry on the 5xx double-applies the edit
-    // (and the `syncVersion` increment). The tx client is threaded through
-    // the helper so both writes commit (or abort) together.
-    const { entry, persistedTagKeys } = await prisma.$transaction(
-      async (tx) => {
+    // Update the row and replace each submitted half of the structured-link
+    // contract in one transaction. A failure in either replacement rolls
+    // back the mood edit and its syncVersion increment as one unit.
+    const persistUpdate = () =>
+      prisma.$transaction(async (tx) => {
         const updated = await tx.moodEntry.update({
           where: { id },
           data: updateData,
         });
 
-        // Full replacement of the structured-tag link set when `tagKeys`
-        // is present in the body. `null` clears every link; an omitted
-        // field leaves the links untouched.
+        // Omission preserves the corresponding link set. Explicit null/empty
+        // clears it, matching the validated update contract.
         if (data.tagKeys !== undefined) {
           await replaceTagLinks(id, user.id, data.tagKeys ?? [], tx);
         }
+        if (data.ratedFactors !== undefined) {
+          await replaceRatedFactorLinks(
+            id,
+            user.id,
+            data.ratedFactors ?? [],
+            tx,
+          );
+        }
 
-        // v1.8.5 — read the persisted link keys back so the update
-        // response mirrors the list GET shape exactly.
+        // Return the same split shape as list/create: binary keys are
+        // independent from rated-factor keys and their per-entry scores.
         const links = await tx.moodEntryTagLink.findMany({
           where: { moodEntryId: id },
-          select: { moodTag: { select: { key: true } } },
+          select: {
+            rating: true,
+            moodTag: { select: { key: true, kind: true } },
+          },
         });
 
         return {
           entry: updated,
-          persistedTagKeys: links.map((link) => link.moodTag.key),
+          persistedTagKeys: links
+            .filter((link) => link.moodTag.kind !== "RATED")
+            .map((link) => link.moodTag.key),
+          persistedRatedFactors: links
+            .filter(
+              (link) => link.moodTag.kind === "RATED" && link.rating !== null,
+            )
+            .map((link) => ({
+              key: link.moodTag.key,
+              rating: link.rating as number,
+            })),
         };
-      },
+      });
+
+    const transactionOutcome = await persistUpdate().then(
+      (result) => ({ ok: true as const, result }),
+      (error: unknown) => ({ ok: false as const, error }),
     );
+    if (!transactionOutcome.ok) {
+      const { error } = transactionOutcome;
+      if (error instanceof RatedFactorOutOfRangeError) {
+        annotate({
+          action: { name: "mood-entries.update.rated-factor-out-of-range" },
+          meta: { scaleMin: error.scaleMin, scaleMax: error.scaleMax },
+        });
+        return apiError(error.message, 422, {
+          errorCode: "mood.ratedFactor.out_of_range",
+        });
+      }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return apiError("A mood entry with this data already exists", 409, {
+          errorCode: "mood.duplicate_timestamp",
+        });
+      }
+      throw error;
+    }
+    const { entry, persistedTagKeys, persistedRatedFactors } =
+      transactionOutcome.result;
 
     await auditLog("moodEntry.update", {
       userId: user.id,
@@ -219,6 +273,7 @@ export const PUT = apiHandler(
       // hydrating from the update response renders the tag set without a
       // refetch (shape-matches the list GET).
       tagKeys: persistedTagKeys,
+      ratedFactors: persistedRatedFactors,
     });
   },
 );

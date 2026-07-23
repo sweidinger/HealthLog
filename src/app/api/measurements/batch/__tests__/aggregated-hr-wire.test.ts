@@ -17,9 +17,12 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    user: {
+      update: vi.fn(),
+    },
     measurement: {
       findMany: vi.fn(),
-      createMany: vi.fn(),
+      createManyAndReturn: vi.fn(),
       updateMany: vi.fn(),
     },
     $transaction: vi.fn(async (fn: unknown) => {
@@ -28,6 +31,64 @@ vi.mock("@/lib/db", () => ({
         return (fn as any)(prisma as unknown as { measurement: unknown });
       }
     }),
+  },
+}));
+
+vi.mock("@/lib/measurements/reconcile-external-measurement", () => ({
+  reconcileExternalMeasurement: async (
+    tx: {
+      measurement: {
+        findMany: (args: unknown) => Promise<
+          Array<{
+            id?: string;
+            type?: string;
+            source?: string;
+            externalId?: string | null;
+          }>
+        >;
+        createManyAndReturn: (args: {
+          data: Record<string, unknown>;
+        }) => Promise<Array<Record<string, unknown>>>;
+        updateMany: (args: {
+          where: Record<string, unknown>;
+          data: Record<string, unknown>;
+        }) => Promise<unknown>;
+      };
+    },
+    input: Record<string, unknown> & {
+      userId: string;
+      type: string;
+      source: string;
+      externalId: string;
+    },
+    options: { exactExternalMatch?: "update" | "duplicate" } = {},
+  ) => {
+    const existing = await tx.measurement.findMany({});
+    const exact = existing.find(
+      (row: { type?: string; source?: string; externalId?: string | null }) =>
+        row.type === input.type &&
+        row.source === input.source &&
+        row.externalId === input.externalId,
+    );
+    if (exact && options.exactExternalMatch !== "update") {
+      return { status: "duplicate", row: exact };
+    }
+    if (exact) {
+      await tx.measurement.updateMany({
+        where: { id: exact.id },
+        data: { ...input, deletedAt: null },
+      });
+      return { status: "updated", row: { ...exact, ...input } };
+    }
+    const [inserted] = await tx.measurement.createManyAndReturn({
+      data: input,
+    });
+    if (inserted) return { status: "inserted", row: inserted };
+    if (options.exactExternalMatch === "update") {
+      await tx.measurement.updateMany({ where: {}, data: input });
+      return { status: "updated", row: input };
+    }
+    return { status: "duplicate" };
   },
 }));
 
@@ -129,13 +190,26 @@ beforeEach(() => {
     resetAt: Date.now() + 60_000,
   });
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 0 });
+  vi.mocked(prisma.measurement.createManyAndReturn).mockImplementation((async (
+    args: unknown,
+  ) => {
+    const { data } = args as {
+      data:
+        | { type: unknown; source: string; externalId: string | null }
+        | Array<{ type: unknown; source: string; externalId: string | null }>;
+    };
+    const rows = Array.isArray(data) ? data : [data];
+    return rows.map(({ type, source, externalId }) => ({
+      type,
+      source,
+      externalId,
+    }));
+  }) as never);
   vi.mocked(prisma.measurement.updateMany).mockResolvedValue({ count: 1 });
 });
 
 describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)", () => {
   it("inserts a fresh 10-min HR bucket as a PULSE row", async () => {
-    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
     const res = await POST(
       makeRequest({ entries: [hrBucketEntry(HR_BUCKET_ID, 72)] }),
     );
@@ -146,15 +220,13 @@ describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)
     expect(data.entries[0].status).toBe("inserted");
 
     // Stored as a PULSE row carrying the 10-min average value.
-    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
-    const rows = (createArg as { data: { type: string; value: number }[] })
-      .data;
-    expect(rows[0].type).toBe("PULSE");
-    expect(rows[0].value).toBe(72);
+    const row = vi.mocked(prisma.measurement.createManyAndReturn).mock
+      .calls[0]![0]!.data as { type: string; value: number };
+    expect(row.type).toBe("PULSE");
+    expect(row.value).toBe(72);
   });
 
   it("persists per-bucket min/max on a fresh 10-min HR bucket (iOS #34 ext)", async () => {
-    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
     const res = await POST(
       makeRequest({
         entries: [
@@ -163,15 +235,15 @@ describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)
       }),
     );
     expect(res.status).toBe(200);
-    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
-    const rows = (
-      createArg as {
-        data: { value: number; valueMin: number; valueMax: number }[];
-      }
-    ).data;
-    expect(rows[0].value).toBe(72);
-    expect(rows[0].valueMin).toBe(58);
-    expect(rows[0].valueMax).toBe(96);
+    const row = vi.mocked(prisma.measurement.createManyAndReturn).mock
+      .calls[0]![0]!.data as {
+      value: number;
+      valueMin: number;
+      valueMax: number;
+    };
+    expect(row.value).toBe(72);
+    expect(row.valueMin).toBe(58);
+    expect(row.valueMax).toBe(96);
   });
 
   it.each([
@@ -184,26 +256,19 @@ describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)
   ])(
     "v1.30.8 — drops an out-of-range or mis-ordered spread to null but keeps the average %o",
     async (spread) => {
-      vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
       const res = await POST(
         makeRequest({ entries: [hrBucketEntry(HR_BUCKET_ID, 72, spread)] }),
       );
       expect(res.status).toBe(200);
-      const createArg = vi.mocked(prisma.measurement.createMany).mock
-        .calls[0][0];
-      const rows = (
-        createArg as {
-          data: {
-            value: number;
-            valueMin: number | null;
-            valueMax: number | null;
-          }[];
-        }
-      ).data;
-      // The trustworthy average survives; the invalid spread is dropped.
-      expect(rows[0].value).toBe(72);
-      expect(rows[0].valueMin).toBeNull();
-      expect(rows[0].valueMax).toBeNull();
+      const row = vi.mocked(prisma.measurement.createManyAndReturn).mock
+        .calls[0]![0]!.data as {
+        value: number;
+        valueMin: number | null;
+        valueMax: number | null;
+      };
+      expect(row.value).toBe(72);
+      expect(row.valueMin).toBeNull();
+      expect(row.valueMax).toBeNull();
     },
   );
 
@@ -231,7 +296,6 @@ describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)
   });
 
   it("leaves min/max null on a per-sample PULSE row even if sent", async () => {
-    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
     const SAMPLE_ID = "C0FFEE00-0000-4000-8000-000000000000";
     const res = await POST(
       makeRequest({
@@ -239,14 +303,13 @@ describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)
       }),
     );
     expect(res.status).toBe(200);
-    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
-    const rows = (
-      createArg as {
-        data: { valueMin: number | null; valueMax: number | null }[];
-      }
-    ).data;
-    expect(rows[0].valueMin).toBeNull();
-    expect(rows[0].valueMax).toBeNull();
+    const row = vi.mocked(prisma.measurement.createManyAndReturn).mock
+      .calls[0]![0]!.data as {
+      valueMin: number | null;
+      valueMax: number | null;
+    };
+    expect(row.valueMin).toBeNull();
+    expect(row.valueMax).toBeNull();
   });
 
   it("overwrites the same bucket on a re-post (updated, not duplicate)", async () => {
@@ -273,7 +336,7 @@ describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)
     expect(prisma.measurement.updateMany).toHaveBeenCalledTimes(1);
     const updateArg = vi.mocked(prisma.measurement.updateMany).mock.calls[0][0];
     expect((updateArg as { data: { value: number } }).data.value).toBe(78);
-    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+    expect(prisma.measurement.createManyAndReturn).not.toHaveBeenCalled();
   });
 
   it("skips a malformed aggregated HR bucket externalId", async () => {
@@ -293,7 +356,7 @@ describe("POST /api/measurements/batch — aggregated HR wire contract (iOS #34)
     expect(data.skipped).toEqual([
       { index: 0, reason: "malformed_hr_bucket_id" },
     ]);
-    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+    expect(prisma.measurement.createManyAndReturn).not.toHaveBeenCalled();
   });
 
   it("keeps the per-sample uuid HR path immutable (duplicate, not overwrite)", async () => {
@@ -406,7 +469,7 @@ describe("POST /api/measurements/batch — stats tombstone resurrection", () => 
     expect(data.updated).toBe(0);
     expect(data.entries[0].status).toBe("duplicate");
     expect(prisma.measurement.updateMany).not.toHaveBeenCalled();
-    expect(prisma.measurement.createMany).not.toHaveBeenCalled();
+    expect(prisma.measurement.createManyAndReturn).not.toHaveBeenCalled();
   });
 });
 
@@ -421,8 +484,6 @@ describe("POST /api/measurements/batch — stats tombstone resurrection", () => 
  */
 describe("POST /api/measurements/batch — intra-batch `stats:` supersession", () => {
   it("keeps only the LAST entry when one batch carries the same stats: key twice", async () => {
-    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 1 });
-
     const res = await POST(
       makeRequest({
         entries: [
@@ -434,11 +495,10 @@ describe("POST /api/measurements/batch — intra-batch `stats:` supersession", (
     expect(res.status).toBe(200);
     const { data } = await readJson(res);
 
-    // Exactly ONE row reaches the insert, carrying the NEWER value.
-    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
-    const rows = (createArg as { data: { value: number }[] }).data;
-    expect(rows).toHaveLength(1);
-    expect(rows[0].value).toBe(78);
+    expect(prisma.measurement.createManyAndReturn).toHaveBeenCalledTimes(1);
+    const row = vi.mocked(prisma.measurement.createManyAndReturn).mock
+      .calls[0]![0]!.data as { value: number };
+    expect(row.value).toBe(78);
 
     // The superseded entry is reported honestly, not as a phantom insert.
     expect(data.entries[0].status).toBe("duplicate");
@@ -479,7 +539,6 @@ describe("POST /api/measurements/batch — intra-batch `stats:` supersession", (
   it("leaves DISTINCT stats: keys in one batch untouched", async () => {
     const OTHER =
       "stats:HKQuantityTypeIdentifierHeartRate:2026-06-21T14:10:00.000Z";
-    vi.mocked(prisma.measurement.createMany).mockResolvedValue({ count: 2 });
 
     const res = await POST(
       makeRequest({
@@ -489,8 +548,7 @@ describe("POST /api/measurements/batch — intra-batch `stats:` supersession", (
     expect(res.status).toBe(200);
     const { data } = await readJson(res);
 
-    const createArg = vi.mocked(prisma.measurement.createMany).mock.calls[0][0];
-    expect((createArg as { data: unknown[] }).data).toHaveLength(2);
+    expect(prisma.measurement.createManyAndReturn).toHaveBeenCalledTimes(2);
     expect(data.inserted).toBe(2);
     expect(data.duplicates).toBe(0);
   });

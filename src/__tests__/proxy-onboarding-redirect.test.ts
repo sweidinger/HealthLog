@@ -130,6 +130,7 @@ describe("proxy.ts onboarding redirect (v1.4.22 C4)", () => {
   });
 
   it("generates CSP nonces without relying on Node Buffer", () => {
+    vi.stubEnv("NODE_ENV", "production");
     const originalBuffer = (
       globalThis as typeof globalThis & { Buffer?: Buffer }
     ).Buffer;
@@ -149,6 +150,7 @@ describe("proxy.ts onboarding redirect (v1.4.22 C4)", () => {
         value: originalBuffer,
         configurable: true,
       });
+      vi.unstubAllEnvs();
     }
   });
 });

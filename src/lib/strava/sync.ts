@@ -24,6 +24,7 @@
  * cron tick resumes from the cursor.
  */
 import { prisma } from "@/lib/db";
+import { emitInsertedWorkoutArrival } from "@/lib/arrivals/workout-emit";
 import { annotate, getEvent } from "@/lib/logging/context";
 import {
   recordSyncFailure,
@@ -65,6 +66,22 @@ const BACKFILL_DETAIL_BUDGET = 150;
 
 export function classifyStravaFailure(err: unknown): FailureKind {
   return toFailureKind(classifyStravaError(err));
+}
+
+async function recordStravaFailure(
+  userId: string,
+  err: unknown,
+): Promise<void> {
+  await recordSyncFailure({
+    userId,
+    integration: "strava",
+    kind: classifyStravaFailure(err),
+    message: err instanceof Error ? err.message : String(err),
+    errorCode:
+      err instanceof StravaApiError && err.httpStatus != null
+        ? String(err.httpStatus)
+        : undefined,
+  });
 }
 
 export interface SyncUserStravaOptions {
@@ -197,35 +214,32 @@ export async function syncUserStrava(
       if (activities.length < PER_PAGE) break;
     }
   } catch (err) {
-    await recordSyncFailure({
-      userId,
-      integration: "strava",
-      kind: classifyStravaFailure(err),
-      message: err instanceof Error ? err.message : String(err),
-      errorCode:
-        err instanceof StravaApiError && err.httpStatus != null
-          ? String(err.httpStatus)
-          : undefined,
-    });
+    await recordStravaFailure(userId, err);
     throw err;
   }
 
-  const imported = await upsertStravaWorkouts(userId, rows);
+  let imported: number;
+  try {
+    imported = await upsertStravaWorkouts(userId, rows);
 
-  // Advance the incremental cursor to the newest activity start we saw, but
-  // never move it backwards (a bounded backfill page-walk may not reach the
-  // very newest activity in one pass).
-  if (newestStart) {
-    await prisma.user.updateMany({
-      where: {
-        id: userId,
-        OR: [
-          { stravaLastActivityAt: null },
-          { stravaLastActivityAt: { lt: newestStart } },
-        ],
-      },
-      data: { stravaLastActivityAt: newestStart },
-    });
+    // Advance the incremental cursor to the newest activity start we saw, but
+    // never move it backwards (a bounded backfill page-walk may not reach the
+    // very newest activity in one pass).
+    if (newestStart) {
+      await prisma.user.updateMany({
+        where: {
+          id: userId,
+          OR: [
+            { stravaLastActivityAt: null },
+            { stravaLastActivityAt: { lt: newestStart } },
+          ],
+        },
+        data: { stravaLastActivityAt: newestStart },
+      });
+    }
+  } catch (err) {
+    await recordStravaFailure(userId, err);
+    throw err;
   }
 
   await recordSyncSuccess(userId, "strava");
@@ -238,8 +252,10 @@ export async function syncUserStrava(
 /**
  * Upsert a batch of mapped Strava activities into `Workout`, keyed on
  * `(userId, source = STRAVA, externalId)` so a re-fetch overwrites in place.
- * Best-effort per row: a single bad row is logged, never thrown, so it can't
- * fail the surrounding sync.
+ * `(userId, source = STRAVA, externalId)` so replays overwrite in place.
+ * Failed rows are logged while the rest of the batch is attempted, then the
+ * first error is rethrown so the caller cannot advance its cursor or backfill
+ * watermark past a partially persisted batch.
  */
 export async function upsertStravaWorkouts(
   userId: string,
@@ -248,6 +264,8 @@ export async function upsertStravaWorkouts(
   if (rows.length === 0) return 0;
 
   let imported = 0;
+  let firstError: unknown;
+  let hadError = false;
   for (const r of rows) {
     const data = {
       sportType: r.sportType,
@@ -262,27 +280,42 @@ export async function upsertStravaWorkouts(
       metadata: r.metadata,
     };
     try {
-      await prisma.workout.upsert({
-        where: {
-          userId_source_externalId: {
-            userId,
-            source: "STRAVA",
-            externalId: r.externalId,
-          },
-        },
-        create: {
+      const [inserted] = await prisma.workout.createManyAndReturn({
+        data: {
           userId,
           source: "STRAVA",
           externalId: r.externalId,
           ...data,
         },
-        update: data,
+        skipDuplicates: true,
+        select: { id: true, startedAt: true },
       });
+      if (inserted) {
+        void emitInsertedWorkoutArrival(userId, inserted, "strava").catch(
+          () => {},
+        );
+      } else {
+        await prisma.workout.update({
+          where: {
+            userId_source_externalId: {
+              userId,
+              source: "STRAVA",
+              externalId: r.externalId,
+            },
+          },
+          data,
+        });
+      }
       imported += 1;
     } catch (err) {
       getEvent()?.addWarning(`strava: failed to upsert workout: ${err}`);
+      if (!hadError) {
+        firstError = err;
+        hadError = true;
+      }
     }
   }
+  if (hadError) throw firstError;
 
   annotate({
     action: { name: "strava.workout.ingest", details: { imported } },

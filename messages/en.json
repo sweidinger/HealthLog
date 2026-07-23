@@ -46,6 +46,57 @@
     "durationHoursMinutes": "{hours}h {minutes}m",
     "durationMinutes": "{minutes}m"
   },
+  "apiErrors": {
+    "measurement": {
+      "create": { "invalid": "Check the measurement details and try again." },
+      "duplicate_timestamp": "A measurement already exists for this time."
+    },
+    "mood": {
+      "list": { "invalid": "The mood list filters are invalid." },
+      "create": { "invalid": "Check the mood entry and try again." },
+      "update": { "invalid": "Check the mood entry and try again." },
+      "duplicate_timestamp": "A mood entry already exists for this time.",
+      "not_found": "This mood entry is no longer available.",
+      "ratedFactor": {
+        "out_of_range": "A factor rating is outside its allowed range."
+      }
+    },
+    "labs": {
+      "create": { "invalid": "Check the lab result and try again." },
+      "result": { "notFound": "This lab result is no longer available." },
+      "biomarker": {
+        "notFound": "This biomarker is no longer available.",
+        "duplicate": "A biomarker with this name already exists.",
+        "create": { "invalid": "Check the biomarker details and try again." },
+        "update": {
+          "invalid": "Check the biomarker details and try again.",
+          "referenceRangeInvalid": "The lower reference value must not exceed the upper value."
+        }
+      },
+      "update": {
+        "invalid": "Check the lab result and try again.",
+        "linkedFieldsImmutable": "Edit the biomarker to change its name, unit, panel, or reference range.",
+        "qualitativeExpected": "Enter a text result for this qualitative reading.",
+        "numericExpected": "Enter a number for this numeric reading.",
+        "referenceRangeInvalid": "The lower reference value must not exceed the upper value."
+      }
+    },
+    "onboarding": {
+      "disclaimer": {
+        "invalid": "Please confirm the medical disclaimer again."
+      },
+      "tour": { "invalid": "The tour progress could not be saved." },
+      "complete": { "invalid": "Check the profile details and try again." },
+      "user": { "notFound": "Your account could not be found." },
+      "step": {
+        "rateLimited": "Too many attempts. Please wait and try again.",
+        "invalid": "This onboarding step could not be saved.",
+        "completed": "Onboarding is already complete.",
+        "outOfOrder": "Your onboarding progress changed. Refresh and continue.",
+        "concurrent": "Your onboarding progress changed. Refresh and continue."
+      }
+    }
+  },
   "doctorReport": {
     "title": "Health Report",
     "subtitle": "HealthLog — Personal Health Report",
@@ -255,7 +306,9 @@
       "medication": "Medication",
       "medicationDescription": "Mark a dose as taken",
       "mood": "Mood",
-      "moodDescription": "Log your mood and tags"
+      "moodDescription": "Log your mood and tags",
+      "water": "Water",
+      "waterDescription": "Quickly add your water intake"
     },
     "cycle": "Cycle",
     "labs": "Labs",
@@ -358,6 +411,7 @@
     "quickAddMeasurement": "Log measurement",
     "quickAddMood": "Log mood",
     "quickAddMedicationIntake": "Log medication intake",
+    "quickAddWater": "Log water",
     "customizeDashboard": "Customize dashboard",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Log medication intake",
@@ -425,7 +479,9 @@
         "steps": "Steps",
         "totalBodyWater": "Total Body Water",
         "boneMass": "Bone Mass",
-        "oxygenSaturation": "Oxygen Saturation"
+        "oxygenSaturation": "Oxygen Saturation",
+        "mood": "Mood",
+        "bmi": "BMI"
       },
       "unit": {
         "weight": "kg",
@@ -437,7 +493,9 @@
         "steps": "steps",
         "totalBodyWater": "kg",
         "boneMass": "kg",
-        "oxygenSaturation": "%"
+        "oxygenSaturation": "%",
+        "mood": "/5",
+        "bmi": "kg/m²"
       }
     }
   },
@@ -578,7 +636,7 @@
     "bulkDeleteSuccess": "{count} measurements deleted",
     "bulkDeleteError": "Error deleting the selected measurements",
     "bulkDeleteConfirmTitle": "Delete {count} measurements?",
-    "bulkDeleteConfirmBody": "The {count} selected measurements will be permanently deleted.",
+    "bulkDeleteConfirmBody": "The {count} selected measurements will be deleted. You can undo this for a short moment afterwards.",
     "typePhq9Score": "PHQ-9 score",
     "typeGad7Score": "GAD-7 score",
     "typeGripStrength": "Grip strength",
@@ -726,7 +784,7 @@
     "bulkDeleteSuccess": "{count} entries deleted",
     "bulkDeleteError": "Error deleting the selected entries",
     "bulkDeleteConfirmTitle": "Delete {count} entries?",
-    "bulkDeleteConfirmBody": "The {count} selected mood entries will be permanently deleted.",
+    "bulkDeleteConfirmBody": "The {count} selected mood entries will be deleted. You can undo this for a short moment afterwards.",
     "customize": "Customize mood tags",
     "addTagInline": "Add tag",
     "manage": {
@@ -1683,7 +1741,10 @@
         "packagingDefaultPackLabel": "Default pack size (units)",
         "packagingDefaultPackHelper": "Prefills the quantity when registering new packs (1–1000). Leave empty if none applies.",
         "packagingSuccess": "Packaging details saved",
-        "packagingFailed": "Saving failed"
+        "packagingFailed": "Saving failed",
+        "addManufacturerLabel": "Manufacturer",
+        "addDoseStrengthLabel": "Strength",
+        "addDoseStrengthHint": "As printed on the container, e.g. 5 mg/0.5 ml."
       },
       "erweitert": {
         "group": {
@@ -2324,6 +2385,13 @@
       "historyEmpty": "Your conversations will appear here. Ask anything to start.",
       "historyDeleteAria": "Delete conversation",
       "historyDeleted": "Conversation deleted",
+      "rename": {
+        "action": "Rename conversation",
+        "input": "Conversation title",
+        "save": "Save title",
+        "cancel": "Cancel rename",
+        "error": "Conversation title could not be saved."
+      },
       "historySearchEmpty": "No conversations match your search.",
       "historyLoadingMore": "Loading more…",
       "sourcesTitle": "What I can see",
@@ -2462,10 +2530,6 @@
       "settingsClustersHint": "Pick which clusters of your data the Coach can read. More data means richer answers and a larger prompt.",
       "settingsClusterNoData": "No data yet",
       "sourcesMemberCount": "{count} metrics",
-      "dictate": "Dictate",
-      "dictateStop": "Stop dictation",
-      "voiceUnsupported": "Voice input is not supported in this browser",
-      "dictateError": "Could not start voice input. Check microphone permission and try again.",
       "showConversations": "Show conversations",
       "hideConversations": "Hide conversations",
       "heroGreeting": "Ask me anything about your data",
@@ -2862,9 +2926,9 @@
       "debt": {
         "title": "Sleep debt",
         "value": "{hours}h {minutes}m short",
-        "caption": "Cumulative shortfall over the last {nights} nights",
+        "caption": "Outstanding balance over the last {nights} nights",
         "clearValue": "All caught up",
-        "clearCaption": "No accumulated shortfall over the last {nights} nights",
+        "clearCaption": "Nothing outstanding over the last {nights} nights",
         "learning": "Still learning your sleep — {counted} nights so far, {remaining} more to read a reliable balance.",
         "computedInfo": "This is HealthLog's own estimate: a rolling balance of need minus sleep over recent nights, with catch-up sleep paying it down. It can differ from a wearable's native sleep-debt figure, which uses its own need model."
       },
@@ -2968,6 +3032,8 @@
     "navRecovery": "Recovery",
     "workouts": {
       "title": "Workouts",
+      "askWhy": "Ask why",
+      "askWhyPrompt": "Why did this session read the way it did? Walk me through my own numbers from it.",
       "description": "Recent runs, rides, walks and strength sessions, deduped across Apple Watch and Withings sources.",
       "emptyState": {
         "title": "No workouts yet",
@@ -3037,7 +3103,10 @@
         "mixedCardio": "Mixed cardio",
         "other": "Other"
       },
-      "loadError": "Your workouts could not be loaded"
+      "loadError": "Your workouts could not be loaded",
+      "loadMore": "Load more workouts",
+      "loadingMore": "Loading more workouts",
+      "loadMoreError": "More workouts could not be loaded"
     },
     "bloodGlucose": {
       "title": "Blood Glucose",
@@ -4514,6 +4583,7 @@
             "failed": "The import failed.",
             "rowsImported": "{count} rows imported so far",
             "doneSummary": "Done — {imported} of {read} records imported, {skipped} clinical records skipped.",
+            "estimateWarning": "Cumulative totals for {count} day(s) were estimated from the largest export source. Native Apple Health statistics remain authoritative.",
             "phase": {
               "queued": "Queued…",
               "unpacking": "Unpacking the archive…",
@@ -4672,7 +4742,9 @@
           "description": "Add a place and a date range — a trip, or a stretch of earlier history. The period overrides your home for the days it covers, so weather matches where you actually were. This is how you correct the past.",
           "none": "No location periods yet.",
           "add": "Add {label}",
-          "remove": "Remove location period"
+          "remove": "Remove location period",
+          "removeConfirmTitle": "Remove this trip?",
+          "removeConfirmBody": "Readings taken during it stay in your record; only the trip entry goes."
         },
         "backfill": {
           "title": "Backfill past days",
@@ -4953,7 +5025,10 @@
           "surfaced": "Surfaced",
           "done": "Done",
           "dismissed": "Dismissed"
-        }
+        },
+        "deleteConfirmTitle": "Delete this reminder?",
+        "deleteConfirmBody": "It stops being raised. Anything you have already recorded is untouched.",
+        "deleteConfirmAction": "Delete"
       },
       "aboutMe": {
         "title": "About me",
@@ -5628,8 +5703,16 @@
         "revokeAllDone": "Forgot {count} trusted device(s).",
         "unnamed": "Unknown device",
         "current": "This device",
-        "expires": "Trusted until {date}"
-      }
+        "expires": "Trusted until {date}",
+        "revokeConfirmTitle": "Stop trusting this device?",
+        "revokeConfirmBody": "It will ask for your second factor again the next time you sign in from it.",
+        "revokeAllConfirmTitle": "Stop trusting every device?",
+        "revokeAllConfirmBody": "Every device will ask for your second factor again the next time you sign in from it, including this one."
+      },
+      "revokeSessionConfirmTitle": "Sign this device out?",
+      "revokeSessionConfirmBody": "{device} will need to sign in again. Nothing recorded on it is affected.",
+      "signOutEverywhereConfirmTitle": "Sign out every other device?",
+      "signOutEverywhereConfirmBody": "Every device except this one will need to sign in again. This device stays signed in. Nothing you have recorded is affected."
     },
     "privacy": {
       "intro": {
@@ -5729,10 +5812,34 @@
       "rate_limited": "Too many connection attempts. Wait a moment and try again.",
       "generic": "Unknown error while connecting. Please start the connection again."
     },
+    "appleHealth": {
+      "title": "Apple Health",
+      "description": "Live sync comes from the HealthLog iOS app. It is not a web or OAuth connection.",
+      "status": {
+        "checking": "Checking Apple Health data…",
+        "dataReceived": "Apple Health data received",
+        "setup": "Set up in iOS app",
+        "unavailable": "Apple Health status unavailable"
+      },
+      "lastDataLabel": "Last Apple Health data:",
+      "setupTitle": "Turn on live sync",
+      "permissionStep": "In the HealthLog iOS app, open Settings → Apple Health and allow the health categories you want to share.",
+      "backgroundStep": "Keep Background App Refresh enabled. The app syncs new data automatically in the foreground and when iOS grants background time.",
+      "importNote": "Need older history or cannot use the iOS app? The Apple Health XML/ZIP upload is a one-shot fallback and does not enable live sync.",
+      "importAction": "Open one-shot import"
+    },
     "garminInfo": {
       "title": "Garmin",
       "body": "Garmin has no direct connection here. Connect via Apple Health (iOS) or Google Health Connect (Android). Garmin's proprietary scores — Body Battery, Training Load, HRV Status, VO₂ max — are not shared by Garmin to either platform.",
       "docsLink": "Read the guide"
+    },
+    "glucoseReference": {
+      "title": "Glucose reference band",
+      "description": "Which band your blood-glucose readings are judged against.",
+      "enable": "Use the diabetes goal band",
+      "explainer": "Off, readings are judged against the general non-diabetic reference band. On, they are judged against the tighter glycaemic goal band from the ADA Standards of Care, and the Coach grounds its glucose remarks on that band instead. Your own target overrides below still take precedence.",
+      "disclaimer": "This selects a reference band. It is not a diagnosis, it is never inferred from a reading, and the app takes no clinical action on it. Which targets apply to you is a question for your clinician.",
+      "error": "Could not save the setting."
     }
   },
   "admin": {
@@ -6213,7 +6320,7 @@
         "restore": "Restore",
         "restoreAria": "Restore from backup for {username}",
         "restoreTitle": "Restore from backup",
-        "restoreDescription": "This will replace ALL current data for {username} with the snapshot from {when}. Existing measurements, medications, intake events, mood entries, notification channels, push subscriptions and queued Telegram deletions will be deleted.",
+        "restoreDescription": "This will replace ALL current data for {username} with the snapshot from {when}. Existing measurements, medications, intake events, mood entries, notification channels, push subscriptions and queued Telegram deletions will be deleted. If included in the snapshot, instance-wide settings overwrite the configuration for the entire installation.",
         "restorePromptLabel": "Type RESTORE to continue",
         "restoreConfirm": "Restore now",
         "restoreInProgress": "Restoring…",
@@ -7471,7 +7578,7 @@
     "referenceLabel": "Reference",
     "readingsCount": "{count} readings",
     "deleteConfirmTitle": "Delete lab result?",
-    "deleteConfirmDescription": "This lab result will be permanently deleted.",
+    "deleteConfirmDescription": "This lab result will be deleted. You can undo this for a short moment afterwards.",
     "deletedToast": "Result deleted",
     "deleteError": "Could not delete the result",
     "loadError": "Could not load lab results",
@@ -7950,7 +8057,7 @@
     },
     "deleteConfirm": {
       "title": "Delete this episode?",
-      "body": "“{label}” and all its day-logs will be removed. This cannot be undone."
+      "body": "“{label}” and all its day-logs will be removed. You can undo this for a short moment afterwards."
     },
     "vital": {
       "RESTING_HEART_RATE": "Resting heart rate",
@@ -8506,6 +8613,7 @@
         "withheld": "A summary was generated but did not pass the safety check, so it is not shown. You can try again, or read the document itself.",
         "unavailable": "No summary could be generated for this document.",
         "generate": "Generate summary",
+        "regenerate": "Generate again",
         "generating": "Generating…"
       },
       "loadError": "Couldn't load this document.",
@@ -8743,6 +8851,7 @@
       "quickAddCustomPlaceholder": "250",
       "quickAddSubmit": "Add",
       "quickAddError": "Couldn't save that — try again.",
+      "quickAddSuccess": "{amount} mL water added.",
       "editTotal": "Edit today's total"
     },
     "caffeine": {
@@ -8828,6 +8937,8 @@
       "deltaVsBaseline": "{delta} vs your baseline",
       "deltaFlat": "In line with your baseline",
       "sleepPending": "Last night's sleep isn't in yet — today's read is provisional.",
+      "justIn": "Just in",
+      "justInAt": "Just in · {time}",
       "worthALook": "Worth a look",
       "allClear": "Nothing needs your attention today.",
       "ringLink": "Open {metric} details"

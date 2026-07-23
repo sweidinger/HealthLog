@@ -137,3 +137,43 @@ describe("verifyAuthentication — Zod boundary (L-3)", () => {
     expect(out.verification.verified).toBe(true);
   });
 });
+
+/**
+ * "Last used" is a security-page fact people act on: a passkey that reads
+ * "never used" invites deletion. The column is only ever written here, on a
+ * verified assertion, so the stamp and the counter bump must stay one write.
+ * The read half is pinned in
+ * `src/app/api/auth/passkeys/__tests__/route.test.ts`.
+ */
+describe("verifyAuthentication — last-used stamp", () => {
+  // The file-level `beforeEach` re-arms the mocks but does not clear their
+  // call history, so the write assertions below need a clean ledger.
+  beforeEach(() => {
+    vi.mocked(prisma.passkey.update).mockClear();
+  });
+
+  it("stamps lastUsedAt alongside the counter on a verified assertion", async () => {
+    const before = Date.now();
+    await verifyAuthentication("ch-1", VALID_BODY);
+
+    expect(prisma.passkey.update).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.passkey.update).mock.calls[0][0];
+
+    expect(call.where).toEqual({ id: "pk-1" });
+    expect(call.data?.counter).toBe(BigInt(1));
+
+    const stamped = call.data?.lastUsedAt;
+    expect(stamped).toBeInstanceOf(Date);
+    expect((stamped as Date).getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it("does not stamp lastUsedAt when the assertion fails", async () => {
+    vi.mocked(verifyAuthenticationResponse).mockResolvedValue({
+      verified: false,
+    } as never);
+
+    await verifyAuthentication("ch-1", VALID_BODY);
+
+    expect(prisma.passkey.update).not.toHaveBeenCalled();
+  });
+});

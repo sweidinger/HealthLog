@@ -16,6 +16,7 @@ import { AI_BUDGETS } from "@/lib/ai/ai-budgets";
 import { singleUserTurn, type AIProvider } from "@/lib/ai/types";
 import { annotate } from "@/lib/logging/context";
 import type { Locale } from "@/lib/i18n/config";
+import { targetLanguageName } from "@/lib/ai/prompts/output-language";
 import {
   screenModelOutput,
   INSIGHTS_CONTRACTS,
@@ -74,10 +75,11 @@ export interface DescribeInput {
 
 /**
  * Input for the SCREENED summary pass. `locale` is required here and absent
- * from `DescribeInput` on purpose: the screen picks its pattern banks by
- * locale, and an optional field would let a caller silently fall back to the
- * English banks. The transcription pass carries no locale because it is not
- * screened (see `transcribeDocument`).
+ * from `DescribeInput` on purpose: it controls both the provider's output
+ * language and the screen's pattern banks. An optional field would let a
+ * caller silently generate and screen as English. The transcription pass
+ * carries no locale because it must reproduce the source without translation
+ * (see `transcribeDocument`).
  */
 export type DocumentSummaryInput = DescribeInput & { locale: Locale };
 
@@ -129,7 +131,7 @@ export async function runDocumentSummary(
 ): Promise<{ summary: string; blocked: OutboundReason | null }> {
   const summary = await runDescribe(
     input,
-    SUMMARY_SYSTEM_PROMPT,
+    `${SUMMARY_SYSTEM_PROMPT}\n\nWrite the summary in ${targetLanguageName(input.locale)}.`,
     "Summarise the attached document. Return the summary text only.",
     (text) =>
       `Summarise the following OCR'd document text. Return the summary text only.\n\nOCR TEXT:\n${text}`,

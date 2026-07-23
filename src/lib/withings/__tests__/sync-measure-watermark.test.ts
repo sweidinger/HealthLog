@@ -24,6 +24,8 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn(),
   },
 }));
 
@@ -36,6 +38,13 @@ vi.mock("../client", () => ({
   fetchMeasurements: vi.fn(),
   refreshAccessToken: vi.fn(),
   subscribeWebhook: vi.fn(),
+}));
+
+vi.mock("../credentials", () => ({
+  getUserWithingsCredentials: vi.fn(async () => ({
+    clientId: "cid",
+    clientSecret: "secret",
+  })),
 }));
 
 vi.mock("@/lib/integrations/status", async () => {
@@ -77,13 +86,13 @@ vi.mock("@/lib/logging/context", () => ({
 }));
 
 import { prisma } from "@/lib/db";
-import { fetchMeasurements } from "../client";
+import { fetchMeasurements, refreshAccessToken } from "../client";
 import {
   recordSyncFailure,
   recordSyncSuccess,
 } from "@/lib/integrations/status";
 
-import { syncUserMeasurements } from "../sync";
+import { getValidToken, syncUserMeasurements } from "../sync";
 
 const P2002 = Object.assign(new Error("Unique constraint failed"), {
   code: "P2002",
@@ -91,6 +100,9 @@ const P2002 = Object.assign(new Error("Unique constraint failed"), {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prisma.$transaction).mockImplementation(async (run) =>
+    run(prisma as never),
+  );
   // A live, non-expired connection so `getValidToken` returns the token
   // without touching the refresh path.
   vi.mocked(prisma.withingsConnection.findUnique).mockResolvedValue({
@@ -105,6 +117,39 @@ beforeEach(() => {
   vi.mocked(prisma.measurement.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
   vi.mocked(prisma.measurement.update).mockResolvedValue({} as never);
+});
+
+describe("getValidToken — serialized rotating refresh", () => {
+  it("re-reads token state under an advisory lock and reuses a peer winner", async () => {
+    vi.mocked(prisma.withingsConnection.findUnique)
+      .mockResolvedValueOnce({
+        id: "conn-1",
+        withingsUserId: "wu-1",
+        accessToken: "old-access",
+        refreshToken: "old-refresh",
+        tokenExpiresAt: new Date(Date.now() - 1000),
+      } as never)
+      .mockResolvedValueOnce({
+        id: "conn-1",
+        withingsUserId: "wu-1",
+        accessToken: "winner-access",
+        refreshToken: "winner-refresh",
+        tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      } as never);
+
+    const result = await getValidToken("user-1");
+
+    expect(result?.accessToken).toBe("winner-access");
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        maxWait: expect.any(Number),
+        timeout: expect.any(Number),
+      }),
+    );
+  });
 });
 
 describe("syncUserMeasurements — watermark hold on hard row failure (F4)", () => {

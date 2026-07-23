@@ -38,11 +38,19 @@ import {
   type IntakeAutoSkipPayload,
 } from "@/lib/jobs/intake-auto-skip";
 import {
-  APPLE_HEALTH_IMPORT_QUEUE,
+  APPLE_HEALTH_IMPORT_V2_QUEUE,
+  APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
   APPLE_HEALTH_IMPORT_CONCURRENCY,
   handleAppleHealthImport,
+  migrateLegacyAppleHealthImport,
   type AppleHealthImportPayload,
 } from "@/lib/jobs/apple-health-import-worker";
+import {
+  MEDICATION_INTAKE_IMPORT_QUEUE,
+  MEDICATION_INTAKE_IMPORT_CONCURRENCY,
+  handleMedicationIntakeImport,
+  type MedicationIntakeImportQueuePayload,
+} from "@/lib/jobs/medication-intake-import";
 import {
   INTAKE_SLOT_DEDUP_QUEUE,
   INTAKE_SLOT_DEDUP_CONCURRENCY,
@@ -141,6 +149,8 @@ import {
   handleMoodReminderCleanup,
   PushAttemptCleanupPayload,
   handlePushAttemptCleanup,
+  ArrivalReactionCleanupPayload,
+  handleArrivalReactionCleanup,
   MeasurementTombstoneCleanupPayload,
   handleMeasurementTombstoneCleanup,
   handleRateLimitCleanup,
@@ -239,6 +249,13 @@ const PUSH_ATTEMPT_CLEANUP_QUEUE = "push-attempt-cleanup";
 
 const PUSH_ATTEMPT_CLEANUP_CRON = "35 3 * * *";
 
+// v1.31.0 — daily prune for the data-arrival spine's reaction markers.
+// Slots at 04:10, after the 03:xx retention block and the 04:00 MCP-token
+// prune, so the maintenance window stays in a readable order.
+const ARRIVAL_REACTION_CLEANUP_QUEUE = "arrival-reaction-cleanup";
+
+const ARRIVAL_REACTION_CLEANUP_CRON = "10 4 * * *";
+
 const MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE = "measurement-tombstone-cleanup";
 
 const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
@@ -304,7 +321,9 @@ const allQueues = [
   // this entry the schedule silently no-ops and pending rows older than
   // 24 h pile up unflipped.
   INTAKE_AUTO_SKIP_QUEUE,
-  APPLE_HEALTH_IMPORT_QUEUE,
+  APPLE_HEALTH_IMPORT_V2_QUEUE,
+  APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
+  MEDICATION_INTAKE_IMPORT_QUEUE,
   // v1.8.2 — one-time duplicate dose-slot cleanup. Boot discovery enqueues
   // one job per user holding two live intake rows that snap to the same
   // canonical slot (the pre-fix REMINDER-pending + API-taken pair). Also
@@ -316,6 +335,9 @@ const allQueues = [
   // v1.4.49 — push-attempt ledger cleanup. The daily schedule below would
   // silently no-op without this entry.
   PUSH_ATTEMPT_CLEANUP_QUEUE,
+  // v1.31.0 — data-arrival reaction-marker prune. Without this entry the
+  // daily schedule silently no-ops and the markers accumulate forever.
+  ARRIVAL_REACTION_CLEANUP_QUEUE,
   // v1.7.0 — soft-deleted measurement tombstone prune. Without this entry
   // the daily schedule silently no-ops and pruned-past-retention tombstones
   // pile up forever.
@@ -429,6 +451,8 @@ const schedules: ScheduleEntry[] = [
   [INTAKE_SLOT_DEDUP_QUEUE, INTAKE_SLOT_DEDUP_CRON],
   // v1.4.49 — daily 03:35 Europe/Berlin prune for push_attempts.
   [PUSH_ATTEMPT_CLEANUP_QUEUE, PUSH_ATTEMPT_CLEANUP_CRON],
+  // v1.31.0 — daily 04:10 Europe/Berlin prune for arrival_reactions.
+  [ARRIVAL_REACTION_CLEANUP_QUEUE, ARRIVAL_REACTION_CLEANUP_CRON],
   // v1.7.0 — daily 03:40 Europe/Berlin prune for expired measurement
   // tombstones.
   [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
@@ -468,9 +492,10 @@ const schedules: ScheduleEntry[] = [
  *     become one. That is exactly the class of silent work-dropping a policy is
  *     supposed to prevent, so the queue keeps `standard` until the enqueue side
  *     gives the explicit-range variant a key of its own.
- *   - APPLE_HEALTH_IMPORT_QUEUE, DATA_BACKUP_QUEUE and PR_DETECTION_QUEUE send
- *     keylessly by design (each import / backup / detection run is a distinct
- *     unit of work). A policy would coalesce independent runs.
+ *   - APPLE_HEALTH_IMPORT_V2_QUEUE, APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
+ *     DATA_BACKUP_QUEUE and PR_DETECTION_QUEUE send keylessly by design (each
+ *     import / backup / detection run is a distinct unit of work). A policy
+ *     would coalesce independent runs.
  */
 const queuePolicies: QueuePolicyTable = {
   // Per-user, boot- and cron-discovery driven, self-converging one-shots. The
@@ -612,6 +637,14 @@ export async function registerMaintenanceQueues(
     { localConcurrency: 1 },
     handlePushAttemptCleanup,
   );
+  // v1.31.0 — daily prune of the data-arrival reaction markers. Single-flight
+  // like every other cleanup queue: two ticks racing the same DELETE is
+  // wasted work.
+  await boss.work<ArrivalReactionCleanupPayload>(
+    ARRIVAL_REACTION_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleArrivalReactionCleanup,
+  );
   // v1.7.0 — daily prune of expired measurement tombstones. Single-flight
   // like every other cleanup queue.
   await boss.work<MeasurementTombstoneCleanupPayload>(
@@ -665,7 +698,7 @@ export async function registerMaintenanceQueues(
   // caps at 1 because the parse loop is CPU-bound and a concurrent
   // second 1 GB import would race the first for RSS.
   await boss.work<AppleHealthImportPayload>(
-    APPLE_HEALTH_IMPORT_QUEUE,
+    APPLE_HEALTH_IMPORT_V2_QUEUE,
     { localConcurrency: APPLE_HEALTH_IMPORT_CONCURRENCY },
     async (jobs) => {
       // pg-boss v12 work callbacks always receive an array (batched
@@ -673,6 +706,30 @@ export async function registerMaintenanceQueues(
       // process each job sequentially.
       for (const job of jobs) {
         await handleAppleHealthImport(job);
+      }
+    },
+  );
+  // Drain pre-revision-2 backlog by moving each claimed legacy job onto the
+  // isolated v2 queue. This preserves the ImportJob status id without letting
+  // the current parser execute under a revision-1 mirror.
+  await boss.work<AppleHealthImportPayload>(
+    APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
+    { localConcurrency: APPLE_HEALTH_IMPORT_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        await migrateLegacyAppleHealthImport(job);
+      }
+    },
+  );
+  await boss.work<MedicationIntakeImportQueuePayload>(
+    MEDICATION_INTAKE_IMPORT_QUEUE,
+    {
+      localConcurrency: MEDICATION_INTAKE_IMPORT_CONCURRENCY,
+      includeMetadata: true,
+    },
+    async (jobs) => {
+      for (const job of jobs) {
+        await handleMedicationIntakeImport(job);
       }
     },
   );

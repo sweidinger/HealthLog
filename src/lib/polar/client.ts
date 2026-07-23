@@ -13,9 +13,9 @@
  *   - Polar access tokens DO NOT expire and there is NO refresh token. The
  *     `User.polarRefreshTokenEncrypted` column stays null; `getValidToken`
  *     never refreshes. A revoked grant surfaces as a 401 on the next data read.
- *   - The token response carries `x_user_id` — Polar's numeric member id — which
- *     every data path needs (`/v3/users/{userId}/...`). It is persisted as
- *     `User.polarUserIdEncrypted` at connect time.
+ *   - The token response carries `x_user_id` — Polar's numeric member id. It
+ *     remains necessary for user registration and direct user-information
+ *     lookups, while collection reads identify the user from the access token.
  *   - The client must register the user once (`POST /v3/users`) before data
  *     reads work; a 409 from registration means "already registered" and is
  *     treated as success.
@@ -180,7 +180,7 @@ export interface PolarNightlyRecharge {
   ans_charge?: number | null;
   ans_charge_status?: number | null;
   heart_rate_avg?: number | null;
-  hrv_avg?: number | null;
+  heart_rate_variability_avg?: number | null;
   breathing_rate_avg?: number | null;
 }
 
@@ -198,11 +198,11 @@ export interface PolarSleep {
   heart_rate_samples?: Record<string, number>;
 }
 
-/** One Polar daily-activity summary. */
+/** One current AccessLink daily-activity summary. */
 export interface PolarActivity {
-  date: string;
-  "active-calories"?: number | null;
-  "active-steps"?: number | null;
+  start_time?: string;
+  active_calories?: number | null;
+  steps?: number | null;
   calories?: number | null;
   /** Estimated walking/running distance derived from steps, in METRES. */
   distance_from_steps?: number | null;
@@ -223,11 +223,12 @@ export interface PolarCardioLoad {
   cardio_load_ratio?: number | null;
 }
 
-/** One Polar SpO2 (Elixir pulse-ox) test result. `blood_oxygen_percentage` is
- * the recorded SpO2 reading in percent (0..100). */
+/** One Polar SpO2 (Elixir pulse-ox) test result. `test_time` is a Unix
+ * timestamp in seconds; `blood_oxygen_percent` is the recorded percentage. */
 export interface PolarSpo2 {
-  date: string;
-  blood_oxygen_percentage?: number | null;
+  source_device_id?: string;
+  test_time?: number;
+  blood_oxygen_percent?: number | null;
 }
 
 interface CollectionResult<T> {
@@ -238,7 +239,7 @@ async function fetchCollection<T>(
   path: string,
   accessToken: string,
   verb: string,
-  recordsKey: string,
+  recordsKey?: string,
 ): Promise<T[]> {
   const start = performance.now();
   const res = await safeFetch(`${POLAR_API_BASE}${path}`, {
@@ -267,73 +268,60 @@ async function fetchCollection<T>(
   // 204 No Content — a window with no records. Polar returns an empty body.
   if (res.status === 204) return [];
   const json = (await res.json().catch(() => null)) as
-    CollectionResult<T> | Record<string, T[]> | null;
+    CollectionResult<T> | Record<string, T[]> | T[] | null;
   if (!json) return [];
+  if (Array.isArray(json)) return json;
+  if (!recordsKey) return [];
   const list = (json as Record<string, unknown>)[recordsKey];
   return Array.isArray(list) ? (list as T[]) : [];
 }
 
 export function fetchNightlyRecharges(
   accessToken: string,
-  userId: string,
 ): Promise<PolarNightlyRecharge[]> {
   return fetchCollection<PolarNightlyRecharge>(
-    `/v3/users/${encodeURIComponent(userId)}/nightly-recharge`,
+    "/v3/users/nightly-recharge",
     accessToken,
     "fetchNightlyRecharges",
     "recharges",
   );
 }
 
-export function fetchSleeps(
-  accessToken: string,
-  userId: string,
-): Promise<PolarSleep[]> {
+export function fetchSleeps(accessToken: string): Promise<PolarSleep[]> {
   return fetchCollection<PolarSleep>(
-    `/v3/users/${encodeURIComponent(userId)}/sleep`,
+    "/v3/users/sleep",
     accessToken,
     "fetchSleeps",
     "nights",
   );
 }
 
-export function fetchActivities(
-  accessToken: string,
-  userId: string,
-): Promise<PolarActivity[]> {
+export function fetchActivities(accessToken: string): Promise<PolarActivity[]> {
   return fetchCollection<PolarActivity>(
-    `/v3/users/${encodeURIComponent(userId)}/activity-transactions`,
+    "/v3/users/activities",
     accessToken,
     "fetchActivities",
-    "activity-log",
   );
 }
 
 /** Training Load Pro collection — `cardio_load` strain figures for the recent
- * window. Records live under the `cardio-loads` key. */
+ * window. */
 export function fetchCardioLoads(
   accessToken: string,
-  userId: string,
 ): Promise<PolarCardioLoad[]> {
   return fetchCollection<PolarCardioLoad>(
-    `/v3/users/${encodeURIComponent(userId)}/cardio-load`,
+    "/v3/users/cardio-load",
     accessToken,
     "fetchCardioLoads",
-    "cardio-loads",
   );
 }
 
-/** SpO2 (Elixir pulse-ox) collection — nightly blood-oxygen readings. Records
- * live under the `tests` key. */
-export function fetchSpo2(
-  accessToken: string,
-  userId: string,
-): Promise<PolarSpo2[]> {
+/** SpO2 (Elixir pulse-ox) collection — nightly blood-oxygen readings. */
+export function fetchSpo2(accessToken: string): Promise<PolarSpo2[]> {
   return fetchCollection<PolarSpo2>(
-    `/v3/users/${encodeURIComponent(userId)}/spo2-tests`,
+    "/v3/users/biosensing/spo2",
     accessToken,
     "fetchSpo2",
-    "tests",
   );
 }
 
@@ -405,10 +393,13 @@ export function mapNightlyRecharge(
       fieldTag: "recovery",
     });
   }
-  if (typeof r.hrv_avg === "number" && r.hrv_avg > 0) {
+  if (
+    typeof r.heart_rate_variability_avg === "number" &&
+    r.heart_rate_variability_avg > 0
+  ) {
     out.push({
       type: "HRV_RMSSD",
-      value: round2(r.hrv_avg),
+      value: round2(r.heart_rate_variability_avg),
       unit: "ms",
       measuredAt,
       fieldTag: "hrv_rmssd",
@@ -567,16 +558,15 @@ export function mapSleep(s: PolarSleep): MappedMeasurement[] {
   return out;
 }
 
-/** Map one Polar daily-activity record: `ACTIVITY_STEPS` +
- * `ACTIVE_ENERGY_BURNED` where Polar reports them. Steps live under
- * `active-steps`; the ACTIVE energy portion under `active-calories` (NOT the
- * total `calories`, which includes BMR — matching the Fitbit active-only
- * convention). */
+/** Map one current AccessLink daily-activity record: `steps` +
+ * `active_calories` where Polar reports them. The active energy portion is
+ * used instead of total `calories`, which includes BMR. */
 export function mapActivity(a: PolarActivity): MappedMeasurement[] {
-  const measuredAt = canonicalDailyTimestamp(a.date);
+  if (typeof a.start_time !== "string") return [];
+  const measuredAt = canonicalDailyTimestamp(a.start_time.slice(0, 10));
   if (Number.isNaN(measuredAt.getTime())) return [];
   const out: MappedMeasurement[] = [];
-  const steps = a["active-steps"];
+  const steps = a.steps;
   if (typeof steps === "number" && steps >= 0) {
     out.push({
       type: "ACTIVITY_STEPS",
@@ -586,7 +576,7 @@ export function mapActivity(a: PolarActivity): MappedMeasurement[] {
       fieldTag: "steps",
     });
   }
-  const activeCalories = a["active-calories"];
+  const activeCalories = a.active_calories;
   if (typeof activeCalories === "number" && activeCalories >= 0) {
     out.push({
       type: "ACTIVE_ENERGY_BURNED",
@@ -630,12 +620,13 @@ export function mapCardioLoad(c: PolarCardioLoad): MappedMeasurement[] {
   ];
 }
 
-/** Map one Polar SpO2 test result: `blood_oxygen_percentage` →
- * `OXYGEN_SATURATION` (percent, 0..100). */
+/** Map one Polar SpO2 test result: `blood_oxygen_percent` →
+ * `OXYGEN_SATURATION` at the test's exact Unix timestamp. */
 export function mapSpo2(r: PolarSpo2): MappedMeasurement[] {
-  const measuredAt = canonicalDailyTimestamp(r.date);
+  if (typeof r.test_time !== "number") return [];
+  const measuredAt = new Date(r.test_time * 1000);
   if (Number.isNaN(measuredAt.getTime())) return [];
-  const pct = r.blood_oxygen_percentage;
+  const pct = r.blood_oxygen_percent;
   if (typeof pct !== "number" || pct <= 0 || pct > 100) return [];
   return [
     {
@@ -644,6 +635,7 @@ export function mapSpo2(r: PolarSpo2): MappedMeasurement[] {
       unit: "%",
       measuredAt,
       fieldTag: "spo2",
+      externalId: `spo2:${r.test_time}:${r.source_device_id ?? "unknown"}`,
     },
   ];
 }

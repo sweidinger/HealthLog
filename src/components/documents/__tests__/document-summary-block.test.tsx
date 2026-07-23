@@ -55,9 +55,30 @@ describe("DocumentSummaryBlock — a stored summary", () => {
     expect(html).toContain("A discharge letter from a city hospital.");
     expect(html).toContain("14 Feb 2026");
     expect(html).toContain('data-slot="document-detail-summary"');
-    // Nothing claims it is being made — it already exists.
+    // A stored result stays visible and can be explicitly regenerated.
     expect(html).not.toContain("being prepared");
+    expect(html).toContain('data-slot="document-detail-summary-regenerate"');
+    expect(html).toContain("Generate again");
+    const header = html.match(
+      /<div[^>]*data-slot="document-detail-summary-header"[^>]*>/,
+    );
+    expect(header?.[0]).toMatch(/\bflex-col\b/);
+    expect(header?.[0]).toMatch(/\bsm:flex-row\b/);
     expect(html).not.toContain("document-detail-summary-generate");
+  });
+
+  it("disables regeneration while a replacement is being generated", () => {
+    const html = base({
+      summary: "Stored prose.",
+      summaryState: "READY",
+      isGenerating: true,
+    });
+
+    const action = html.match(
+      /<button[^>]*data-slot="document-detail-summary-regenerate"[^>]*>/,
+    );
+    expect(action?.[0]).toMatch(/\sdisabled(=""|\s|>)/);
+    expect(html).toContain("Generating");
   });
 
   it("shows a stored summary even if the state disagrees", () => {

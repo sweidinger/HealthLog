@@ -1,38 +1,10 @@
 /**
  * Per-test helpers for the integration suite. The Postgres testcontainer
- * is started ONCE in `global-setup.ts` and torn down at the end of the
- * run, so test files only need:
- *
- *   import { getPrismaClient, truncateAllTables } from "./setup";
- *
- *   beforeEach(async () => { await truncateAllTables(getPrismaClient()); });
- *
- * No beforeAll(startTestDb) / afterAll(stopTestDb) is needed — the
- * container is alive whenever the test file is loaded, and Vitest's
- * worker inherits `process.env.DATABASE_URL` from globalSetup so the
- * application's Prisma singleton (`src/lib/db.ts`) connects to the
- * testcontainer transparently.
+ * is started once in global-setup.ts and bridged into each worker by
+ * environment-setup.ts before application modules load.
  */
 import { prisma } from "@/lib/db";
 import type { PrismaClient } from "@/generated/prisma/client";
-
-// v1.23 — every integration test imports this module. The free-text health-note
-// columns (mood + measurement) are now AES-256-GCM at rest, so any test that
-// writes/reads a note needs an encryption key. Crypto reads the key lazily on
-// first `encrypt()`, so a `??=` default here covers every test without touching
-// each file (individual tests that set their own key still win — `??=`).
-process.env.ENCRYPTION_KEY ??=
-  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-
-// v1.30.32 — session cookies now carry a CSPRNG secret whose HMAC is what
-// lands in `sessions.token_hash`, so `createSession` needs this key exactly
-// like token issuance already did. It is a Core-required variable in
-// `scripts/env-manifest.json` (the app refuses to boot without it), so
-// defaulting it here matches production rather than papering over a gap.
-// Same `??=` treatment as the encryption key above: files that set their own
-// still win.
-process.env.API_TOKEN_HMAC_KEY ??=
-  "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
 
 /**
  * The application's Prisma singleton. Tests use this so any code
@@ -84,6 +56,7 @@ export async function truncateAllTables(client: PrismaClient): Promise<void> {
     "measurement_rollups",
     "measurements",
     "medication_intake_events",
+    "medication_intake_import_jobs",
     "medication_schedules",
     "medications",
     "mood_entries",

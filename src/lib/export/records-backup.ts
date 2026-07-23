@@ -1,32 +1,17 @@
 /**
- * Structured-records / workouts / documents-manifest backup section.
+ * Structured records, workouts, and document backup section.
  *
- * Shared by the on-demand full-backup builder (`full-backup-payload.ts`,
- * consumed by `GET /api/export/full-backup` + `POST /api/export/encrypted`)
- * AND the weekly `data-backup` pg-boss worker
- * (`src/lib/jobs/reminder/backup-handlers.ts`) so both writers emit the same
- * shape — the doc-comment convention `buildCycleBackupSection` already
- * established for the cycle tables.
+ * Portable exports keep the historical v1.28 metadata-only document shape.
+ * The weekly disaster-recovery writer opts into the canonical mode, which
+ * carries the encrypted document bytes and their persistence metadata
+ * verbatim. The DR path never decrypts document content or summaries.
  *
- * Closes the backup-completeness gap: the pre-existing payload covered
- * measurements / medications / intake events / mood / cycle only. This adds
- * lab results + the biomarker catalog, illness episodes (including
- * flares/exacerbations via `parentConditionId`) with their day-logs,
- * allergies, family history, and workout summaries.
- *
- * Every read is scoped to `userId` + `deletedAt: null` (soft-deleted rows
- * never resurrect into a backup). Encrypted free-text columns are decrypted
- * FAIL-SOFT (null on a bad key / corrupt row, with a wide-event warning) so
- * one damaged row never aborts an entire backup — the same posture the
- * illness/allergy/family-history DTO layer already uses for list-style
- * reads. Never the ciphertext itself leaves this module.
- *
- * Document BINARIES are deliberately excluded — see `DOCUMENTS_MANIFEST`.
- * Workout GPS routes + per-sample time series (`WorkoutRoute` /
- * `WorkoutSamples`) are deliberately excluded — see `WORKOUTS_MANIFEST`.
- * Both exclusions are disclosed in the payload's `manifest` section (and in
- * the export UI copy) rather than silently implied as "everything".
+ * Every read is scoped to the owner. Soft-deleted rows are excluded so a
+ * restore cannot resurrect tombstones. Other encrypted free-text fields keep
+ * the established fail-soft portable representation and are re-encrypted by
+ * the restore importer.
  */
+import { Buffer } from "node:buffer";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { decryptNoteSoft } from "@/lib/labs/store";
 import { decryptContextSoft } from "@/lib/labs/biomarker-store";
@@ -60,6 +45,8 @@ export const WORKOUTS_MANIFEST_NOTE =
   "series are not included in this export.";
 
 export interface LabResultBackupEntry {
+  /** Present in canonical DR payloads so rows keep a stable identity. */
+  id?: string;
   panel: string | null;
   analyte: string;
   value: number | null;
@@ -70,11 +57,20 @@ export interface LabResultBackupEntry {
   takenAt: string;
   source: string;
   /** Human-readable cross-reference into `biomarkers` below, not an id. */
+  /** Stable canonical FK; legacy portable payloads use biomarkerName. */
+  biomarkerId?: string | null;
   biomarkerName: string | null;
   note: string | null;
+  /** Base64 ciphertext in canonical DR payloads. */
+  noteEncrypted?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
 }
 
 export interface BiomarkerBackupEntry {
+  /** Present in canonical DR payloads; name remains the natural key. */
+  id?: string;
   name: string;
   unit: string;
   lowerBound: number | null;
@@ -82,9 +78,15 @@ export interface BiomarkerBackupEntry {
   panel: string | null;
   hidden: boolean;
   context: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WorkoutBackupEntry {
+  /** Present in canonical DR payloads for manual workouts without externalId. */
+  id?: string;
+  createdAt?: string;
+  updatedAt?: string;
   sportType: string;
   startedAt: string;
   endedAt: string;
@@ -111,20 +113,70 @@ export interface DocumentBackupEntry {
   status: string;
   reportDate: string | null;
   documentDate: string | null;
-  summary: string | null;
+  /** Portable export only; canonical DR carries summaryEncrypted instead. */
+  summary?: string | null;
   createdAt: string;
+  updatedAt?: string;
+  /** Base64 of the already-encrypted BYTEA value; never plaintext. */
+  contentEncrypted?: string;
+  contentSha256?: string | null;
+  contentCodec?: string;
+  providerType?: string | null;
+  errorReason?: string | null;
+  /** Base64 of the already-encrypted summary BYTEA value. */
+  summaryEncrypted?: string | null;
+  summaryGeneratedAt?: string | null;
+  summaryState?: string;
 }
+
+export interface RecordsBackupOptions {
+  purpose?: "portable-export" | "disaster-recovery";
+}
+
+interface DisasterRecoveryDocumentRow {
+  contentEncrypted: Uint8Array;
+  contentSha256: string | null;
+  contentCodec: string;
+  providerType: string | null;
+  errorReason: string | null;
+  summaryEncrypted: Uint8Array | null;
+  summaryGeneratedAt: Date | null;
+  summaryState: string;
+  updatedAt: Date;
+}
+
+type CanonicalIllnessDayLog = IllnessDayLogDTO & {
+  noteEncrypted?: string | null;
+  tz?: string | null;
+  createdAt?: string;
+  deletedAt?: string | null;
+};
+
+type CanonicalIllnessEpisode = IllnessEpisodeDTO & {
+  noteEncrypted?: string | null;
+  deletedAt?: string | null;
+  dayLogs: CanonicalIllnessDayLog[];
+};
+
+type CanonicalAllergy = AllergyDTO & {
+  reactionEncrypted?: string | null;
+  notesEncrypted?: string | null;
+  deletedAt?: string | null;
+};
 
 export interface RecordsBackupSection {
   labResults: LabResultBackupEntry[];
   biomarkers: BiomarkerBackupEntry[];
-  illnessEpisodes: Array<IllnessEpisodeDTO & { dayLogs: IllnessDayLogDTO[] }>;
-  allergies: AllergyDTO[];
+  illnessEpisodes: CanonicalIllnessEpisode[];
+  allergies: CanonicalAllergy[];
   familyHistory: FamilyHistoryEntryDTO[];
   workouts: WorkoutBackupEntry[];
   documents: DocumentBackupEntry[];
   manifest: {
-    documents: { included: "metadata-only"; note: string };
+    documents: {
+      included: "metadata-only" | "encrypted-content";
+      note: string;
+    };
     workouts: { included: "summary-only"; note: string };
   };
 }
@@ -156,10 +208,8 @@ function decryptSummarySoft(buf: Uint8Array | null): string | null {
 }
 
 /**
- * Build the structured-records / workouts / documents-manifest slice of a
- * user's full backup. Accepts any client exposing the needed delegates (the
- * app's global `prisma` OR the pg-boss worker's `getWorkerPrisma()` client)
- * so both writers share one read.
+ * Build the structured-records slice. The default is the established portable
+ * export. Only the weekly DR writer passes `purpose: "disaster-recovery"`.
  */
 export async function buildRecordsBackupSection(
   prisma: Pick<
@@ -173,7 +223,52 @@ export async function buildRecordsBackupSection(
     | "inboundDocument"
   >,
   userId: string,
+  options: RecordsBackupOptions = {},
 ): Promise<RecordsBackupSection> {
+  const disasterRecovery = options.purpose === "disaster-recovery";
+  const documentQuery = disasterRecovery
+    ? prisma.inboundDocument.findMany({
+        where: { userId, deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          kind: true,
+          title: true,
+          filename: true,
+          mimeType: true,
+          byteSize: true,
+          contentEncrypted: true,
+          contentSha256: true,
+          contentCodec: true,
+          status: true,
+          providerType: true,
+          reportDate: true,
+          documentDate: true,
+          errorReason: true,
+          summaryEncrypted: true,
+          summaryGeneratedAt: true,
+          summaryState: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      })
+    : prisma.inboundDocument.findMany({
+        where: { userId, deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          kind: true,
+          title: true,
+          filename: true,
+          mimeType: true,
+          byteSize: true,
+          status: true,
+          reportDate: true,
+          documentDate: true,
+          summaryEncrypted: true,
+          createdAt: true,
+        },
+      });
   const [
     labResultRows,
     biomarkerRows,
@@ -184,7 +279,7 @@ export async function buildRecordsBackupSection(
     documentRows,
   ] = await Promise.all([
     prisma.labResult.findMany({
-      where: { userId, deletedAt: null },
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
       orderBy: { takenAt: "desc" },
       include: { biomarker: { select: { name: true } } },
     }),
@@ -193,18 +288,18 @@ export async function buildRecordsBackupSection(
       orderBy: { name: "asc" },
     }),
     prisma.illnessEpisode.findMany({
-      where: { userId, deletedAt: null },
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
       orderBy: { onsetAt: "desc" },
       include: {
         dayLogs: {
-          where: { deletedAt: null },
+          ...(disasterRecovery ? {} : { where: { deletedAt: null } }),
           orderBy: { date: "asc" },
           include: dayLogSymptomInclude,
         },
       },
     }),
     prisma.allergy.findMany({
-      where: { userId, deletedAt: null },
+      where: disasterRecovery ? { userId } : { userId, deletedAt: null },
       orderBy: { createdAt: "desc" },
     }),
     prisma.familyHistoryEntry.findMany({
@@ -215,26 +310,23 @@ export async function buildRecordsBackupSection(
       where: { userId },
       orderBy: { startedAt: "desc" },
     }),
-    prisma.inboundDocument.findMany({
-      where: { userId, deletedAt: null },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        kind: true,
-        title: true,
-        filename: true,
-        mimeType: true,
-        byteSize: true,
-        status: true,
-        reportDate: true,
-        documentDate: true,
-        summaryEncrypted: true,
-        createdAt: true,
-      },
-    }),
+    documentQuery,
   ]);
 
   const labResults: LabResultBackupEntry[] = labResultRows.map((r) => ({
+    ...(disasterRecovery
+      ? {
+          id: r.id,
+          biomarkerId: r.biomarkerId,
+          noteEncrypted: r.noteEncrypted
+            ? Buffer.from(r.noteEncrypted).toString("base64")
+            : null,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+          deletedAt: r.deletedAt?.toISOString() ?? null,
+          note: null,
+        }
+      : { note: decryptNoteSoft(r.noteEncrypted) }),
     panel: r.panel,
     analyte: r.analyte,
     value: r.value,
@@ -245,10 +337,16 @@ export async function buildRecordsBackupSection(
     takenAt: r.takenAt.toISOString(),
     source: r.source,
     biomarkerName: r.biomarker?.name ?? null,
-    note: decryptNoteSoft(r.noteEncrypted),
   }));
 
   const biomarkers: BiomarkerBackupEntry[] = biomarkerRows.map((b) => ({
+    ...(disasterRecovery
+      ? {
+          id: b.id,
+          createdAt: b.createdAt.toISOString(),
+          updatedAt: b.updatedAt.toISOString(),
+        }
+      : {}),
     name: b.name,
     unit: b.unit,
     lowerBound: b.lowerBound,
@@ -258,15 +356,79 @@ export async function buildRecordsBackupSection(
     context: decryptContextSoft(b.contextEncrypted),
   }));
 
-  const illnessEpisodes = episodeRows.map((row) => ({
-    ...toIllnessEpisodeDTO(row),
-    dayLogs: row.dayLogs.map(toIllnessDayLogDTO),
-  }));
+  const illnessEpisodes: CanonicalIllnessEpisode[] = disasterRecovery
+    ? episodeRows.map((row) => ({
+        id: row.id,
+        label: row.label,
+        type: row.type,
+        lifecycle: row.lifecycle,
+        onsetAt: row.onsetAt.toISOString(),
+        resolvedAt: row.resolvedAt?.toISOString() ?? null,
+        parentConditionId: row.parentConditionId,
+        note: null,
+        noteEncrypted: row.noteEncrypted
+          ? Buffer.from(row.noteEncrypted).toString("base64")
+          : null,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+        deletedAt: row.deletedAt?.toISOString() ?? null,
+        dayLogs: row.dayLogs.map((dayLog) => ({
+          id: dayLog.id,
+          episodeId: dayLog.episodeId,
+          date: dayLog.date,
+          functionalImpact: dayLog.functionalImpact,
+          feverC: dayLog.feverC,
+          note: null,
+          noteEncrypted: dayLog.noteEncrypted
+            ? Buffer.from(dayLog.noteEncrypted).toString("base64")
+            : null,
+          tz: dayLog.tz,
+          createdAt: dayLog.createdAt.toISOString(),
+          updatedAt: dayLog.updatedAt.toISOString(),
+          deletedAt: dayLog.deletedAt?.toISOString() ?? null,
+          symptoms: dayLog.symptomLinks.map((link) => ({
+            key: link.symptom.key,
+            severity: link.severity,
+          })),
+        })),
+      }))
+    : episodeRows.map((row) => ({
+        ...toIllnessEpisodeDTO(row),
+        dayLogs: row.dayLogs.map(toIllnessDayLogDTO),
+      }));
 
-  const allergies = allergyRows.map(toAllergyDTO);
+  const allergies: CanonicalAllergy[] = disasterRecovery
+    ? allergyRows.map((row) => ({
+        id: row.id,
+        substance: row.substance,
+        category: row.category,
+        type: row.type,
+        severity: row.severity,
+        status: row.status,
+        onsetAt: row.onsetAt?.toISOString() ?? null,
+        reaction: null,
+        note: null,
+        reactionEncrypted: row.reactionEncrypted
+          ? Buffer.from(row.reactionEncrypted).toString("base64")
+          : null,
+        notesEncrypted: row.notesEncrypted
+          ? Buffer.from(row.notesEncrypted).toString("base64")
+          : null,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+        deletedAt: row.deletedAt?.toISOString() ?? null,
+      }))
+    : allergyRows.map(toAllergyDTO);
   const familyHistory = familyRows.map(toFamilyHistoryEntryDTO);
 
   const workouts: WorkoutBackupEntry[] = workoutRows.map((w) => ({
+    ...(disasterRecovery
+      ? {
+          id: w.id,
+          createdAt: w.createdAt.toISOString(),
+          updatedAt: w.updatedAt.toISOString(),
+        }
+      : {}),
     sportType: w.sportType,
     startedAt: w.startedAt.toISOString(),
     endedAt: w.endedAt.toISOString(),
@@ -283,21 +445,47 @@ export async function buildRecordsBackupSection(
     externalId: w.externalId,
   }));
 
-  const documents: DocumentBackupEntry[] = documentRows.map((d) => ({
-    id: d.id,
-    kind: d.kind,
-    title: d.title,
-    filename: d.filename,
-    mimeType: d.mimeType,
-    byteSize: d.byteSize,
-    status: d.status,
-    reportDate: d.reportDate ? d.reportDate.toISOString().slice(0, 10) : null,
-    documentDate: d.documentDate
-      ? d.documentDate.toISOString().slice(0, 10)
-      : null,
-    summary: decryptSummarySoft(d.summaryEncrypted),
-    createdAt: d.createdAt.toISOString(),
-  }));
+  const documents: DocumentBackupEntry[] = documentRows.map((d) => {
+    const metadata = {
+      id: d.id,
+      kind: d.kind,
+      title: d.title,
+      filename: d.filename,
+      mimeType: d.mimeType,
+      byteSize: d.byteSize,
+      status: d.status,
+      reportDate: d.reportDate ? d.reportDate.toISOString().slice(0, 10) : null,
+      documentDate: d.documentDate
+        ? d.documentDate.toISOString().slice(0, 10)
+        : null,
+      createdAt: d.createdAt.toISOString(),
+    };
+
+    if (disasterRecovery && "contentEncrypted" in d) {
+      const dr = d as typeof d & DisasterRecoveryDocumentRow;
+      return {
+        ...metadata,
+        reportDate: dr.reportDate?.toISOString() ?? null,
+        documentDate: dr.documentDate?.toISOString() ?? null,
+        updatedAt: dr.updatedAt.toISOString(),
+        contentEncrypted: Buffer.from(dr.contentEncrypted).toString("base64"),
+        contentSha256: dr.contentSha256,
+        contentCodec: dr.contentCodec,
+        providerType: dr.providerType,
+        errorReason: dr.errorReason,
+        summaryEncrypted: dr.summaryEncrypted
+          ? Buffer.from(dr.summaryEncrypted).toString("base64")
+          : null,
+        summaryGeneratedAt: dr.summaryGeneratedAt?.toISOString() ?? null,
+        summaryState: dr.summaryState,
+      };
+    }
+
+    return {
+      ...metadata,
+      summary: decryptSummarySoft(d.summaryEncrypted),
+    };
+  });
 
   return {
     labResults,
@@ -308,7 +496,12 @@ export async function buildRecordsBackupSection(
     workouts,
     documents,
     manifest: {
-      documents: { included: "metadata-only", note: DOCUMENTS_MANIFEST_NOTE },
+      documents: disasterRecovery
+        ? {
+            included: "encrypted-content",
+            note: "Document metadata and encrypted stored bytes are included for disaster recovery.",
+          }
+        : { included: "metadata-only", note: DOCUMENTS_MANIFEST_NOTE },
       workouts: { included: "summary-only", note: WORKOUTS_MANIFEST_NOTE },
     },
   };

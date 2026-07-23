@@ -11,6 +11,7 @@ import {
   WorkoutDetailSplits,
   WorkoutDetailDayLinks,
 } from "../workout-detail";
+import { WorkoutInsightCard } from "../workout-detail/insight-slot";
 import type { WorkoutDetailPayload } from "@/hooks/use-workouts";
 import type { RouteCoordinate } from "@/lib/workouts/route-svg";
 
@@ -25,6 +26,14 @@ function render(node: React.ReactNode) {
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">{node}</I18nProvider>,
   );
+}
+
+function expectSingleSectionHeading(html: string, title: string) {
+  const headings = Array.from(
+    html.matchAll(/<h2(?:\s[^>]*)?>(.*?)<\/h2>/g),
+    (match) => match[1],
+  );
+  expect(headings).toEqual([title]);
 }
 
 const FIXTURE: WorkoutDetailPayload = {
@@ -67,6 +76,7 @@ describe("<WorkoutDetailHeader>", () => {
 describe("<WorkoutDetailStats>", () => {
   it("renders one tile per available field", () => {
     const html = render(<WorkoutDetailStats workout={FIXTURE} />);
+    expectSingleSectionHeading(html, "Stats");
     expect(html).toContain("Duration");
     expect(html).toContain("Distance");
     expect(html).toContain("Active energy");
@@ -140,6 +150,7 @@ describe("<WorkoutDetailRoute>", () => {
       },
     };
     const html = render(<WorkoutDetailRoute workout={withRoute} />);
+    expectSingleSectionHeading(html, "Route");
     expect(html).toContain('data-slot="workout-detail-route"');
     expect(html).toContain("<path");
     expect(html).toContain("Export GPX");
@@ -182,6 +193,7 @@ describe("<WorkoutDetailHrSection>", () => {
       },
     };
     const html = render(<WorkoutDetailHrSection workout={withHr} />);
+    expectSingleSectionHeading(html, "Heart rate");
     expect(html).toContain('data-slot="workout-detail-hr"');
     expect(html).toContain('data-slot="workout-detail-hr-provenance"');
     expect(html).toContain("From your heart-rate data");
@@ -227,6 +239,7 @@ describe("<WorkoutDetailZones>", () => {
       },
     };
     const html = render(<WorkoutDetailZones workout={withZones} />);
+    expectSingleSectionHeading(html, "Effort zones");
     expect(html).toContain('data-slot="workout-detail-zones"');
     expect(html).toContain("Effort zones");
     expect(html).toContain("Z3");
@@ -247,6 +260,7 @@ describe("<WorkoutDetailSplits>", () => {
       ],
     };
     const html = render(<WorkoutDetailSplits workout={withSplits} />);
+    expectSingleSectionHeading(html, "Splits");
     expect(html).toContain('data-slot="workout-detail-splits"');
     expect(html).toContain("5:00");
     expect(html).toContain("4:48 /km");
@@ -256,9 +270,50 @@ describe("<WorkoutDetailSplits>", () => {
 describe("<WorkoutDetailDayLinks>", () => {
   it("renders the that-day navigation links", () => {
     const html = render(<WorkoutDetailDayLinks workout={FIXTURE} />);
+    expectSingleSectionHeading(html, "That day");
     expect(html).toContain('data-slot="workout-detail-day-links"');
     expect(html).toContain('href="/insights/pulse"');
     expect(html).toContain('href="/insights/sleep"');
     expect(html).toContain('href="/insights/mood"');
+  });
+});
+
+/**
+ * The Activity Insight card.
+ *
+ * Two contracts worth pinning at the render layer: the paragraph is shown
+ * verbatim, and it is shown as TEXT. Model output rendered as markup is an XSS
+ * surface, and this project ships no markdown library precisely so that the
+ * question never arises — a test is what keeps someone from "improving" that.
+ */
+describe("<WorkoutInsightCard>", () => {
+  it("renders the paragraph under the card's title", () => {
+    const html = render(
+      <WorkoutInsightCard
+        insight={{
+          paragraph: "A steady, aerobic-leaning ride.",
+          generatedAt: "2026-05-15T07:35:00Z",
+        }}
+      />,
+    );
+    expectSingleSectionHeading(html, "Activity insight");
+    expect(html).toContain("A steady, aerobic-leaning ride.");
+    expect(html).toContain('data-slot="workout-detail-insight"');
+  });
+
+  it("escapes markup rather than rendering it", () => {
+    const html = render(
+      <WorkoutInsightCard
+        insight={{
+          paragraph: '<img src=x onerror="alert(1)"> **bold**',
+          generatedAt: "2026-05-15T07:35:00Z",
+        }}
+      />,
+    );
+    // The tag is escaped, not emitted, and the asterisks stay literal — there
+    // is no markdown renderer in the path and there must not be one.
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+    expect(html).toContain("**bold**");
   });
 });

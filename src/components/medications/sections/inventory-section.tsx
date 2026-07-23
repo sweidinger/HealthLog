@@ -492,6 +492,11 @@ export function AddInventoryDialog({
   const [containerType, setContainerType] =
     useState<ContainerType>(initialContainerType);
   const [expiry, setExpiry] = useState("");
+  // Carton labelling. Only offered for a PEN: the native pen list is the
+  // one surface that renders them, and asking for a maker + strength on a
+  // blister pack would be noise on the far commoner path.
+  const [manufacturer, setManufacturer] = useState("");
+  const [doseStrength, setDoseStrength] = useState("");
   const [busy, setBusy] = useState(false);
   const formId = useId();
 
@@ -513,6 +518,10 @@ export function AddInventoryDialog({
         printedExpiry: expiry
           ? new Date(`${expiry}T00:00:00`).toISOString()
           : null,
+        // Trimmed to null so a field the user opened and left blank stores
+        // absence rather than an empty string.
+        manufacturer: manufacturer.trim() || null,
+        doseStrength: doseStrength.trim() || null,
       });
       await invalidateSupplyQueries(queryClient, medicationId);
       toast.success(t("medications.detail.bestand.addSuccess"));
@@ -664,6 +673,41 @@ export function AddInventoryDialog({
             onChange={setExpiry}
           />
         </div>
+        {containerType === "PEN" && (
+          <>
+            <div className="space-y-2">
+              <label
+                htmlFor="inventory-add-manufacturer"
+                className="text-sm font-medium"
+              >
+                {t("medications.detail.bestand.addManufacturerLabel")}
+              </label>
+              <Input
+                id="inventory-add-manufacturer"
+                value={manufacturer}
+                maxLength={120}
+                onChange={(e) => setManufacturer(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label
+                htmlFor="inventory-add-dose-strength"
+                className="text-sm font-medium"
+              >
+                {t("medications.detail.bestand.addDoseStrengthLabel")}
+              </label>
+              <Input
+                id="inventory-add-dose-strength"
+                value={doseStrength}
+                maxLength={60}
+                onChange={(e) => setDoseStrength(e.target.value)}
+              />
+              <p className="text-muted-foreground text-sm">
+                {t("medications.detail.bestand.addDoseStrengthHint")}
+              </p>
+            </div>
+          </>
+        )}
       </form>
     </ResponsiveSheet>
   );

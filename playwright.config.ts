@@ -22,13 +22,13 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
+  failOnFlakyTests: !!process.env.CI,
   // Two retries on CI: under a loaded shared runner, DOM-settle-gated
   // assertions (wizard step transitions, list refetch → card provenance,
   // disclosure toggles) intermittently sample a mid-transition frame. A
-  // rotating single test failed each run while 211 passed; a second retry
-  // absorbs that transient contention without masking a real failure (a true
-  // break fails all three attempts). The default expect timeout is also
-  // lifted from 5s → 10s for the same settle headroom.
+  // retry distinguishes transient contention from a persistent break, while
+  // failOnFlakyTests keeps either outcome visible to CI. The default expect
+  // timeout is lifted from 5s → 10s for the same settle headroom.
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI
@@ -95,7 +95,7 @@ export default defineConfig({
   webServer: process.env.E2E_SKIP_WEB_SERVER
     ? undefined
     : {
-        command: "pnpm exec next start --port 3000",
+        command: `mkdir -p .next/standalone/.next/static .next/standalone/public && cp -R .next/static/. .next/standalone/.next/static && cp -R public/. .next/standalone/public && PORT=3000 HOSTNAME=127.0.0.1 ${JSON.stringify(process.execPath)} .next/standalone/server.js`,
         url: "http://localhost:3000/api/version",
         timeout: 60_000,
         reuseExistingServer: !process.env.CI,
@@ -103,6 +103,10 @@ export default defineConfig({
         stderr: "pipe",
         env: {
           ...process.env,
+          // Native document rendering is fail-soft and outside the browser
+          // suite. Disable it here so queued local thumbnail jobs cannot
+          // crash the shared server inside Skia during unrelated scenarios.
+          NATIVE_CANVAS: "off",
           // The dashboard RSC wrapper server-prefetches the snapshot into
           // the first HTML (HydrationBoundary). Playwright's route mocks
           // only see CLIENT fetches, so an SSR-embedded snapshot would

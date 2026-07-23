@@ -37,6 +37,7 @@
 import Link from "next/link";
 import { Moon } from "lucide-react";
 
+import { useMounted } from "@/hooks/use-mounted";
 import { ScoreRing } from "@/components/insights/derived/score-ring";
 import type { ScoreBand } from "@/components/insights/derived/band-tokens";
 import { ProseBlocks } from "@/components/insights/prose-blocks";
@@ -62,8 +63,40 @@ function formatDelta(
   return t("daily.today.deltaVsBaseline", { delta: signed });
 }
 
+/**
+ * The "just in" chip's clock face.
+ *
+ * Formatted CLIENT-side, and only after mount. `justIn.at` crosses the wire as
+ * an ISO instant precisely so this stays a client concern: the server has no
+ * business rendering a local wall-clock time it would format under its OWN
+ * locale and timezone, and any such string would differ from the browser's on
+ * the hydration render — React #418, a class of bug this project has already
+ * paid for once.
+ *
+ * `undefined` locale lets the browser pick the user's own regional format
+ * (24-hour here, 12-hour there); the chip is a timestamp, not copy.
+ */
+function formatJustInTime(iso: string): string | null {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return null;
+  try {
+    return at.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return null;
+  }
+}
+
 export function TodayHero({ digest }: { digest: DailyDigest }) {
   const { t } = useTranslations();
+  // Gates ONLY the chip's time string — never the chip's presence. The hero
+  // itself is deliberately NOT mount-gated (v1.30.9: it is the LCP element and
+  // paints from the server-dehydrated digest on both the SSR and the hydration
+  // render). So the slot renders on both passes and the formatted time fills in
+  // on the first client re-render, keeping those two passes byte-identical.
+  const mounted = useMounted();
   const { keep, letGo } = useCoachCheckinAction();
   const dismissItem = usePriorityItemDismiss();
 
@@ -83,17 +116,30 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
 
   const hasScore = digest.score !== null;
   const hasItems = digest.worthALook.length > 0;
-  // The briefing lead is the warmest read; the deterministic `line` is the
-  // floor a keyless self-hoster still gets. Prefer the lead for the hero.
-  const lead = digest.briefingLead ?? digest.line;
+  // Lead precedence, warmest first: the day's reaction line REPLACES the
+  // briefing lead once something landed — it never appends as a second
+  // paragraph, so the hero stays exactly one lead line tall and nothing below
+  // it shifts. The briefing lead is the standing read; the deterministic
+  // `line` is the floor a keyless self-hoster still gets.
+  const lead = digest.reactionLine ?? digest.briefingLead ?? digest.line;
   const topSignal = digest.topSignal;
+  const justInTime = digest.justIn ? formatJustInTime(digest.justIn.at) : null;
 
   // Calm degrade (plan §3): a genuinely empty account — no score, no rail
-  // items, and no cached briefing lead — surfaces nothing here. The tile
-  // strip below carries its own "add your first reading" empty state, so a
-  // second alarming empty card on the hero would be noise. The all-clear
-  // state (score present, nothing needs attention) is handled inline below.
-  if (!hasScore && !hasItems && !digest.briefingLead) {
+  // items, no cached briefing lead, and no fresh arrival — surfaces nothing
+  // here. The tile strip below carries its own "add your first reading" empty
+  // state, so a second alarming empty card on the hero would be noise. The
+  // all-clear state (score present, nothing needs attention) is handled inline
+  // below. A fresh marker counts as content even when line generation was
+  // unavailable: the deterministic digest line still gives the hero an honest
+  // lead, and hiding the marker would lose the arrival moment entirely.
+  if (
+    !hasScore &&
+    !hasItems &&
+    !digest.briefingLead &&
+    !digest.reactionLine &&
+    !digest.justIn
+  ) {
     return null;
   }
 
@@ -184,17 +230,46 @@ export function TodayHero({ digest }: { digest: DailyDigest }) {
           </div>
         </div>
 
-        {/* Freshness note (plan §2.4) — provisional day, last night's sleep
-            not yet folded in. Muted, non-blocking, refreshes in place when
-            the morning job lands. */}
-        {digest.sleepPending ? (
-          <p
-            data-slot="today-hero-sleep-pending"
-            className="text-muted-foreground flex items-center gap-1.5 text-xs"
-          >
-            <Moon className="size-3.5 shrink-0" aria-hidden="true" />
-            {t("daily.today.sleepPending")}
-          </p>
+        {/* Meta row — the hero's quiet tier (UI-STANDARDS §text: `text-xs
+            text-muted-foreground` is the meta floor; never an accent, never an
+            opacity modifier). Holds the freshness note and the "just in" chip;
+            they can legitimately co-occur (a weight landed while last night's
+            sleep is still pending), so they share one wrapping row rather than
+            competing for the same slot. */}
+        {digest.sleepPending || digest.justIn ? (
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {/* Freshness note (plan §2.4) — provisional day, last night's
+                sleep not yet folded in. Muted, non-blocking, refreshes in
+                place when the morning job lands. */}
+            {digest.sleepPending ? (
+              <p
+                data-slot="today-hero-sleep-pending"
+                className="flex items-center gap-1.5"
+              >
+                <Moon className="size-3.5 shrink-0" aria-hidden="true" />
+                {t("daily.today.sleepPending")}
+              </p>
+            ) : null}
+
+            {/* The "just in" chip — a state change, not a notification. No
+                badge count, no accent, no animation: the record simply reads
+                differently on the next refresh, and this names why. It is
+                present for as long as the arrival is news (the server applies
+                the window, so the chip expires on a poll rather than on a
+                client timer) and carries the arrival's local time once the
+                client has mounted and can format it honestly. */}
+            {digest.justIn ? (
+              <p
+                data-slot="today-hero-just-in"
+                data-just-in-kind={digest.justIn.kind}
+                className="flex items-center gap-1.5"
+              >
+                {mounted && justInTime
+                  ? t("daily.today.justInAt", { time: justInTime })
+                  : t("daily.today.justIn")}
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         {/* Worth-a-look rail — S1's `PriorityCard`s, bounded 0–3. When the

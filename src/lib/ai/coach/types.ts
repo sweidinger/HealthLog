@@ -144,6 +144,18 @@ export const coachChatRequestSchema = z.object({
    * persisted user turn stays the answer alone.
    */
   guidedQuestion: z.string().min(1).max(500).optional(),
+  /**
+   * v1.31.0 — a conversation launched from one workout ("Ask why" on the
+   * workout-detail page, or `/coach?workout=<id>`). On the FIRST turn the
+   * route narrows by `{ id: workoutId, userId }` — the universal tenancy
+   * narrow, so a foreign id simply finds nothing — and pins ONE bounded,
+   * numbers-only evidence section onto the conversation's snapshot.
+   *
+   * Snapshot-once is untouched: the client sends this only while
+   * `conversationId` is absent, and the route ignores it on every later
+   * turn, so per-turn work does not grow with conversation length.
+   */
+  workoutId: z.string().max(64).optional(),
 });
 
 /**
@@ -373,6 +385,9 @@ export interface CoachConversationAttachmentDTO {
   documentId: string;
   title: string | null;
 }
+
+/** Maximum user-visible length for generated and explicitly renamed titles. */
+export const COACH_CONVERSATION_TITLE_MAX = 80;
 
 export interface CoachConversationDTO {
   id: string;

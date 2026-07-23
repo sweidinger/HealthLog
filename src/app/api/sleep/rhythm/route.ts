@@ -5,7 +5,8 @@
  * signals the Sleep page + the iOS client render off the SAME canonical night
  * reconstruction the Sleep Score uses:
  *
- *   - `sleepDebt`   — cumulative deficit over the rolling window, with a calm
+ *   - `sleepDebt`   — outstanding balance over the rolling window (surplus
+ *                     sleep pays it down), with a calm
  *                     `partial` state under the night threshold.
  *   - `chronotype`  — MCTQ MSF / MSFsc band + social jetlag, with a `learning`
  *                     state until enough free-day nights exist.

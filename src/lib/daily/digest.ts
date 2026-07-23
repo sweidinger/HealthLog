@@ -20,6 +20,7 @@
  * populate the same two fields the DTO already carries, so no consumer changes.
  */
 import type { DailyBriefing, DailyBriefingSignal } from "@/lib/ai/schema";
+import type { ArrivalKind } from "@/lib/arrivals/types";
 import type { MedsTodayBlock } from "@/lib/dashboard/meds-today";
 import type { ModuleKey } from "@/lib/modules/registry";
 import type { ServerTranslator } from "@/lib/i18n/server-translator";
@@ -151,6 +152,34 @@ export interface DailyDigestCoachPlan {
   planText: string | null;
 }
 
+/**
+ * A day's arrival marker, as the IO seam read it off `ArrivalReaction`.
+ *
+ * One row per (user, kind, local date) — the spine's unique claim. The builder
+ * picks the NEWEST of them for the "just in" chip and takes its reaction line;
+ * it never sees more than the day's own rows, and it never reads a row it did
+ * not ask for.
+ */
+export interface DailyDigestArrival {
+  kind: ArrivalKind;
+  /** Timestamp of the newest sample that triggered this arrival. */
+  occurredAt: Date;
+  /** Timestamp when this sample actually reached HealthLog. */
+  arrivedAt: Date;
+  /** Decrypted reaction line, or null when none was ever generated. */
+  line: string | null;
+}
+
+/**
+ * How long an arrival stays NEWS.
+ *
+ * Past this the record is simply current — the reading is still today's, but
+ * announcing it is no longer telling the user anything they don't know. The
+ * chip disappears on its own; the reaction LINE does not (see below), because
+ * the sentence is the day's read, not a notification.
+ */
+export const JUST_IN_WINDOW_MS = 3 * 60 * 60 * 1000;
+
 /** The fully-resolved, IO-free input the composer folds into a digest. */
 export interface DailyDigestInput {
   now: Date;
@@ -203,6 +232,12 @@ export interface DailyDigestInput {
    * never rendered with its actions suppressed.
    */
   dismissedItemKeys: ReadonlySet<string>;
+  /**
+   * Today's arrival markers (`ArrivalReaction` rows for `todayLocalDate`), in
+   * any order. Optional so a consumer that predates the arrival spine stays
+   * valid; the builder treats a missing value as "nothing landed today".
+   */
+  arrivals?: readonly DailyDigestArrival[];
 }
 
 export interface DailyDigest {
@@ -226,6 +261,26 @@ export interface DailyDigest {
   line: string;
   /** Bounded 0–3 rail items, never padded. */
   worthALook: PriorityItem[];
+  /**
+   * The day's newest arrival while it is still news (< `JUST_IN_WINDOW_MS`
+   * old), else null. Drives the hero's calm "just in" chip.
+   *
+   * `at` crosses the wire as an ISO-8601 string and is formatted CLIENT-side —
+   * a server-formatted local time would differ from the client's render and
+   * produce a hydration mismatch (React #418).
+   */
+  justIn: { kind: ArrivalKind; at: string } | null;
+  /**
+   * The generated reaction line for the day's newest arrival, or null.
+   *
+   * Deliberately NOT gated on the just-in window: the chip is the "this just
+   * landed" moment and expires, while the sentence is the day's read and
+   * stands for the rest of the local day. Null whenever no line was generated
+   * — no provider, no consent, budget exhausted, or the generation failed —
+   * in which case the surface falls back to the deterministic lead. The
+   * sentence is garnish; its absence degrades nothing.
+   */
+  reactionLine: string | null;
 }
 
 /** First sentence of a paragraph, trimmed; null when empty. */
@@ -265,76 +320,85 @@ export const DOSE_DUE_LOOKAHEAD_MS =
   60_000;
 
 /**
- * Dose-window item — the day's medication action, in two distinct faces.
+ * Compose one card for every medication candidate the canonical scheduling
+ * engine says is currently available. The additive collection is authoritative
+ * when present; scalar fields remain the fallback for older cached snapshots.
  *
- * OVERDUE: an open slot whose anchor has passed. `warning` status, past-due
- * wording — the one genuinely time-critical daily action.
- *
- * DUE: a slot the user can already take (within `DOSE_DUE_LOOKAHEAD_MS`) but
- * that is not yet late. `info` status, "due soon" wording — present on the
- * card because Today is a surface the user OPENS to see what the day asks of
- * them, not a notification that arrives uninvited. The no-nagging rule governs
- * PUSH (the reminder cron still fires only on overdue); a deliberately-opened
- * card that stays silent about a dose the user can take right now is simply
- * withholding the answer the surface exists to give.
- *
- * Neither face is manufactured on a settled day: once every scheduled dose is
- * resolved, the next display-due slot lies beyond the lookahead and nothing is
- * emitted. A `nextDueAt` in the PAST with `nextDueOverdue: false` is the
- * documented cached-block shape (`MedsTodayBlock`) — the anchor passed after
- * the block was built — and renders as neither face until a fresh block lands.
- *
- * Gated on the `medications` module; carries a single log-dose action.
+ * `overdue` is never inferred from the wall clock. A cached non-overdue
+ * candidate whose anchor has passed stays calm/informational until refresh.
  */
-function buildDoseWindowItem(
+function buildDoseWindowItems(
   meds: MedsTodayBlock,
   modules: DigestModuleMap,
   now: Date,
   t: Translate,
-): PriorityItem | null {
-  if (!moduleEnabled(modules, "medications")) return null;
+): PriorityItem[] {
+  if (!moduleEnabled(modules, "medications")) return [];
 
-  const name = meds.nextDueMedicationName;
-  const id = meds.nextDueMedicationId;
-  const action = {
-    labelKey: "daily.action.logDose",
-    intent: "dose.log",
-    // Deep-link straight to the due medication's card so the tap lands on the
-    // right one instead of a generic list the user then has to scan (the id is
-    // known server-side whenever the name is). The bare list stays the honest
-    // fallback for an older cached block that predates the id field.
-    href: id ? `/medications?highlight=${id}` : "/medications",
-  };
+  const candidates =
+    meds.dueCandidates !== undefined
+      ? meds.dueCandidates
+      : meds.nextDueOverdue || meds.nextDueAt
+        ? [
+            {
+              medicationId: meds.nextDueMedicationId,
+              medicationName: meds.nextDueMedicationName,
+              dueAt: meds.nextDueAt,
+              overdue: meds.nextDueOverdue,
+              availableFrom: null,
+            },
+          ]
+        : [];
+  const items: PriorityItem[] = [];
 
-  if (meds.nextDueOverdue) {
-    return {
-      kind: "dose_window",
-      title: t("daily.item.doseWindow.overdueTitle"),
-      body: name
-        ? t("daily.item.doseWindow.overdueBodyNamed", { name })
-        : t("daily.item.doseWindow.overdueBody"),
-      status: "warning",
-      actions: [action],
-      moduleKey: "medications",
+  for (const candidate of candidates) {
+    if (!candidate.overdue) {
+      const dueAt = candidate.dueAt ? Date.parse(candidate.dueAt) : NaN;
+      if (!Number.isFinite(dueAt)) continue;
+
+      if (candidate.availableFrom !== null) {
+        const availableFrom = Date.parse(candidate.availableFrom);
+        if (!Number.isFinite(availableFrom) || now.getTime() < availableFrom) {
+          continue;
+        }
+      } else if (dueAt - now.getTime() > DOSE_DUE_LOOKAHEAD_MS) {
+        continue;
+      }
+    }
+
+    const name = candidate.medicationName;
+    const id = candidate.medicationId;
+    const action = {
+      labelKey: "daily.action.logDose",
+      intent: "dose.log",
+      href: id ? `/medications?highlight=${id}` : "/medications",
     };
+    items.push(
+      candidate.overdue
+        ? {
+            kind: "dose_window",
+            title: t("daily.item.doseWindow.overdueTitle"),
+            body: name
+              ? t("daily.item.doseWindow.overdueBodyNamed", { name })
+              : t("daily.item.doseWindow.overdueBody"),
+            status: "warning",
+            actions: [action],
+            moduleKey: "medications",
+          }
+        : {
+            kind: "dose_window",
+            title: t("daily.item.doseWindow.title"),
+            body: name
+              ? t("daily.item.doseWindow.bodyNamed", { name })
+              : t("daily.item.doseWindow.body"),
+            status: "info",
+            actions: [action],
+            moduleKey: "medications",
+          },
+    );
   }
 
-  if (!meds.nextDueAt) return null;
-  const dueAt = Date.parse(meds.nextDueAt);
-  if (!Number.isFinite(dueAt)) return null;
-  const lead = dueAt - now.getTime();
-  if (lead < 0 || lead > DOSE_DUE_LOOKAHEAD_MS) return null;
-
-  return {
-    kind: "dose_window",
-    title: t("daily.item.doseWindow.title"),
-    body: name
-      ? t("daily.item.doseWindow.bodyNamed", { name })
-      : t("daily.item.doseWindow.body"),
-    status: "info",
-    actions: [action],
-    moduleKey: "medications",
-  };
+  return items;
 }
 
 /** One rail item per broken integration — reconnect to keep data current. */
@@ -647,18 +711,42 @@ export function buildDailyDigest(
   const topSignal = input.briefing?.signalsOfDay?.[0] ?? null;
   const briefingLead = firstSentence(input.briefing?.paragraph);
 
+  // The day's most recently LANDED arrival drives both reaction fields. The
+  // sample timestamp may be hours old (sleep synced after waking, an offline
+  // workout uploaded later), so it cannot define whether the arrival is still
+  // news or which marker landed last. Reducing rather than sorting keeps the
+  // composer allocation-free and total over an empty list.
+  const newestArrival = (
+    input.arrivals ?? []
+  ).reduce<DailyDigestArrival | null>(
+    (newest, candidate) =>
+      newest === null || candidate.arrivedAt > newest.arrivedAt
+        ? candidate
+        : newest,
+    null,
+  );
+  const arrivalAgeMs = newestArrival
+    ? input.now.getTime() - newestArrival.arrivedAt.getTime()
+    : null;
+  const justIn =
+    newestArrival && arrivalAgeMs !== null && arrivalAgeMs < JUST_IN_WINDOW_MS
+      ? {
+          kind: newestArrival.kind,
+          at: newestArrival.arrivedAt.toISOString(),
+        }
+      : null;
+  // An empty or whitespace-only line is treated as absent rather than shipped
+  // as a blank lead — a degraded generation must fall through to the floor.
+  const reactionLine = newestArrival?.line?.trim() || null;
+
   // Priority order: a due or overdue dose is the most time-sensitive daily
   // action, a broken sync next, then the calm coach check-in, a preventive
   // check-up least urgent. Bounded to 3 — a check-in the cap crowds out
   // resurfaces on a following day (within its window), never lost.
   const worthALook: PriorityItem[] = [];
-  const dose = buildDoseWindowItem(
-    input.medsToday,
-    input.modules,
-    input.now,
-    t,
+  worthALook.push(
+    ...buildDoseWindowItems(input.medsToday, input.modules, input.now, t),
   );
-  if (dose) worthALook.push(dose);
   // A freshly-reached milestone is rare and one-per-day — surface it ahead of
   // the ambient sync / check-in items so the calm reward is not buried, but
   // below an overdue dose (the one genuinely time-critical daily action).
@@ -717,5 +805,7 @@ export function buildDailyDigest(
     briefingLead,
     line: composeLine(briefingLead, topSignal, input.score, t),
     worthALook: visible.slice(0, MAX_WORTH_A_LOOK),
+    justIn,
+    reactionLine,
   };
 }

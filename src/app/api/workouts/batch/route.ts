@@ -39,13 +39,10 @@
  *     composite index. Re-posting the same batch surfaces duplicates
  *     rather than failing the call.
  *
- * Race reconciliation (mirrors the measurements batch fix from
- * v1.4.25 W10): under contention, `createMany` with `skipDuplicates`
- * absorbs duplicate-key conflicts but cannot tell us WHICH rows it
- * absorbed. We trust the `createMany.count` return value and downgrade
- * enough per-entry "inserted" statuses to "duplicate" so the envelope
- * sums stay consistent with the aggregate counts. The iOS sync cursor
- * advances past both statuses identically.
+ * Race reconciliation uses PostgreSQL's `INSERT ... RETURNING` through
+ * Prisma's `createManyAndReturn`. The returned composite keys identify the
+ * exact rows this request inserted, so per-entry statuses, child rows, and
+ * arrival references cannot drift to a racing or same-external-id workout.
  *
  * Prompt-injection surface: `Workout.metadata` is opaque — the Coach
  * pipeline reads typed columns only (`sportType`, `durationSec`,
@@ -68,6 +65,7 @@ import { withIdempotency } from "@/lib/idempotency";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
+import { emitDataArrival } from "@/lib/arrivals/emit-shared";
 import {
   createBatchWorkoutSchema,
   MAX_WORKOUTS_PER_BATCH,
@@ -116,6 +114,43 @@ interface EntryResult {
   index: number;
   status: EntryStatus;
   reason?: string;
+}
+
+/**
+ * v1.31.1 — emit one data arrival per workout this batch actually inserted.
+ *
+ * `createManyAndReturn` gives the transaction the exact inserted ids. The
+ * index-keyed map avoids a second lookup and keeps equal external ids from
+ * different sources attached to their own workout.
+ *
+ * Fully best-effort — every failure path returns quietly. A reaction is never
+ * worth failing an ingest that already succeeded.
+ */
+async function emitWorkoutArrivals(
+  userId: string,
+  prepared: ReadonlyArray<{
+    index: number;
+    row: Prisma.WorkoutCreateManyInput;
+  }>,
+  insertedIdByIndex: ReadonlyMap<number, string>,
+): Promise<void> {
+  for (const p of prepared) {
+    const refId = insertedIdByIndex.get(p.index);
+    if (!refId) continue;
+    const startedAt =
+      p.row.startedAt instanceof Date
+        ? p.row.startedAt
+        : new Date(p.row.startedAt as string);
+    if (Number.isNaN(startedAt.getTime())) continue;
+    await emitDataArrival({
+      userId,
+      kind: "workout",
+      newestSampleAt: startedAt,
+      insertedCount: 1,
+      refId,
+      source: "batch",
+    });
+  }
 }
 
 export const POST = apiHandler(withIdempotency<[NextRequest]>(postBatch));
@@ -340,6 +375,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
   const survivors = prepared.filter((p) => survivingIndices.has(p.index));
   let duplicateCount = droppedByWriteDedup.length;
   let insertedCount = 0;
+  const insertedIdByIndex = new Map<number, string>();
 
   if (survivors.length > 0) {
     // v1.4.42 W5 — only the write-time dedup survivors are probed
@@ -381,236 +417,94 @@ async function postBatch(request: NextRequest): Promise<Response> {
     }
 
     if (toInsert.length > 0) {
-      // Two-step write: createMany the workout rows, then findMany the
-      // freshly-inserted rows to recover their ids so the route table
-      // can be populated by FK. We chunk both steps for parity with the
-      // measurements path and to keep individual SQL statements bounded
-      // under Postgres's 65k-parameter cap.
       const CHUNK = 100;
 
       await prisma.$transaction(async (tx) => {
-        for (let i = 0; i < toInsert.length; i += CHUNK) {
-          const slice = toInsert.slice(i, i + CHUNK);
-          const result = await tx.workout.createMany({
+        const withExternalId = toInsert.filter((p) => p.dedupKey !== null);
+        const withoutExternalId = toInsert.filter((p) => p.dedupKey === null);
+
+        // PostgreSQL RETURNING is the only reliable way to identify the exact
+        // winner when another request races the same unique key.
+        for (let i = 0; i < withExternalId.length; i += CHUNK) {
+          const slice = withExternalId.slice(i, i + CHUNK);
+          const pendingByKey = new Map<string, Prepared[]>();
+          for (const p of slice) {
+            const key = `${p.dedupKey!.source}::${p.dedupKey!.externalId}`;
+            const pending = pendingByKey.get(key);
+            if (pending) pending.push(p);
+            else pendingByKey.set(key, [p]);
+          }
+
+          const inserted = await tx.workout.createManyAndReturn({
             data: slice.map((p) => p.row),
             skipDuplicates: true,
+            select: { id: true, source: true, externalId: true },
           });
-          insertedCount += result.count;
+          for (const row of inserted) {
+            if (row.externalId === null) continue;
+            const key = `${row.source}::${row.externalId}`;
+            const preparedRow = pendingByKey.get(key)?.shift();
+            if (preparedRow) insertedIdByIndex.set(preparedRow.index, row.id);
+          }
         }
 
-        // Look up the workouts we just wrote (or that the racing batch
-        // wrote) so we can attach their child rows (route geometry +
-        // the route-independent HR series) by FK. We probe by the
-        // composite unique key for entries that have one, and by the
-        // `(userId, source, startedAt, sportType)` tuple as a fallback
-        // for manual entries (where externalId is null). The fallback
-        // is best-effort — manual entries from the iOS client always
-        // carry an HK uuid, so the null-externalId case is exercised
-        // only by future surface (manual workout entry).
-        //
-        // v1.10.0 — `samples` (the per-workout HR series) rides the
-        // SAME id lookup as `route`: an indoor workout carries samples
-        // with no route, so the lookup runs whenever EITHER child is
-        // present on a to-insert entry.
-        const childAttachable = toInsert.filter(
-          (p) => p.route !== null || p.samples !== null,
-        );
-        if (childAttachable.length > 0) {
-          const withExternal = childAttachable.filter(
-            (p) => p.dedupKey !== null,
-          );
-          const withoutExternal = childAttachable.filter(
-            (p) => p.dedupKey === null,
-          );
-
-          const lookedUp = withExternal.length
-            ? await tx.workout.findMany({
-                where: {
-                  userId: user.id,
-                  OR: withExternal.map((p) => ({
-                    source: p.dedupKey!
-                      .source as Prisma.WorkoutCreateManyInput["source"],
-                    externalId: p.dedupKey!.externalId,
-                  })),
-                },
-                select: {
-                  id: true,
-                  source: true,
-                  externalId: true,
-                },
-              })
-            : [];
-
-          const idBySourceExt = new Map<string, string>();
-          for (const row of lookedUp) {
-            if (row.externalId !== null) {
-              idBySourceExt.set(`${row.source}::${row.externalId}`, row.id);
-            }
-          }
-
-          // Manual entries — `externalId` is null and the unique index
-          // is NULL-distinct, so two manual entries on the same instant
-          // would both insert. We look these up by the deterministic
-          // (userId, source, startedAt, sportType) tuple for each row.
-          //
-          // v1.4.27 B7 / BL-code-M3 — single batched findMany with one
-          // OR-row per entry instead of N serial findFirst probes. For
-          // a 100-row batch this cuts the per-batch round-trip count
-          // from 1 + N to 2; the per-entry "most-recent createdAt"
-          // tie-break is preserved by sorting the returned rows in
-          // memory and keying on the deterministic tuple.
-          type ManualMatch = { id: string; createdAt: Date };
-          const manualMatchesById = new Map<string, ManualMatch>();
-          if (withoutExternal.length > 0) {
-            const manualRows = await tx.workout.findMany({
-              where: {
-                userId: user.id,
-                route: null,
-                OR: withoutExternal.map((p) => ({
-                  source: p.row.source,
-                  startedAt: p.row.startedAt as Date,
-                  sportType: p.row.sportType,
-                })),
-              },
-              select: {
-                id: true,
-                source: true,
-                startedAt: true,
-                sportType: true,
-                createdAt: true,
-              },
-              orderBy: { createdAt: "desc" },
-            });
-            for (const row of manualRows) {
-              const key = `${row.source}::${row.startedAt.getTime()}::${row.sportType}`;
-              const existing = manualMatchesById.get(key);
-              if (!existing || existing.createdAt < row.createdAt) {
-                manualMatchesById.set(key, {
-                  id: row.id,
-                  createdAt: row.createdAt,
-                });
-              }
-            }
-          }
-          const manualMatches = withoutExternal.map((p) => {
-            const key = `${p.row.source}::${(p.row.startedAt as Date).getTime()}::${p.row.sportType}`;
-            const match = manualMatchesById.get(key);
-            return match ? { id: match.id } : null;
+        // NULL external ids are intentionally distinct in PostgreSQL. Insert
+        // them one at a time so a route/HR series can never attach to a
+        // different otherwise-identical manual workout.
+        for (const p of withoutExternalId) {
+          const inserted = await tx.workout.createManyAndReturn({
+            data: p.row,
+            select: { id: true },
           });
+          const row = inserted[0];
+          if (row) insertedIdByIndex.set(p.index, row.id);
+        }
 
-          // Resolve the freshly-written workout id for a prepared
-          // entry — by composite key for externalId-bearing rows, by
-          // the deterministic (source, startedAt, sportType) tuple for
-          // manual rows. Shared by both child tables (route + samples)
-          // so the HR series and the route attach to the same row.
-          const resolveId = (
-            p: Prepared,
-            manualIndex: number,
-          ): string | undefined => {
-            if (p.dedupKey !== null) {
-              return idBySourceExt.get(
-                `${p.dedupKey.source}::${p.dedupKey.externalId}`,
-              );
-            }
-            return manualMatches[manualIndex]?.id ?? undefined;
-          };
+        const routesToInsert: Prisma.WorkoutRouteCreateManyInput[] = [];
+        const samplesToInsert: Prisma.WorkoutSamplesCreateManyInput[] = [];
+        for (const p of toInsert) {
+          const id = insertedIdByIndex.get(p.index);
+          if (!id) continue;
+          if (p.route) {
+            routesToInsert.push({
+              workoutId: id,
+              geometry: p.route.geometry as Prisma.InputJsonValue,
+              sampleTimestamps:
+                p.route.sampleTimestamps === null
+                  ? Prisma.JsonNull
+                  : (p.route.sampleTimestamps as Prisma.InputJsonValue),
+            });
+          }
+          if (p.samples) {
+            samplesToInsert.push({
+              workoutId: id,
+              samples: p.samples.samples as Prisma.InputJsonValue,
+              sampleCount: p.samples.sampleCount,
+            });
+          }
+        }
 
-          const routesToInsert: Prisma.WorkoutRouteCreateManyInput[] = [];
-          const samplesToInsert: Prisma.WorkoutSamplesCreateManyInput[] = [];
-          for (let i = 0; i < withExternal.length; i++) {
-            const p = withExternal[i];
-            const id = resolveId(p, -1);
-            if (!id) continue;
-            if (p.route) {
-              routesToInsert.push({
-                workoutId: id,
-                geometry: p.route.geometry as Prisma.InputJsonValue,
-                sampleTimestamps:
-                  p.route.sampleTimestamps === null
-                    ? Prisma.JsonNull
-                    : (p.route.sampleTimestamps as Prisma.InputJsonValue),
-              });
-            }
-            if (p.samples) {
-              samplesToInsert.push({
-                workoutId: id,
-                samples: p.samples.samples as Prisma.InputJsonValue,
-                sampleCount: p.samples.sampleCount,
-              });
-            }
-          }
-          for (let i = 0; i < withoutExternal.length; i++) {
-            const p = withoutExternal[i];
-            const id = resolveId(p, i);
-            if (!id) continue;
-            if (p.route) {
-              routesToInsert.push({
-                workoutId: id,
-                geometry: p.route.geometry as Prisma.InputJsonValue,
-                sampleTimestamps:
-                  p.route.sampleTimestamps === null
-                    ? Prisma.JsonNull
-                    : (p.route.sampleTimestamps as Prisma.InputJsonValue),
-              });
-            }
-            if (p.samples) {
-              samplesToInsert.push({
-                workoutId: id,
-                samples: p.samples.samples as Prisma.InputJsonValue,
-                sampleCount: p.samples.sampleCount,
-              });
-            }
-          }
-
-          if (routesToInsert.length > 0) {
-            for (let i = 0; i < routesToInsert.length; i += CHUNK) {
-              await tx.workoutRoute.createMany({
-                data: routesToInsert.slice(i, i + CHUNK),
-                // 1:1 FK — `workoutId` has a UNIQUE index, so the
-                // composite unique guards routes too. `skipDuplicates`
-                // means a re-submitted batch that wins the race on the
-                // workout row but loses on the route is a no-op rather
-                // than a hard error.
-                skipDuplicates: true,
-              });
-            }
-          }
-
-          if (samplesToInsert.length > 0) {
-            for (let i = 0; i < samplesToInsert.length; i += CHUNK) {
-              await tx.workoutSamples.createMany({
-                data: samplesToInsert.slice(i, i + CHUNK),
-                // 1:1 FK on `workoutId` (UNIQUE), same idempotency as
-                // the route child: a re-submitted batch that wins the
-                // workout-row race but loses the sample-row race is a
-                // no-op, not a hard error.
-                skipDuplicates: true,
-              });
-            }
-          }
+        for (let i = 0; i < routesToInsert.length; i += CHUNK) {
+          await tx.workoutRoute.createMany({
+            data: routesToInsert.slice(i, i + CHUNK),
+            skipDuplicates: true,
+          });
+        }
+        for (let i = 0; i < samplesToInsert.length; i += CHUNK) {
+          await tx.workoutSamples.createMany({
+            data: samplesToInsert.slice(i, i + CHUNK),
+            skipDuplicates: true,
+          });
         }
       });
 
-      // v1.4.25 W10 reconcile (senior-dev H-1 parity): when two batches
-      // race on overlapping externalIds, only one row lands per key.
-      // `createMany.count` is the source of truth for how many rows
-      // THIS request wrote; downgrade enough per-entry "inserted"
-      // statuses to "duplicate" so the per-entry envelope sums match
-      // the aggregate counts. Order doesn't matter — the iOS sync
-      // cursor advances past both statuses identically.
-      const racedDuplicates = toInsert.length - insertedCount;
-      if (racedDuplicates > 0) {
-        let downgraded = 0;
-        // v1.4.42 W5 — walk `survivors` (not `prepared`) so the
-        // already-downgraded-by-write-dedup losers don't get
-        // double-counted toward the race-reconcile budget.
-        for (const p of survivors) {
-          if (downgraded >= racedDuplicates) break;
-          if (results[p.index]?.status === "inserted") {
-            results[p.index] = { index: p.index, status: "duplicate" };
-            duplicateCount += 1;
-            downgraded += 1;
-          }
+      insertedCount = insertedIdByIndex.size;
+      for (const p of toInsert) {
+        if (insertedIdByIndex.has(p.index)) {
+          results[p.index] = { index: p.index, status: "inserted" };
+        } else {
+          results[p.index] = { index: p.index, status: "duplicate" };
+          duplicateCount += 1;
         }
       }
     }
@@ -673,6 +567,12 @@ async function postBatch(request: NextRequest): Promise<Response> {
   // workout-derived metrics.
   if (insertedCount > 0) {
     invalidateUserMeasurements(user.id);
+
+    // One arrival per exact INSERT ... RETURNING winner. Historical rows still
+    // stop at the shared salience classifier before any queue work.
+    void emitWorkoutArrivals(user.id, prepared, insertedIdByIndex).catch(
+      () => {},
+    );
   }
 
   return apiSuccess({
