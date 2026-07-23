@@ -67,6 +67,34 @@ describe("screenCoachReply — risk score", () => {
   });
 });
 
+// Issue #587 — a grounded Sleep Score explanation was replaced with the
+// generic clinical-risk refusal because the named-risk-engine pattern
+// matched bare "score", not just the SCORE2 risk calculator it was meant to
+// name.
+describe("screenCoachReply — issue #587 ordinary wellness-score wording", () => {
+  const allowed = [
+    "Your Sleep Score is based on sleep duration and stage balance — it's currently in a healthy range for you.",
+    "Your Readiness Score is lower than your recent baseline, likely from the shorter sleep window.",
+    "This Health Score is based on the available tracked pillars: BP, weight, mood, and compliance.",
+  ];
+  for (const reply of allowed) {
+    it(`allows: ${reply.slice(0, 40)}`, () => {
+      const d = screenCoachReply(reply, "en");
+      expect(d.block).toBe(false);
+      expect(d.reason).toBeNull();
+    });
+  }
+
+  it("still blocks a reply naming the SCORE2 risk engine", () => {
+    const d = screenCoachReply(
+      "Based on SCORE2, your cardiovascular risk profile looks elevated.",
+      "en",
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("risk_score");
+  });
+});
+
 describe("screenCoachReply — clean replies", () => {
   it("passes a grounded, non-prescriptive reply", () => {
     const reply =

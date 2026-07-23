@@ -215,8 +215,14 @@ const RISK_PATTERNS: Record<Locale, readonly RegExp[]> = {
     /\b\d{1,3}\s*%\s+(?:risk|chance|probability|likelihood)\b/i,
     /\b(?:risk|chance|probability|likelihood)\s+(?:of|is|at)\s+(?:about\s+|roughly\s+|~)?\d{1,3}\s*%/i,
     /\b(?:10[- ]year|ten[- ]year|lifetime)\s+(?:cardiovascular|cardiac|heart|stroke|mortality|cvd|ascvd)\s+risk\b/i,
-    // Named risk engines are fabrications on any surface — the server runs none.
-    /\b(?:framingham|ascvd|score2?|qrisk)\b/i,
+    // Named risk engines are fabrications on any surface — the server runs
+    // none. `score2?` (the `2` optional) was the #587 bug: it matched bare
+    // "score" too, so every mention of this app's OWN computed scores
+    // (Sleep Score, Readiness Score, Health Score, …) tripped the named-
+    // engine bank. SCORE2 is a specific clinical risk calculator (like
+    // Framingham/ASCVD/QRISK) — only the literal name is a fabrication
+    // signal; the bare word "score" carries none on its own.
+    /\b(?:framingham|ascvd|score2|qrisk)\b/i,
   ],
   de: [
     /\brisiko\s+(?:von|bei|liegt\s+bei)\s+(?:etwa\s+|ungefähr\s+|~)?\d{1,3}\s*%/i,
