@@ -58,6 +58,10 @@ beyond what 1.32.1 declared (none). No breaking changes.
 
 No migrations. No breaking changes.
 
+_Thanks to **@lutzkind** (health-score zero-state, the Coach refusing score
+questions, the dashboard layout race, the Pulse page) and **@Nazza01** (the
+Apple Health import stall) — these fixes came straight from their reports._
+
 ## [1.32.0] — 2026-07-22
 
 - **Provider ingestion and daily reactions now preserve the correct identity.**
