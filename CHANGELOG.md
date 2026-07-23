@@ -28,6 +28,8 @@ marked unverified while an invented one still gets caught.
   reads French, Spanish, Italian, and Polish to the same depth it already read
   English and German, including a percentage written out in words.
 
+## [1.32.8] — 2026-07-23
+
 Health records written through the app now carry where they came from, and a
 HealthKit sync can say what set it off.
 
