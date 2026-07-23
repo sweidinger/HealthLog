@@ -107,6 +107,54 @@ describe("screenModelOutput — risk-score, all six locales", () => {
   }
 });
 
+// ── issue #587 — bare "score" is not a fabricated clinical risk score ─────
+
+/**
+ * The named-risk-engine pattern used `score2?` (the `2` optional), so it
+ * matched bare "score" too — any mention of one of THIS APP's own computed,
+ * documented scores (Sleep Score, Readiness Score, Health Score, …) tripped
+ * the fabricated-risk-engine bank meant for SCORE2/Framingham/ASCVD/QRISK.
+ */
+const WELLNESS_SCORE_CLEAN: readonly string[] = [
+  "Your Sleep Score is based on sleep duration and stage balance.",
+  "Your Readiness Score is lower than your recent baseline.",
+  "This Health Score is based on the available tracked pillars.",
+  "Your Recovery Score and Stress Score both moved this week.",
+  "The Strain Score reflects yesterday's training load.",
+];
+
+describe("screenModelOutput — issue #587 ordinary wellness-score wording", () => {
+  for (const text of WELLNESS_SCORE_CLEAN) {
+    it(`passes: ${text}`, () => {
+      const d = screenModelOutput(text, "en", CONVERSATIONAL_CONTRACTS);
+      expect(d.block).toBe(false);
+      expect(d.reason).toBeNull();
+    });
+  }
+
+  it("still blocks the literal named risk engine SCORE2", () => {
+    const d = screenModelOutput(
+      "Based on SCORE2, your cardiovascular risk profile looks elevated.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("risk_score");
+  });
+
+  it("still blocks Framingham, ASCVD, and QRISK by name", () => {
+    for (const engine of [
+      "your Framingham result was concerning",
+      "the ASCVD estimate points to elevated risk",
+      "your QRISK figure came back high",
+    ]) {
+      const d = screenModelOutput(engine, "en", CONVERSATIONAL_CONTRACTS);
+      expect(d.block).toBe(true);
+      expect(d.reason).toBe("risk_score");
+    }
+  });
+});
+
 // ── causal claims (GROUND RULE 12) ───────────────────────────────────────
 
 const CAUSAL_VIOLATIONS: Record<Locale, string> = {

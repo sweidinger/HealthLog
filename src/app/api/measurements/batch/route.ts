@@ -603,6 +603,18 @@ async function postBatch(request: NextRequest): Promise<Response> {
     .filter((r) => r.status === "skipped")
     .map((r) => ({ index: r.index, reason: r.reason ?? "unknown" }));
 
+  // v1.32.1 (issue #585) — per-reason skip breakdown. The baseline
+  // annotation below only ever carried the total `skipped` count, so an
+  // operator investigating "why does this account's uploaded data look
+  // sparser than expected" had no way to see WHICH validation gate an
+  // entry tripped (malformed bucket id, out-of-range value, unmappable
+  // identifier, …) without pulling raw rows. Grouping by reason turns
+  // that into a one-glance wide-event field.
+  const skippedByReason: Record<string, number> = {};
+  for (const s of skipped) {
+    skippedByReason[s.reason] = (skippedByReason[s.reason] ?? 0) + 1;
+  }
+
   await auditLog("measurement.batch.ingest", {
     userId: user.id,
     ipAddress: getClientIp(request),
@@ -643,6 +655,64 @@ async function postBatch(request: NextRequest): Promise<Response> {
       action: { name: "measurement.batch.cross-source-merge" },
       meta: {
         merged: crossSourceMergedCount,
+        processed: entries.length,
+      },
+    });
+  }
+
+  // v1.32.1 (issue #585) — dedicated outcome breakdown for entries
+  // targeting the go-forward aggregated 10-min heart-rate bucket prefix
+  // (`stats:HKQuantityTypeIdentifierHeartRate:<10-min-Z>`). The intraday
+  // pulse chart reads exactly these rows for a live-synced day; a report
+  // of "the chart looks sparser after the ZIP import cutoff" is
+  // unanswerable from the baseline ingest trace alone, since it never
+  // distinguished an HR-bucket write from any other entry in the batch.
+  // Grepping `measurement.batch.hr-bucket` now shows, per sync, how many
+  // bucket entries the client sent and what happened to each — confirming
+  // (or ruling out) server-side rejection/dedup as the density-gap cause.
+  // Only fires when the batch actually carried at least one HR-bucket
+  // entry so the baseline trace is unchanged for every other sync.
+  let hrBucketInserted = 0;
+  let hrBucketUpdated = 0;
+  let hrBucketDuplicate = 0;
+  let hrBucketSkipped = 0;
+  let hrBucketFailed = 0;
+  for (let index = 0; index < entries.length; index++) {
+    if (!targetsAggregatedBucket(entries[index].externalId)) continue;
+    switch (results[index]?.status) {
+      case "inserted":
+        hrBucketInserted++;
+        break;
+      case "updated":
+        hrBucketUpdated++;
+        break;
+      case "duplicate":
+        hrBucketDuplicate++;
+        break;
+      case "skipped":
+        hrBucketSkipped++;
+        break;
+      case "failed":
+        hrBucketFailed++;
+        break;
+    }
+  }
+  const hrBucketAttempted =
+    hrBucketInserted +
+    hrBucketUpdated +
+    hrBucketDuplicate +
+    hrBucketSkipped +
+    hrBucketFailed;
+  if (hrBucketAttempted > 0) {
+    annotate({
+      action: { name: "measurement.batch.hr-bucket" },
+      meta: {
+        attempted: hrBucketAttempted,
+        inserted: hrBucketInserted,
+        updated: hrBucketUpdated,
+        duplicate: hrBucketDuplicate,
+        skipped: hrBucketSkipped,
+        failed: hrBucketFailed,
         processed: entries.length,
       },
     });
@@ -693,6 +763,9 @@ async function postBatch(request: NextRequest): Promise<Response> {
       updated: updatedCount,
       duplicates: duplicateCount,
       skipped: skipped.length,
+      // v1.32.1 (issue #585) — per-reason skip breakdown; see the
+      // `skippedByReason` build above.
+      skipped_by_reason: skippedByReason,
       failed: failedCount,
     },
   });

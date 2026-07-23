@@ -465,33 +465,6 @@ export async function computeUserHealthScoreFastPath(
       score: r.score,
     }));
 
-  // Empty-path early-out — nothing computable, hero hides cleanly.
-  if (
-    bpInTargetPct === null &&
-    weightSeriesLast30d.length === 0 &&
-    moodSeriesLast30d.length === 0 &&
-    medicationCompliance30.length === 0
-  ) {
-    annotate({
-      meta: {
-        healthScore: {
-          score: null,
-          reason: "no_components_available",
-          path: weightCovered ? "rollup" : "live",
-          weightLongWindow:
-            weightLongWindowMean !== null
-              ? {
-                  mean: Math.round(weightLongWindowMean * 100) / 100,
-                  granularity: weightLongWindowGranularity,
-                  buckets: weightLongWindowBucketCount,
-                }
-              : null,
-        },
-      },
-    });
-    return null;
-  }
-
   const windowEndAt = now.toISOString();
 
   const bpSourceTokens = uniqueComponentSources(
@@ -557,6 +530,49 @@ export async function computeUserHealthScoreFastPath(
   };
 
   const result = computeHealthScore(current, previous);
+
+  // No-pillar-eligible early-out — nothing computable, hero hides cleanly.
+  //
+  // The naive raw-record check this replaced only asked whether any pillar
+  // had a nonzero row count, not whether that count cleared the pillar's own
+  // eligibility bar: weight needs >= 2 readings, mood needs >= 5 entries, BP
+  // needs a paired reading, compliance needs an active scheduled medication.
+  // An account that clears the row-count check but misses every pillar's
+  // bar (e.g. exactly one mood entry, or a single weight reading) fell
+  // through to `computeHealthScore`, which sums no components and returns a
+  // raw `0` — indistinguishable from a genuinely poor score. Checking the
+  // COMPUTED result's components (the same eligibility rules the score
+  // itself already applies) instead of re-deriving the thresholds here means
+  // this can never drift out of sync with `computeHealthScore`. A component
+  // that is legitimately computed as `0` still has `value: 0`, not `null`,
+  // so it is never swept into this branch.
+  const noComponentEligible =
+    result.components.bp.value === null &&
+    result.components.weight.value === null &&
+    result.components.mood.value === null &&
+    result.components.compliance.value === null;
+
+  if (noComponentEligible) {
+    annotate({
+      meta: {
+        healthScore: {
+          score: null,
+          reason: "no_components_available",
+          path: weightCovered ? "rollup" : "live",
+          weightLongWindow:
+            weightLongWindowMean !== null
+              ? {
+                  mean: Math.round(weightLongWindowMean * 100) / 100,
+                  granularity: weightLongWindowGranularity,
+                  buckets: weightLongWindowBucketCount,
+                }
+              : null,
+        },
+      },
+    });
+    return null;
+  }
+
   annotate({
     meta: {
       healthScore: {

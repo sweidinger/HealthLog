@@ -133,18 +133,35 @@ export const PATCH = apiHandler(
     // Recompute next-due against the merged cadence. Floor the search at
     // the last-satisfied instant (or now) so a cadence edit re-anchors
     // cleanly off the user's last fulfilment.
+    //
+    // v1.32.1 — `Object.hasOwn(updateData, field)` replaces a `?? existing`
+    // fallback here (issue #62). `??` cannot tell an explicit `null` clear
+    // apart from an omitted field — both are nullish — so a PATCH that
+    // cleared `intervalDays` to switch a reminder onto an RRULE still
+    // recomputed `nextDueAt` against the OLD rolling interval for one
+    // cycle (rolling cadence wins the dispatcher's precedence order, so the
+    // stale interval silently overrode the just-set RRULE). The same gap
+    // hit the RRULE → interval direction and an explicit `anchorDate: null`
+    // clear. `updateData` already encodes the field-by-field truth of what
+    // is ACTUALLY being persisted — including the mutual-exclusivity
+    // auto-clear a few lines up — so keying off its own keys (present, even
+    // when the value is `null`) can never diverge from what the database
+    // ends up holding.
     const timezone = await resolveTimezone(user.id);
     const now = new Date();
     const merged: ReminderScheduleInput = {
-      intervalDays:
-        (updateData.intervalDays as number | null | undefined) ??
-        existing.intervalDays,
-      rrule: (updateData.rrule as string | null | undefined) ?? existing.rrule,
-      anchorDate:
-        (updateData.anchorDate as Date | null | undefined) ??
-        existing.anchorDate,
-      notifyHour:
-        (updateData.notifyHour as number | undefined) ?? existing.notifyHour,
+      intervalDays: Object.hasOwn(updateData, "intervalDays")
+        ? (updateData.intervalDays as number | null)
+        : existing.intervalDays,
+      rrule: Object.hasOwn(updateData, "rrule")
+        ? (updateData.rrule as string | null)
+        : existing.rrule,
+      anchorDate: Object.hasOwn(updateData, "anchorDate")
+        ? (updateData.anchorDate as Date | null)
+        : existing.anchorDate,
+      notifyHour: Object.hasOwn(updateData, "notifyHour")
+        ? (updateData.notifyHour as number)
+        : existing.notifyHour,
       lastSatisfiedAt: existing.lastSatisfiedAt,
       createdAt: existing.createdAt,
       // v1.18.1 — preserve the course window so an edit of a finite

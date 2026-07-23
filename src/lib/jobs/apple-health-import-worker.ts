@@ -37,6 +37,55 @@ import {
   type ImportJobResult,
 } from "@/lib/measurements/import-apple-health-export";
 import { recomputeUserRollups } from "@/lib/rollups/measurement-rollups";
+import { withBackgroundEvent } from "@/lib/logging/background";
+
+/**
+ * Queue + cron for the periodic orphan-ImportJob sweep. v1.32.1
+ * (issue #588) — `reconcileOrphanImportJobs()` used to run only once,
+ * at worker boot. `restart: unless-stopped` in `docker-compose.yml`
+ * DOES bring a crashed/OOM-killed worker back up, so the boot-time
+ * pass usually catches a dead run — but only when that restart lands
+ * AFTER the row's heartbeat has already gone stale (30 minutes) or
+ * pg-boss no longer reports the backing job as live. A fast restart
+ * lands neither condition true yet, and because the pass runs
+ * exactly once per boot, a worker that then stays up and healthy
+ * NEVER re-evaluates that row — it is stuck in `unpacking` /
+ * `parsing` / `upserting` with "0 rows imported" forever and no
+ * failure ever surfaced to the status poll. A 15-minute cron closes
+ * that gap: within two ticks of the heartbeat going stale, the same
+ * idempotent reconcile flips the row to `failed` with an honest
+ * reason, so the UI's "Unpacking the archive…" spinner eventually
+ * turns into a visible, actionable error instead of an indefinite
+ * silent stall.
+ */
+export const IMPORT_JOB_RECONCILE_QUEUE = "apple-health-import-reconcile";
+export const IMPORT_JOB_RECONCILE_CRON = "*/15 * * * *";
+
+/**
+ * Cron handler for the periodic orphan-ImportJob sweep. Delegates to
+ * the same `reconcileOrphanImportJobs()` the boot path calls — the
+ * heartbeat + live pg-boss-job check already make it safe to re-run
+ * on a healthy worker (a live import's fresh heartbeat and `active`
+ * pg-boss state both keep its row untouched). Errors are logged, not
+ * rethrown — a reconcile miss must never spam pg-boss's retry/backoff
+ * machinery for a background sweep this cheap to just re-run in 15
+ * minutes.
+ */
+export async function handleImportJobReconcileTick(
+  jobs: Job<object>[],
+): Promise<void> {
+  void jobs;
+  await withBackgroundEvent(
+    "job.apple_health_import_reconcile",
+    async (evt) => {
+      try {
+        await reconcileOrphanImportJobs();
+      } catch (err) {
+        evt.addWarning(`apple-health-import-reconcile failed: ${err}`);
+      }
+    },
+  );
+}
 
 /** Queue name isolated from revision-1 workers during rolling deployments. */
 export const APPLE_HEALTH_IMPORT_V2_QUEUE = "apple-health-import-v2";
@@ -260,7 +309,7 @@ export async function handleAppleHealthImport(
       elapsedMs: 0,
     });
 
-    const unzip = extractExportXml(uploadPath);
+    const unzip = await extractExportXml(uploadPath);
     extractedXmlPath = unzip.xmlPath;
 
     // Phase 2 + 3: parsing + upserting (the parser tracks both

@@ -444,6 +444,132 @@ describe("computeUserHealthScoreFastPath", () => {
     });
   });
 
+  /**
+   * Issue #582 — a raw-record-presence check let a `0`/red score through
+   * when every pillar still failed its own eligibility bar (weight needs
+   * >= 2 readings, mood needs >= 5 entries, BP needs a paired reading,
+   * compliance needs an active scheduled medication). The fix checks the
+   * COMPUTED result's components instead of raw row counts.
+   */
+  describe("insufficient-data guard (#582)", () => {
+    it("returns null — not a 0 score — when only one mood entry exists and no other pillar is eligible", async () => {
+      const coverage = new Map<string, boolean>([["WEIGHT", false]]);
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+      const now = new Date("2026-06-07T12:00:00.000Z");
+
+      // No weight rows, no BP rows, no medications.
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      // Exactly one mood entry — below the 5-entry stability floor, so
+      // moodStability() resolves to null even though the raw row count
+      // is nonzero.
+      MOOD_FIND_MANY.mockResolvedValue([{ score: 4, moodLoggedAt: now }]);
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-one-mood-entry",
+        bpInTargetPct: null,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      expect(result).toBeNull();
+      const calls = ANNOTATE.mock.calls.map((c) => c[0]);
+      const nullCall = calls.find(
+        (c) => c?.meta?.healthScore?.reason === "no_components_available",
+      );
+      expect(nullCall).toBeDefined();
+    });
+
+    it("returns null — not a 0 score — when only one weight reading exists and no other pillar is eligible", async () => {
+      const coverage = new Map<string, boolean>([["WEIGHT", false]]);
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+      const now = new Date("2026-06-07T12:00:00.000Z");
+
+      // Exactly one weight reading — below the 2-reading regression floor,
+      // so weightTrendAlignment() resolves to null.
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([
+        {
+          measuredAt: new Date("2026-06-05T08:00:00.000Z"),
+          value: 82.5,
+          source: "MANUAL",
+        },
+      ]).mockResolvedValueOnce([]); // BP-SYS source attribution, empty.
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-one-weight-reading",
+        bpInTargetPct: null,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      expect(result).toBeNull();
+      const calls = ANNOTATE.mock.calls.map((c) => c[0]);
+      const nullCall = calls.find(
+        (c) => c?.meta?.healthScore?.reason === "no_components_available",
+      );
+      expect(nullCall).toBeDefined();
+    });
+
+    it("returns null when raw records exist across multiple pillars but none clears its own minimum", async () => {
+      const coverage = new Map<string, boolean>([["WEIGHT", false]]);
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+      const now = new Date("2026-06-07T12:00:00.000Z");
+
+      // One weight reading (< 2) + one mood entry (< 5) + no BP + no
+      // active medications. Every pillar has SOME data, but none is
+      // individually eligible.
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([
+        {
+          measuredAt: new Date("2026-06-05T08:00:00.000Z"),
+          value: 82.5,
+          source: "MANUAL",
+        },
+      ]).mockResolvedValueOnce([]);
+      MOOD_FIND_MANY.mockResolvedValue([{ score: 3, moodLoggedAt: now }]);
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-multi-pillar-ineligible",
+        bpInTargetPct: null,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it("preserves a legitimately computed score of 0 rather than treating it as insufficient data", async () => {
+      const coverage = new Map<string, boolean>([["WEIGHT", false]]);
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+      const now = new Date("2026-06-07T12:00:00.000Z");
+
+      // No weight, no mood, no medications — but a real, computed BP
+      // pillar that lands on exactly 0. This must stay a genuine `0`
+      // score, not get swept into the null branch.
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([
+        { measuredAt: new Date("2026-06-05T08:00:00.000Z"), source: "MANUAL" },
+      ]);
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-legit-zero",
+        bpInTargetPct: 0,
+        bpGradedScore: 0,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      expect(result).not.toBeNull();
+      expect(result?.components.bp.value).toBe(0);
+      expect(result?.score).toBe(0);
+    });
+  });
+
   describe("coverage probing", () => {
     it("probes coverage when the caller omits the map", async () => {
       const coverage = new Map<string, boolean>([]);
