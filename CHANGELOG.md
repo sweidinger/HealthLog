@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- **The Coach's numeric verifier no longer flags a correctly-grounded figure.**
+  A restated delta, average, or percent change computed from two of the
+  model's own headline numbers, a sample count restated from the always-sent
+  data inventory, a calendar-date ordinal ("July 21st"), and a numbered-list
+  marker no longer trip the soft `[unverified]` rewrite. A genuinely
+  fabricated figure is still caught and stripped.
+
 ## [1.32.0] — 2026-07-22
 
 - **Provider ingestion and daily reactions now preserve the correct identity.**

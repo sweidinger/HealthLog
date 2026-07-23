@@ -653,6 +653,16 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
         toolTrace = loop.toolTrace;
         toolResultPayloads = [
           ...(workoutEvidence === null ? [] : [workoutEvidence]),
+          // v1.32.1 (false-positive closure) — the DATA INVENTORY manifest
+          // (sample counts per domain) rides EVERY tool-mode turn's prompt
+          // regardless of which tools actually ran this turn
+          // (`renderDataInventory`) — it is server-computed and handed to the
+          // model exactly like `workoutEvidence` above, so a plain restatement
+          // of a domain's sample count ("you've logged 42 BP readings") is
+          // grounded even when the model did not also call a retrieval tool
+          // for that domain this turn. Splicing it in here closes that gap
+          // the same way `workoutEvidence` already does.
+          inventory.entries,
           ...(loop.toolResults ?? []).map((r) => r.data),
         ];
         totalTokensSpent = loop.totalTokens;
