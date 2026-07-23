@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.32.8] — 2026-07-23
+
+Health records written through the app now carry where they came from, and a
+HealthKit sync can say what set it off.
+
+- **A dose logged from the app is recorded as an app entry.** Every intake used
+  to be stored as a web entry no matter how it arrived. The server now reads the
+  transport it authenticated the call with and tags the dose to match, so a dose
+  logged in the native app reads as an app entry while one logged in the browser
+  stays a web entry. A reminder confirmation, an import, and an Apple Health
+  mirror keep their own labels. The value is derived on the server and can never
+  be set from the request body.
+- **The dose history shows how each dose was recorded.** The per-dose history
+  returns a source label on every intake, so a client can show at a glance
+  whether a dose came from the web, the app, a reminder, an import, or an Apple
+  Health mirror. Rows written before the label existed report as unknown rather
+  than guessing.
+- **A HealthKit sync can report what woke it.** The batch upload accepts an
+  optional trigger tag reading foreground, background, or push. It is recorded
+  for diagnostics only and never changes which readings are stored or how they
+  are deduplicated, so sending it or leaving it off produces the same result.
+
 ## [1.32.7] — 2026-07-23
 
 The Coach output guard now reads numbers the way you actually write them, so a
