@@ -459,15 +459,11 @@ describe("computeUserHealthScoreFastPath", () => {
       const now = new Date("2026-06-07T12:00:00.000Z");
 
       // No weight rows, no BP rows, no medications.
-      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce(
-        [],
-      );
+      MEASUREMENT_FIND_MANY.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
       // Exactly one mood entry — below the 5-entry stability floor, so
       // moodStability() resolves to null even though the raw row count
       // is nonzero.
-      MOOD_FIND_MANY.mockResolvedValue([
-        { score: 4, moodLoggedAt: now },
-      ]);
+      MOOD_FIND_MANY.mockResolvedValue([{ score: 4, moodLoggedAt: now }]);
 
       const result = await computeUserHealthScoreFastPath({
         userId: "user-one-mood-entry",
