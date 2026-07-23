@@ -177,8 +177,8 @@ describe("createByteCap", () => {
         Readable.from([Buffer.from("hello"), Buffer.from("world")]),
         createByteCap(6),
         async function drain(source) {
-          for await (const _chunk of source) {
-            /* drain */
+          for await (const chunk of source) {
+            void chunk;
           }
         },
       ),
