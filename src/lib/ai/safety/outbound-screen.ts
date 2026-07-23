@@ -263,6 +263,44 @@ const RISK_LEVEL_DE =
   "(?:erhöht|hoch|höher|mittel|mäßig|grenzwertig|besorgniserregend|deutlich)";
 const RISK_VERDICT_DE = `(?:ist|liegt|erscheint|wirkt|bleibt|zeigt|deutet\\s+auf|weist\\s+auf)\\s+(?:\\w+\\s+){0,2}${RISK_LEVEL_DE}`;
 
+/*
+ * v1.32.7 narrowed EN + DE only; v1.32.9 (Coach Guard II / B.6) brings fr / es
+ * / it / pl to parity: a spelled-out percent counts as a fabricated figure, the
+ * named engine blocks with a qualifying number in either order, and a
+ * categorical engine RESULT ("SCORE2 vous met dans la tranche à haut risque")
+ * blocks numberless. The digit-percent + horizon patterns each locale already
+ * shipped stay. Spelled-out cardinals cover 0–19 + the tens a realistic risk
+ * percentage uses.
+ */
+const SPELLED_FR =
+  "(?:zéro|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|dix-sept|dix-huit|dix-neuf|vingt|trente|quarante|cinquante|soixante)";
+const PCT_WORD_FR = `${SPELLED_FR}\\s+(?:pour\\s+cent|pour-cent)`;
+const QUAL_NUM_FR = `(?:\\d{1,3}\\s*%|${PCT_WORD_FR})`;
+const RISK_NOUN_FR = "(?:risque|probabilité|chance)";
+const RESULT_VERB_FR =
+  "(?:vous\\s+(?:met|place|situe|classe|met\\s+dans)|vous\\s+êtes\\s+(?:dans|classé)|vous\\s+tombez\\s+dans)";
+const SPELLED_ES =
+  "(?:cero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciséis|diecisiete|dieciocho|diecinueve|veinte|treinta|cuarenta|cincuenta|sesenta)";
+const PCT_WORD_ES = `${SPELLED_ES}\\s+por\\s+ciento`;
+const QUAL_NUM_ES = `(?:\\d{1,3}\\s*%|${PCT_WORD_ES})`;
+const RISK_NOUN_ES = "(?:riesgo|probabilidad)";
+const RESULT_VERB_ES =
+  "(?:lo\\s+(?:coloca|sitúa|clasifica|pone)|le\\s+(?:coloca|sitúa|clasifica)|se\\s+encuentra\\s+en|está\\s+en\\s+(?:la\\s+)?categor|cae\\s+en)";
+const SPELLED_IT =
+  "(?:zero|uno|due|tre|quattro|cinque|sei|sette|otto|nove|dieci|undici|dodici|tredici|quattordici|quindici|sedici|diciassette|diciotto|diciannove|venti|trenta|quaranta|cinquanta|sessanta)";
+const PCT_WORD_IT = `${SPELLED_IT}\\s+per\\s+cento`;
+const QUAL_NUM_IT = `(?:\\d{1,3}\\s*%|${PCT_WORD_IT})`;
+const RISK_NOUN_IT = "(?:rischio|probabilità)";
+const RESULT_VERB_IT =
+  "(?:la\\s+(?:colloca|mette|classifica|pone)|rientra\\s+(?:in|nella)|si\\s+trova\\s+(?:in|nella)|ricade\\s+in)";
+const SPELLED_PL =
+  "(?:zero|jeden|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt)";
+const PCT_WORD_PL = `${SPELLED_PL}\\s+procent`;
+const QUAL_NUM_PL = `(?:\\d{1,3}\\s*%|${PCT_WORD_PL})`;
+const RISK_NOUN_PL = "(?:ryzyk\\w*|prawdopodobieństw\\w*)";
+const RESULT_VERB_PL =
+  "(?:umieszcza\\s+(?:cię|pana|panią)|klasyfikuje\\s+(?:cię|pana|panią)|znajdujesz\\s+się\\s+w|wpadasz\\s+w|kwalifikuje\\s+(?:cię|pana|panią))";
+
 const RISK_PATTERNS: Record<Locale, readonly RegExp[]> = {
   en: [
     // (1) digit percent adjacent to a risk noun, either order
@@ -327,21 +365,53 @@ const RISK_PATTERNS: Record<Locale, readonly RegExp[]> = {
     /\brisque\s+(?:est\s+)?(?:de\s+|d['’])?(?:environ\s+|~)?\d{1,3}\s*%/i,
     /\b\d{1,3}\s*%\s+(?:de\s+)?(?:risque|probabilit[ée]|chance)/i,
     /\brisque\s+(?:cardiovasculaire|cardiaque|d'avc|de\s+mortalit[ée])\s+[àa]\s+(?:10|dix)\s+ans\b/i,
+    // digit percent as a risk figure, either order (the noun need not be adjacent)
+    new RegExp(`\\b${RISK_NOUN_FR}\\b[^.?!]{0,40}\\d{1,3}\\s*%`, "i"),
+    new RegExp(`\\d{1,3}\\s*%[^.?!]{0,40}\\b${RISK_NOUN_FR}\\b`, "i"),
+    // spelled-out percent as a risk figure, either order
+    new RegExp(`\\b${RISK_NOUN_FR}\\b[^.?!]{0,40}\\b${PCT_WORD_FR}\\b`, "i"),
+    new RegExp(`\\b${PCT_WORD_FR}\\b[^.?!]{0,40}\\b${RISK_NOUN_FR}\\b`, "i"),
+    // named engine + qualifying number, either order
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,50}${QUAL_NUM_FR}`, "i"),
+    new RegExp(`${QUAL_NUM_FR}[^.?!]{0,50}\\b${ENGINE}\\b`, "i"),
+    // engine + categorical result assertion, numberless
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,60}${RESULT_VERB_FR}`, "i"),
   ],
   es: [
     /\briesgo\s+(?:del?|es\s+del?|de\s+aproximadamente)\s+(?:aproximadamente\s+|~)?\d{1,3}\s*%/i,
     /\b\d{1,3}\s*%\s+(?:de\s+)?(?:riesgo|probabilidad)/i,
     /\briesgo\s+(?:cardiovascular|card[íi]aco|de\s+ictus|de\s+mortalidad)\s+a\s+(?:10|diez)\s+a[ñn]os\b/i,
+    new RegExp(`\\b${RISK_NOUN_ES}\\b[^.?!]{0,40}\\d{1,3}\\s*%`, "i"),
+    new RegExp(`\\d{1,3}\\s*%[^.?!]{0,40}\\b${RISK_NOUN_ES}\\b`, "i"),
+    new RegExp(`\\b${RISK_NOUN_ES}\\b[^.?!]{0,40}\\b${PCT_WORD_ES}\\b`, "i"),
+    new RegExp(`\\b${PCT_WORD_ES}\\b[^.?!]{0,40}\\b${RISK_NOUN_ES}\\b`, "i"),
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,50}${QUAL_NUM_ES}`, "i"),
+    new RegExp(`${QUAL_NUM_ES}[^.?!]{0,50}\\b${ENGINE}\\b`, "i"),
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,60}${RESULT_VERB_ES}`, "i"),
   ],
   it: [
     /\brischio\s+(?:del?|dell'|[èe]\s+del?|di\s+circa)\s+(?:circa\s+|~)?\d{1,3}\s*%/i,
     /\b\d{1,3}\s*%\s+(?:di\s+)?(?:rischio|probabilit[àa])/i,
     /\brischio\s+(?:cardiovascolare|cardiaco|di\s+ictus|di\s+mortalit[àa])\s+a\s+(?:10|dieci)\s+anni\b/i,
+    new RegExp(`\\b${RISK_NOUN_IT}\\b[^.?!]{0,40}\\d{1,3}\\s*%`, "i"),
+    new RegExp(`\\d{1,3}\\s*%[^.?!]{0,40}\\b${RISK_NOUN_IT}\\b`, "i"),
+    new RegExp(`\\b${RISK_NOUN_IT}\\b[^.?!]{0,40}\\b${PCT_WORD_IT}\\b`, "i"),
+    new RegExp(`\\b${PCT_WORD_IT}\\b[^.?!]{0,40}\\b${RISK_NOUN_IT}\\b`, "i"),
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,50}${QUAL_NUM_IT}`, "i"),
+    new RegExp(`${QUAL_NUM_IT}[^.?!]{0,50}\\b${ENGINE}\\b`, "i"),
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,60}${RESULT_VERB_IT}`, "i"),
   ],
   pl: [
     /\bryzyko\s+(?:wynosi\s+|około\s+|~)?\d{1,3}\s*%/i,
     /\b\d{1,3}\s*%\s+(?:ryzyka|prawdopodobie[ńn]stwa)/i,
     /\bryzyk\w*\s+(?:sercowo[- ]naczyniow\w*|zawału|udaru|zgonu)\s+w\s+(?:ci[ąa]gu\s+)?(?:10|dziesi[ęe]ciu)\s+lat\b/i,
+    new RegExp(`\\b${RISK_NOUN_PL}\\b[^.?!]{0,40}\\d{1,3}\\s*%`, "i"),
+    new RegExp(`\\d{1,3}\\s*%[^.?!]{0,40}\\b${RISK_NOUN_PL}\\b`, "i"),
+    new RegExp(`\\b${RISK_NOUN_PL}\\b[^.?!]{0,40}\\b${PCT_WORD_PL}\\b`, "i"),
+    new RegExp(`\\b${PCT_WORD_PL}\\b[^.?!]{0,40}\\b${RISK_NOUN_PL}\\b`, "i"),
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,50}${QUAL_NUM_PL}`, "i"),
+    new RegExp(`${QUAL_NUM_PL}[^.?!]{0,50}\\b${ENGINE}\\b`, "i"),
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,60}${RESULT_VERB_PL}`, "i"),
   ],
 };
 
@@ -488,8 +558,47 @@ function splitSentences(text: string): string[] {
   return text.split(/(?<=[.?!\n])\s+/);
 }
 
-/** True when a dose-change imperative trips, honouring the continuation rule. */
-function doseTrips(subject: string, locale: Locale): boolean {
+/** Every leading-magnitude dose value in one sentence ("keep your 7.5 mg" → [7.5]). */
+const DOSE_VALUE_RE = new RegExp(`([\\d.,]+)\\s*${DOSE_UNIT}\\b`, "gi");
+function sentenceDoseValues(sentence: string): number[] {
+  const values: number[] = [];
+  let m: RegExpExecArray | null;
+  DOSE_VALUE_RE.lastIndex = 0;
+  while ((m = DOSE_VALUE_RE.exec(sentence)) !== null) {
+    // Normalise a comma decimal ("7,5") and a stray thousands/decimal tail.
+    const cleaned = m[1].replace(/\.(?=\d{3}\b)/g, "").replace(",", ".");
+    const value = Number.parseFloat(cleaned);
+    if (Number.isFinite(value)) values.push(value);
+  }
+  return values;
+}
+
+/** True when a dose value matches a scheduled dose (exact / ±2%). */
+function matchesSchedule(
+  values: readonly number[],
+  schedule: readonly number[],
+): boolean {
+  return values.some((v) =>
+    schedule.some((s) => Math.abs(v - s) <= Math.max(0.01, Math.abs(s) * 0.02)),
+  );
+}
+
+/**
+ * True when a dose-change imperative trips, honouring the continuation rule.
+ *
+ * v1.32.9 (Coach Guard II / G3 — M6/D7 end state): when `scheduleDoses` is
+ * supplied (the Coach passes the user's active doses), the continuation
+ * exemption ALSO requires the sentence's dose to match one the user is actually
+ * on. So "keep taking your 7.5 mg" passes only when 7.5 is a scheduled dose;
+ * "keep taking your 15 mg" when the schedule says 7.5 is a wrong maintenance
+ * dose and stays blocked. Without a schedule (every non-Coach surface) the
+ * Guard I phrase-anchored exemption stands unchanged.
+ */
+function doseTrips(
+  subject: string,
+  locale: Locale,
+  scheduleDoses?: readonly number[],
+): boolean {
   const bank = BANKS.dose;
   const patterns = locale === "en" ? bank.en : [...bank[locale], ...bank.en];
   const continuation =
@@ -500,11 +609,18 @@ function doseTrips(subject: string, locale: Locale): boolean {
     locale === "en"
       ? [DOSE_CHANGE_STEM.en]
       : [DOSE_CHANGE_STEM[locale], DOSE_CHANGE_STEM.en];
+  const gateOnSchedule =
+    scheduleDoses !== undefined && scheduleDoses.length > 0;
   for (const sentence of splitSentences(subject)) {
     if (!patterns.some((p) => p.test(sentence))) continue;
-    const exempt =
+    let exempt =
       continuation.some((p) => p.test(sentence)) &&
       !changeStem.some((p) => p.test(sentence));
+    if (exempt && gateOnSchedule) {
+      // The continuation phrasing is only trusted when the dose it names is one
+      // the user is actually on. An off-schedule maintenance dose is caught.
+      exempt = matchesSchedule(sentenceDoseValues(sentence), scheduleDoses);
+    }
     if (!exempt) return true;
   }
   return false;
@@ -518,10 +634,21 @@ function doseTrips(subject: string, locale: Locale): boolean {
  * then risk, then causal. Each contract runs the reader's locale bank plus the
  * EN bank.
  */
+export interface ScreenOptions {
+  /**
+   * v1.32.9 — the user's active medication doses (numeric magnitudes). When
+   * present, the dose continuation exemption is additionally gated on a match:
+   * a "keep taking your N mg" is trusted only when N is a scheduled dose. Only
+   * the Coach passes this; every other surface keeps the phrase-anchored rule.
+   */
+  scheduleDoses?: readonly number[];
+}
+
 export function screenModelOutput(
   text: string,
   locale: Locale,
   contracts: readonly OutboundContract[],
+  opts?: ScreenOptions,
 ): OutboundDecision {
   const subject = text ?? "";
   if (subject.trim().length === 0) return { block: false, reason: null };
@@ -530,7 +657,7 @@ export function screenModelOutput(
     if (contract === "dose") {
       // Dose is sentence-scoped so the continuation exemption cannot be
       // voided by a change stem in an unrelated sentence.
-      if (doseTrips(subject, locale)) {
+      if (doseTrips(subject, locale, opts?.scheduleDoses)) {
         return { block: true, reason: REASON_FOR_CONTRACT.dose };
       }
       continue;

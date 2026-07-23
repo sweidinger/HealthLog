@@ -113,7 +113,23 @@ function provenanceFromJson(raw: string | null): CoachProvenance | null {
       }
       if (cleaned.length > 0) keyValues = cleaned;
     }
-    return { windows, metrics, counts, ...(keyValues ? { keyValues } : {}) };
+    // v1.32.9 — the persisted per-turn tool figures the Grounding Ledger recalls
+    // on a later turn. Bare finite numbers only; a legacy row without the field
+    // is tolerated (undefined).
+    let groundedFigures: CoachProvenance["groundedFigures"];
+    if (Array.isArray(parsed.groundedFigures)) {
+      const nums = parsed.groundedFigures.filter(
+        (n): n is number => typeof n === "number" && Number.isFinite(n),
+      );
+      if (nums.length > 0) groundedFigures = nums;
+    }
+    return {
+      windows,
+      metrics,
+      counts,
+      ...(keyValues ? { keyValues } : {}),
+      ...(groundedFigures ? { groundedFigures } : {}),
+    };
   } catch {
     return null;
   }

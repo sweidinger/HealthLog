@@ -369,6 +369,16 @@ export interface CoachProvenance {
    * tools.
    */
   toolCalls?: ReadonlyArray<{ name: string; present: boolean }>;
+  /**
+   * v1.32.9 (Coach Guard II / G2) — the bare numeric magnitudes THIS turn's
+   * tool trace produced (server-computed figures the model was shown, never the
+   * model's own prose). A later turn re-registers them into the Grounding
+   * Ledger as `transcript:tool-trace`, so a figure the model fetched earlier
+   * reconciles when it is recalled — without the ledger ever reading assistant
+   * prose (D3). Label-less: strictly less identifying than `keyValues`, which
+   * already persists cited values. Absent when the turn fetched no figures.
+   */
+  groundedFigures?: ReadonlyArray<number>;
 }
 
 /**

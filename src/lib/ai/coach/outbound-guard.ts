@@ -52,12 +52,21 @@ export interface CoachOutboundDecision {
 /**
  * Screen an assembled assistant reply against the conversational contracts in
  * the reader's locale.
+ *
+ * v1.32.9 (Coach Guard II / G3) — `scheduleDoses` optionally gates the dose
+ * continuation exemption on the user's actual schedule: a "keep taking your
+ * N mg" is trusted only when N is a dose the user is on. Omitted by the
+ * non-Coach callers (nudge / reaction-line), which keep the phrase-anchored
+ * Guard I behaviour.
  */
 export function screenCoachReply(
   reply: string,
   locale: Locale,
+  scheduleDoses?: readonly number[],
 ): CoachOutboundDecision {
-  const decision = screenModelOutput(reply, locale, CONVERSATIONAL_CONTRACTS);
+  const decision = screenModelOutput(reply, locale, CONVERSATIONAL_CONTRACTS, {
+    scheduleDoses,
+  });
   return {
     block: decision.block,
     reason: (decision.reason as CoachOutboundReason | null) ?? null,

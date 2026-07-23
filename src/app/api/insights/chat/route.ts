@@ -103,9 +103,14 @@ import {
 } from "@/lib/ai/coach/tools";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
 import {
-  findUnverifiedCoachNumbers,
+  findUnverifiedCoachNumbersInLedger,
   stripUnverifiedNumbers,
 } from "@/lib/ai/coach/coach-prose-grounding";
+import {
+  buildGroundingLedger,
+  figuresForPersistence,
+} from "@/lib/ai/coach/grounding-ledger";
+import { getScheduledDoseValues } from "@/lib/medications/scheduled-doses";
 import { scrubUnknownLearnLinks } from "@/lib/ai/coach/learn-link-guard";
 import { parseSuggestReminder } from "@/lib/ai/coach/suggest-reminder";
 import { gateSuggestion } from "@/lib/ai/coach/suggest-gate";
@@ -270,6 +275,14 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // ── Conversation resolution ──────────────────────────────────
   let workingConversationId: string;
   let priorTurns: CoachTurn[] = [];
+  // v1.32.9 (Coach Guard II / G2) — cross-turn Grounding Ledger sources. Prior
+  // USER messages (numbers the user themselves stated) and the persisted
+  // per-turn tool figures of prior turns (`groundedFigures` — server-computed
+  // magnitudes, NEVER the assistant's prose, per D3). Both feed reconciliation
+  // so a figure recalled a turn later is not stripped, without a laundering
+  // path through assistant narration.
+  let priorUserMessages: string[] = [];
+  let priorToolFigures: number[] = [];
   // v1.11.1 — rolling summary of the elided older turns, read stale-while-
   // revalidate; null for a fresh conversation or when none is on file.
   let priorSummary: string | null = null;
@@ -316,6 +329,16 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       role: m.role,
       content: m.content,
     }));
+    // Ledger cross-turn sources (D3-safe): user-authored numbers + the
+    // persisted tool figures of prior turns. Assistant PROSE is never read.
+    priorUserMessages = existing.messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content);
+    priorToolFigures = existing.messages.flatMap((m) =>
+      m.metricSource?.groundedFigures
+        ? [...m.metricSource.groundedFigures]
+        : [],
+    );
 
     // v1.4.43 W13 M-3 — replay-injection guard. `detectRefusal` runs
     // only on the inbound `message` per turn, so an injection that
@@ -409,6 +432,11 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // v1.16.0 — composed self-context: structured questionnaire fields
   // plus age/gender merged in from the User profile.
   const aboutMe = await getSelfContextTextForUser(userId, locale);
+  // v1.32.9 (Coach Guard II / G3) — the user's active medication doses, for the
+  // Grounding Ledger's `schedule` source AND the schedule-gated dose
+  // continuation exemption. Fail-open: a read failure yields an empty set, which
+  // keeps the Guard I phrase-anchored dose behaviour.
+  const scheduleDoses = await getScheduledDoseValues(userId).catch(() => []);
   // v1.22 (B2/F6) — the canonical system-prompt module is owned elsewhere, so
   // the two memory/action clauses are appended at assembly time here: one
   // teaches the model to emit `---REMEMBER---` (durable "remind me" capture),
@@ -890,7 +918,7 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
     // the system-prompt GLP-1/grounding contracts. On a trip the turn is
     // replaced with a calm, grounded fallback and any reminder suggestion /
     // key-value provenance is dropped — the user never sees the unsafe text.
-    const outbound = screenCoachReply(replyText, locale);
+    const outbound = screenCoachReply(replyText, locale, scheduleDoses);
     if (outbound.block && outbound.reason) {
       replyText = coachOutboundFallback(outbound.reason, locale);
       annotate({
@@ -919,32 +947,61 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
     // (`snapshot.sections`, which already carries the correlations-snapshot block).
     // Exactly one is populated per turn; the grading, tolerance, and exemptions are
     // identical, so a number the model invents is flagged the same way on both.
-    const authoritativePayloads =
+    // v1.32.9 (Coach Guard II / G2+G3) — grade the prose against the typed
+    // Grounding Ledger rather than a per-turn magnitude bag. Activation is
+    // unchanged from Guard I: the ledger is graded ONLY when THIS turn delivered
+    // fresh figures the model was told to ground against (a present tool result
+    // / pinned workout, or the full snapshot on the no-tools path). The
+    // cross-turn, memory, schedule, reference, and guided sources only WIDEN an
+    // active grading — they never ACTIVATE it, so a snapshot figure the model
+    // cited on a no-tool turn is still left alone (the v1.32.1 regression guard
+    // holds). Assistant prose is never a ledger source (D3).
+    const activatingPayloads =
       toolResultPayloads.length > 0
         ? toolResultPayloads
         : noToolsSnapshotPayloads;
-    if (!outbound.block && authoritativePayloads.length > 0) {
-      const unverified = findUnverifiedCoachNumbers(
-        replyText,
-        authoritativePayloads,
-        locale,
-      );
-      if (unverified.length > 0) {
-        const { prose: corrected, stripped } = stripUnverifiedNumbers(
+    let groundedFigures: number[] = [];
+    if (activatingPayloads.length > 0) {
+      const ledger = buildGroundingLedger({
+        toolPayloads: activatingPayloads,
+        priorToolFigures,
+        priorUserMessages,
+        // The self-context (goals / about-me) rides the system prompt on both
+        // paths — the ledger's `memory` source.
+        memoryTexts: aboutMe ? [aboutMe] : [],
+        scheduleDoses,
+        // Reference grounding rides the prompt only on the no-tools
+        // full-snapshot path; the guided block rides both paths.
+        referenceGrounding:
+          !toolMode && includeFullSnapshot ? snapshot.referenceGrounding : null,
+        guidedBlock: turnContext.guidedBlock,
+      });
+      // Persist THIS turn's tool figures (bare magnitudes) so a LATER turn can
+      // recall them via the ledger — D3: the tool trace, never the prose.
+      groundedFigures = figuresForPersistence(ledger);
+      if (!outbound.block) {
+        const unverified = findUnverifiedCoachNumbersInLedger(
           replyText,
-          unverified,
+          ledger,
+          locale,
         );
-        replyText = corrected;
-        annotate({
-          action: { name: "coach.prose.number_unverified" },
-          meta: {
-            flagged: unverified.length,
-            stripped,
-            // No raw values — just the count + truncated tokens for ops triage.
-            tokens: unverified.slice(0, 6).map((u) => u.source),
-            promptVersion: PROMPT_VERSION,
-          },
-        });
+        if (unverified.length > 0) {
+          const { prose: corrected, stripped } = stripUnverifiedNumbers(
+            replyText,
+            unverified,
+          );
+          replyText = corrected;
+          annotate({
+            action: { name: "coach.prose.number_unverified" },
+            meta: {
+              flagged: unverified.length,
+              stripped,
+              // No raw values — just the count + truncated tokens for ops triage.
+              tokens: unverified.slice(0, 6).map((u) => u.source),
+              promptVersion: PROMPT_VERSION,
+            },
+          });
+        }
       }
     }
 
@@ -1048,6 +1105,12 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
               present: t.present,
             })),
           }
+        : {}),
+      // v1.32.9 (Coach Guard II / G2) — persist THIS turn's tool figures so a
+      // later turn's Grounding Ledger can recall them (D3-safe: tool trace, not
+      // prose). Dropped on a blocked turn (its figures rode the discarded reply).
+      ...(!outbound.block && groundedFigures.length > 0
+        ? { groundedFigures }
         : {}),
     };
     if (sentinel.malformed) {

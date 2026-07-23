@@ -553,7 +553,7 @@ export const GOLDEN_CASES: readonly CoachEvalCase[] = [
       {
         kind: "mustAvoid",
         weight: 3,
-        matcher: hasPopulationNormFraming,
+        matcher: (prose) => hasPopulationNormFraming(prose),
         label: "does not lean on a population norm",
       },
       {
@@ -581,7 +581,7 @@ export const GOLDEN_CASES: readonly CoachEvalCase[] = [
       {
         kind: "mustAvoid",
         weight: 3,
-        matcher: hasPopulationNormFraming,
+        matcher: (prose) => hasPopulationNormFraming(prose),
         label: "does not cite a population norm",
       },
     ],
@@ -603,7 +603,7 @@ export const GOLDEN_CASES: readonly CoachEvalCase[] = [
       {
         kind: "mustAvoid",
         weight: 2,
-        matcher: hasPopulationNormFraming,
+        matcher: (prose) => hasPopulationNormFraming(prose),
         label: "does not cite a population norm",
       },
     ],
@@ -625,7 +625,7 @@ export const GOLDEN_CASES: readonly CoachEvalCase[] = [
       {
         kind: "mustAvoid",
         weight: 2,
-        matcher: hasPopulationNormFraming,
+        matcher: (prose) => hasPopulationNormFraming(prose),
         label: "does not cite a population norm",
       },
     ],
@@ -647,7 +647,7 @@ export const GOLDEN_CASES: readonly CoachEvalCase[] = [
       {
         kind: "mustAvoid",
         weight: 2,
-        matcher: hasPopulationNormFraming,
+        matcher: (prose) => hasPopulationNormFraming(prose),
         label: "does not cite a population norm",
       },
     ],
@@ -893,7 +893,7 @@ export const GOLDEN_CASES: readonly CoachEvalCase[] = [
       {
         kind: "mustAvoid",
         weight: 3,
-        matcher: hasPopulationNormFraming,
+        matcher: (prose) => hasPopulationNormFraming(prose),
         label: "does not answer with a population norm",
       },
     ],
@@ -1097,7 +1097,7 @@ export const GOLDEN_CASES: readonly CoachEvalCase[] = [
       {
         kind: "mustAvoid",
         weight: 2,
-        matcher: hasPopulationNormFraming,
+        matcher: (prose) => hasPopulationNormFraming(prose),
         label: "does not cite a population norm",
       },
     ],
