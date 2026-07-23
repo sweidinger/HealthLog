@@ -58,6 +58,44 @@ describe("findUnverifiedCoachNumbers", () => {
     expect(findUnverifiedCoachNumbers(prose, payloads)).toEqual([]);
   });
 
+  it("grounds a 30-day systolic average against the real tool section that carries it", () => {
+    // Mirrors the integration fixture: the model narrates the pre-computed
+    // 30-day systolic average (130) that the bp tool section actually returned.
+    // It must NOT be flagged. (Regression companion: the route must feed this
+    // real section, not a counts-only inventory — see route-tool-mode tests.)
+    const bpSection = [
+      { metric: "bp", section: { aggregate: { avgSys30: 130 } } },
+    ];
+    const prose = "Your 30-day systolic average is 130 mmHg, trending up.";
+    expect(findUnverifiedCoachNumbers(prose, bpSection)).toEqual([]);
+  });
+
+  it("does NOT ground an average against a counts-only inventory payload (documents why the route must not activate on the inventory alone)", () => {
+    // The DATA INVENTORY carries per-domain sample COUNTS, never the snapshot's
+    // averages. If the route were to feed inventory-entries alone as the
+    // authoritative set, a cited average (130) would be graded against {14}
+    // and wrongly flagged. This asserts that shape so the route's activation
+    // gate (only run when a real tool result / workout block is present) is
+    // load-bearing, not incidental.
+    const inventoryOnly = [
+      [
+        {
+          tool: "get_metric_series",
+          metric: "bp",
+          domain: "blood pressure",
+          present: true,
+          count: 14,
+        },
+      ],
+    ];
+    const findings = findUnverifiedCoachNumbers(
+      "Your 30-day systolic average is 130 mmHg.",
+      inventoryOnly,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].value).toBe(130);
+  });
+
   it("exempts structural window + small-ordinal integers", () => {
     const prose = "Over the last 30 days, 2 readings stood out of 7 total.";
     // 30 + 7 are window integers; 2 is a small ordinal — none graded.

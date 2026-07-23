@@ -651,20 +651,28 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
         result = loop.result;
         workingProviderType = loop.workingProviderType;
         toolTrace = loop.toolTrace;
-        toolResultPayloads = [
+        // v1.32.1 — the numeric verifier ACTIVATES only when this turn actually
+        // delivered figures the model was told to ground against: a pinned
+        // workout-evidence block or a present tool result. The DATA INVENTORY
+        // manifest (sample counts per domain) is NOT an activator — it rides
+        // every tool-mode prompt even on a turn where the model answered
+        // without calling a tool, and on that turn the base prompt deliberately
+        // carries no pre-computed figures (the model must fetch them), so the
+        // verifier must stay dormant and leave the prompt-level grounding rule
+        // as the backstop, exactly as on `main`. Activating it off the
+        // counts-only inventory would flag a snapshot figure the model cited
+        // without a fresh tool call as ungrounded (a real regression caught by
+        // the integration suite). When the turn IS active, the inventory counts
+        // still WIDEN the authoritative set so a plain count restatement
+        // ("you've logged 42 BP readings") stays grounded.
+        const presentToolPayloads = [
           ...(workoutEvidence === null ? [] : [workoutEvidence]),
-          // v1.32.1 (false-positive closure) — the DATA INVENTORY manifest
-          // (sample counts per domain) rides EVERY tool-mode turn's prompt
-          // regardless of which tools actually ran this turn
-          // (`renderDataInventory`) — it is server-computed and handed to the
-          // model exactly like `workoutEvidence` above, so a plain restatement
-          // of a domain's sample count ("you've logged 42 BP readings") is
-          // grounded even when the model did not also call a retrieval tool
-          // for that domain this turn. Splicing it in here closes that gap
-          // the same way `workoutEvidence` already does.
-          inventory.entries,
           ...(loop.toolResults ?? []).map((r) => r.data),
         ];
+        toolResultPayloads =
+          presentToolPayloads.length > 0
+            ? [...presentToolPayloads, inventory.entries]
+            : [];
         totalTokensSpent = loop.totalTokens;
         cachedTokensSpent = loop.cachedTokens;
       } else {

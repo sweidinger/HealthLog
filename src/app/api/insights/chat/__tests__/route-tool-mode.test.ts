@@ -479,6 +479,65 @@ describe("coach chat — tool-mode routing (F1)", () => {
     expect(content).toContain("320");
   });
 
+  it("keeps the verifier dormant when NO tool returned figures this turn, even though the inventory rides the prompt (v1.32.1 regression)", async () => {
+    // Regression guard for the integration failure: in tool mode the model can
+    // answer a quick turn WITHOUT calling any tool (empty toolResults). The
+    // always-sent DATA INVENTORY carries counts only, never the snapshot's
+    // pre-computed averages. The verifier must NOT activate off the inventory
+    // alone — otherwise a figure the model narrated from the snapshot (a
+    // 30-day systolic average) is wrongly stripped. Matches `main`'s "no tool
+    // figures → skip, prompt-level grounding is the backstop" contract.
+    resolveProviderChain.mockResolvedValue([
+      { providerType: "anthropic", instance: {} },
+    ]);
+    (buildCoachDataInventory as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      {
+        entries: [
+          {
+            tool: "get_metric_series",
+            metric: "bp",
+            domain: "blood pressure",
+            present: true,
+            count: 14,
+          },
+        ],
+        restMode: false,
+        cycleEnabled: false,
+        window: "last30days",
+        probeScope: { sources: ["bp"], window: "last30days" },
+      },
+    );
+    const reply = "Your 30-day systolic average is 130 mmHg, trending up.";
+    (parseKeyValuesSentinel as ReturnType<typeof vi.fn>).mockReturnValue({
+      prose: reply,
+      keyValues: [],
+      malformed: false,
+      malformedEntries: [],
+    });
+    (parseSuggestReminder as ReturnType<typeof vi.fn>).mockReturnValue({
+      prose: reply,
+    });
+    (runCoachToolLoop as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => ({
+        result: { content: reply, tokensUsed: 60, model: "m" },
+        workingProviderType: "anthropic",
+        totalTokens: 60,
+        rounds: 1,
+        toolTrace: [],
+        // No tool returned figures this turn — the model answered directly.
+        toolResults: [],
+      }),
+    );
+    await postAndDrain({ message: "How is my blood pressure this month?" });
+    const calls = (appendMessage as ReturnType<typeof vi.fn>).mock.calls;
+    const assistantCall = calls.find(
+      (c) => (c[0] as { role: string }).role === "assistant",
+    );
+    const content = (assistantCall?.[0] as { content: string }).content;
+    expect(content).not.toContain("[unverified]");
+    expect(content).toContain("130");
+  });
+
   it("falls back to the snapshot-stuffing path when a provider lacks tools", async () => {
     resolveProviderChain.mockResolvedValue([
       { providerType: "anthropic", instance: {} },
