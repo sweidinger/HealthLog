@@ -113,10 +113,31 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     );
   }
 
+  // v1.32.1 — preserve an existing auth token when the client sends an
+  // empty one (issue #63). GET never returns the secret (`hasAuthToken`
+  // only), so both native and web clients correctly omit — or round-trip
+  // an empty string through — the field on any unrelated edit (e.g.
+  // toggling `enabled`). Reconstructing `config` from scratch without this
+  // fallback silently dropped the token on every such save. Mirrors the
+  // identical `headerValue` preserve-on-empty contract in
+  // `src/app/api/settings/webhook/route.ts`. A non-empty value replaces it.
+  let nextAuthToken = authToken || undefined;
+  if (!nextAuthToken) {
+    const existing = await prisma.notificationChannel.findUnique({
+      where: { userId_type: { userId: user.id, type: "NTFY" } },
+    });
+    if (existing) {
+      const prev = JSON.parse(decrypt(existing.config)) as {
+        authToken?: string;
+      };
+      nextAuthToken = prev.authToken || undefined;
+    }
+  }
+
   const config = JSON.stringify({
     serverUrl: serverUrl || "https://ntfy.sh",
     topic: topic || "",
-    ...(authToken ? { authToken } : {}),
+    ...(nextAuthToken ? { authToken: nextAuthToken } : {}),
   });
 
   const encryptedConfig = encrypt(config);
