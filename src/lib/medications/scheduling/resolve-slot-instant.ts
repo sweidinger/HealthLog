@@ -33,6 +33,7 @@ import {
   type CanonicalSchedule,
   type RecurrenceContext,
 } from "@/lib/medications/scheduling/recurrence";
+import { hhmmToMinutesOrNull } from "@/lib/medications/scheduling/hhmm";
 import { localHmAsUtc } from "@/lib/tz/local-day";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 
@@ -238,7 +239,7 @@ function canonicalSlotInstant(
   timeOfDay: string,
   userTz: string,
 ): Date {
-  const minutes = hhmmToMinutes(timeOfDay);
+  const minutes = hhmmToMinutesOrNull(timeOfDay);
   if (minutes === null) return occAt;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -267,8 +268,8 @@ function canonicalSlotInstant(
  * half-span behaviour unchanged.
  */
 function snapToleranceMs(schedule: CanonicalSchedule): number {
-  const startMin = hhmmToMinutes(schedule.windowStart);
-  const endMin = hhmmToMinutes(schedule.windowEnd);
+  const startMin = hhmmToMinutesOrNull(schedule.windowStart);
+  const endMin = hhmmToMinutesOrNull(schedule.windowEnd);
   let halfSpanMs: number;
   if (startMin === null || endMin === null) {
     halfSpanMs = DEFAULT_TOLERANCE_MS;
@@ -281,7 +282,7 @@ function snapToleranceMs(schedule: CanonicalSchedule): number {
   let toleranceMs = halfSpanMs;
 
   const slots = effectiveTimesOfDay(schedule)
-    .map(hhmmToMinutes)
+    .map(hhmmToMinutesOrNull)
     .filter((m): m is number => m !== null)
     .sort((a, b) => a - b);
   if (slots.length > 1) {
@@ -325,7 +326,7 @@ function graceToleranceMs(schedule: CanonicalSchedule): number {
       : ONE_MINUTE_MS;
 
   const slots = effectiveTimesOfDay(schedule)
-    .map(hhmmToMinutes)
+    .map(hhmmToMinutesOrNull)
     .filter((m): m is number => m !== null)
     .sort((a, b) => a - b);
   if (slots.length > 1) {
@@ -352,12 +353,4 @@ function effectiveTimesOfDay(schedule: CanonicalSchedule): string[] {
   return schedule.timesOfDay.length > 0
     ? schedule.timesOfDay
     : [schedule.windowStart];
-}
-
-function hhmmToMinutes(hhmm: string): number | null {
-  const [hStr, mStr] = hhmm.split(":");
-  const h = Number(hStr);
-  const m = Number(mStr);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-  return h * 60 + m;
 }

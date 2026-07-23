@@ -21,6 +21,11 @@
  */
 
 import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
+import { hhmmToMinutes } from "@/lib/medications/scheduling/hhmm";
+
+// Re-exported so the existing `dose-window` consumers (and its unit suite)
+// keep their import site while the implementation lives in the shared util.
+export { hhmmToMinutes };
 
 /** One persisted explicit window. Matches `doseWindowEntrySchema`. */
 export interface DoseWindowEntry {
@@ -39,12 +44,6 @@ export interface DoseWindowEntry {
 export type DoseWindowScale = "intraday" | "dayScale";
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
-/** Minutes-since-midnight for a regex-valid HH:mm. */
-export function hhmmToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":");
-  return Number(h) * 60 + Number(m);
-}
 
 /** Wrap minutes-since-midnight back to HH:mm (clamps into the day, 24h wrap). */
 export function minutesToHhmm(total: number): string {

@@ -32,6 +32,7 @@ import {
   recomputeMedicationComplianceForDay,
 } from "@/lib/rollups/medication-compliance-rollups";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { hhmmToMinutesOrNull } from "@/lib/medications/scheduling/hhmm";
 import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { NextRequest } from "next/server";
 
@@ -39,9 +40,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 /** Parse "HH:mm" into minutes-of-day; NaN-safe (malformed → 0). */
 function hhmmToMinutes(value: string): number {
-  const [h, m] = value.split(":").map(Number);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
-  return h * 60 + m;
+  return hhmmToMinutesOrNull(value) ?? 0;
 }
 
 /**
