@@ -132,9 +132,9 @@ describe("screenModelOutput — issue #587 ordinary wellness-score wording", () 
     });
   }
 
-  it("still blocks the literal named risk engine SCORE2", () => {
+  it("blocks a named engine paired with a fabricated number", () => {
     const d = screenModelOutput(
-      "Based on SCORE2, your cardiovascular risk profile looks elevated.",
+      "Based on SCORE2, your risk sits at about 14%.",
       "en",
       CONVERSATIONAL_CONTRACTS,
     );
@@ -142,16 +142,176 @@ describe("screenModelOutput — issue #587 ordinary wellness-score wording", () 
     expect(d.reason).toBe("risk_score");
   });
 
-  it("still blocks Framingham, ASCVD, and QRISK by name", () => {
+  it("blocks a named engine paired with a categorical result verdict (numberless)", () => {
     for (const engine of [
-      "your Framingham result was concerning",
-      "the ASCVD estimate points to elevated risk",
-      "your QRISK figure came back high",
+      "Based on Framingham, you fall into the intermediate-risk category.",
+      "SCORE2 would put you in the high-risk band given your profile.",
+      "QRISK classifies you as elevated-risk group.",
     ]) {
       const d = screenModelOutput(engine, "en", CONVERSATIONAL_CONTRACTS);
       expect(d.block).toBe(true);
       expect(d.reason).toBe("risk_score");
     }
+  });
+
+  it("PASSES a bare engine mention with no asserted result or figure (D1/D4)", () => {
+    // Naming what ASCVD is — education or a refusal — is not a fabrication.
+    for (const mention of [
+      "I can't compute your ASCVD, that's for your clinician.",
+      "An ASCVD score is something a doctor calculates from lab values.",
+      "Framingham and QRISK are two examples of cardiovascular risk tools.",
+    ]) {
+      const d = screenModelOutput(mention, "en", CONVERSATIONAL_CONTRACTS);
+      expect(d.block).toBe(false);
+      expect(d.reason).toBeNull();
+    }
+  });
+});
+
+// ── D1/D4 — hedge-then-assert, spelled-out percent, model-perfect refusal ──
+
+describe("screenModelOutput — risk narrowing (D1/D4/M4)", () => {
+  it("blocks the hedge-then-assert bypass (H1) — the 14% is caught", () => {
+    const d = screenModelOutput(
+      "I can't compute your exact ASCVD score, but based on your numbers your risk is about 14%.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("risk_score");
+  });
+
+  it("blocks a spelled-out percent risk figure (H4b)", () => {
+    for (const text of [
+      "Your ten-year cardiovascular risk is roughly twelve percent.",
+      "Your ten-year risk is roughly twelve percent.",
+    ]) {
+      const d = screenModelOutput(text, "en", CONVERSATIONAL_CONTRACTS);
+      expect(d.block).toBe(true);
+      expect(d.reason).toBe("risk_score");
+    }
+  });
+
+  it("blocks a numberless categorical engine result (H4a)", () => {
+    const d = screenModelOutput(
+      "SCORE2 would put you in the high-risk band.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("risk_score");
+  });
+
+  it("blocks a numberless categorical risk-level verdict on the horizon", () => {
+    const d = screenModelOutput(
+      "Your 10-year cardiovascular risk is elevated — consider stepping your dose up.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("risk_score");
+  });
+
+  it("PASSES a model-perfect refusal that names the horizon and the engine (M4)", () => {
+    const d = screenModelOutput(
+      "I can't calculate a 10-year cardiovascular risk for you — an ASCVD score is something your clinician computes with lab values I don't have.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(false);
+    expect(d.reason).toBeNull();
+  });
+
+  it("blocks a DE spelled-out percent risk figure and a DE engine result", () => {
+    expect(
+      screenModelOutput(
+        "Dein Risiko liegt bei etwa zwölf Prozent.",
+        "de",
+        CONVERSATIONAL_CONTRACTS,
+      ).block,
+    ).toBe(true);
+    expect(
+      screenModelOutput(
+        "SCORE2 würde dich in den hohen Risikobereich einordnen.",
+        "de",
+        CONVERSATIONAL_CONTRACTS,
+      ).block,
+    ).toBe(true);
+  });
+
+  it("PASSES a DE bare-horizon refusal with no figure", () => {
+    const d = screenModelOutput(
+      "Ein 10-Jahres-Risiko kann ich dir nicht berechnen, das macht deine Ärztin.",
+      "de",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(false);
+  });
+});
+
+// ── D7 — dose continuation-exclusion ─────────────────────────────────────
+
+describe("screenModelOutput — dose continuation-exclusion (D7)", () => {
+  it("PASSES an adherence-supporting continuation of the current dose", () => {
+    const d = screenModelOutput(
+      "You should keep taking your prescribed 7.5 mg exactly as directed.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(false);
+    expect(d.reason).toBeNull();
+  });
+
+  it("still blocks 'keep in mind that trying 5 mg' — no maintenance anchor", () => {
+    const d = screenModelOutput(
+      "You should keep in mind that trying 5 mg could help.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("dose_prescription");
+  });
+
+  it("still blocks 'continue tapering to 2.4 mg' — a change stem voids the exemption", () => {
+    for (const text of [
+      "You should continue tapering to 2.4 mg next week.",
+      "Continue tapering to 2.4 mg next week.",
+    ]) {
+      const d = screenModelOutput(text, "en", CONVERSATIONAL_CONTRACTS);
+      expect(d.block).toBe(true);
+      expect(d.reason).toBe("dose_prescription");
+    }
+  });
+
+  it("still blocks 'you should try 5 mg' — exclusion is of continuation, not requirement of change", () => {
+    const d = screenModelOutput(
+      "You should try 5 mg and see how it feels.",
+      "en",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("dose_prescription");
+  });
+
+  it("PASSES a DE continuation that trips a DE dose pattern but is anchored", () => {
+    // "du solltest … 7,5 mg" trips the DE consider/should dose pattern; the
+    // "weiterhin … wie verordnet" maintenance anchor exempts it.
+    const d = screenModelOutput(
+      "Du solltest weiterhin deine 7,5 mg wie verordnet einnehmen.",
+      "de",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(false);
+  });
+
+  it("still blocks a DE dose increase even with a continuation word present", () => {
+    const d = screenModelOutput(
+      "Du solltest weiterhin erhöhen, und zwar auf 5 mg.",
+      "de",
+      CONVERSATIONAL_CONTRACTS,
+    );
+    expect(d.block).toBe(true);
+    expect(d.reason).toBe("dose_prescription");
   });
 });
 

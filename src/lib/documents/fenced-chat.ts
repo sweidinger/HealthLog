@@ -449,6 +449,7 @@ Reply now as the assistant, grounded ONLY in the documents above, in ${
       const unverified = findUnverifiedCoachNumbers(
         replyText,
         groundingSources,
+        locale,
       );
       if (unverified.length > 0) {
         const { prose, stripped } = stripUnverifiedNumbers(

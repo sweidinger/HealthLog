@@ -82,9 +82,9 @@ const DOSE_PATTERNS: Record<Locale, readonly RegExp[]> = {
       `\\b(?:step|move|increase|raise|bump|titrat\\w*|go|ramp|push|up)\\s+(?:it\\s+)?(?:up\\s+|your\\s+dose\\s+)?(?:to|by)\\s+[\\d.,]+\\s*${DOSE_UNIT}\\b`,
       "i",
     ),
-    // lower/reduce/cut/drop/decrease/back off to|by N unit
+    // lower/reduce/cut/drop/decrease/back off/taper(ing) to|by N unit
     new RegExp(
-      `\\b(?:lower|reduce|cut|drop|decrease|back\\s+off|taper)\\s+(?:it\\s+|your\\s+dose\\s+)?(?:to|by)\\s+[\\d.,]+\\s*${DOSE_UNIT}\\b`,
+      `\\b(?:lower|reduce|cut|drop|decrease|back\\s+off|taper\\w*)\\s+(?:it\\s+|your\\s+dose\\s+)?(?:to|by)\\s+[\\d.,]+\\s*${DOSE_UNIT}\\b`,
       "i",
     ),
     // consider/try/should/recommend ... N unit
@@ -209,25 +209,119 @@ const DOSE_PATTERNS: Record<Locale, readonly RegExp[]> = {
  * Risk-score fabrication banks. The model is grounded on a server-computed
  * snapshot and must never invent a clinical risk percentage or a named
  * risk-engine score — those are numbers the server never computed.
+ *
+ * v1.32.7 (Coach Guard I — D1/D4). The bare-engine and bare-horizon patterns
+ * are GONE: a bare mention ("an ASCVD score is what your clinician computes")
+ * is education or a refusal, exactly what the system prompt asks for, and the
+ * old bank blocked it — the "generic clinical-risk refusal" loop the
+ * maintainer kept hitting. A fabrication is the ASSERTION, not the mention:
+ *
+ *   - a qualifying NUMBER — a digit percent, a spelled-out percent word
+ *     ("roughly twelve percent"), or "score of N" — attached to a risk noun,
+ *     the 10-year horizon phrase, or a named engine, OR
+ *   - a categorical engine/horizon RESULT — "SCORE2 would put you in the
+ *     high-risk band" — even with no digits.
+ *
+ * The horizon token itself ("10-year … risk") is NOT a qualifying number, so a
+ * model-perfect refusal that names it passes with no exemption. There is
+ * deliberately no refusal-context exemption (it was a hedge-then-assert bypass:
+ * "I can't compute your ASCVD, but your risk is about 14%").
  */
+// Spelled-out cardinal numbers (0–99) so a digit-less "twelve percent" still
+// counts as a fabricated figure, not an educational aside.
+const SPELLED_EN =
+  "(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?";
+const PCT_WORD_EN = `${SPELLED_EN}\\s+(?:percent|per\\s+cent)`;
+const QUAL_NUM_EN = `(?:\\d{1,3}\\s*%|${PCT_WORD_EN}|score\\s+of\\s+\\d)`;
+const RISK_NOUN_EN = "(?:risk|chance|probability|likelihood)";
+const ENGINE = "(?:framingham|ascvd|score2|qrisk)";
+const HORIZON_EN =
+  "(?:10[- ]year|ten[- ]year|lifetime)\\s+(?:cardiovascular|cardiac|heart|stroke|mortality|cvd|ascvd)\\s+risk";
+const RESULT_VERB_EN =
+  "(?:puts?\\s+you|would\\s+put\\s+you|placing\\s+you|places?\\s+you|you\\s+fall|you'?d\\s+fall|classif\\w*\\s+you)";
+const RISK_BAND_EN =
+  "(?:high|higher|intermediate|elevated|moderate|low|borderline)[- ]?risk\\s+(?:band|category|group|range)";
+// A categorical VERDICT on the engine / horizon itself ("your 10-year risk IS
+// elevated") — a fabricated result with no digits. The horizon phrase and a
+// named engine are inherently about-this-user, so an attached risk-level
+// adjective is an assertion, not education. A model-perfect refusal names the
+// horizon but attaches no such adjective, so it still passes.
+const RISK_LEVEL_EN =
+  "(?:elevated|high|higher|intermediate|moderate|borderline|raised|concerning|significant)";
+const RISK_VERDICT_EN = `(?:is|are|looks?|appears?|seems?|sits?|remains?|comes?\\s+back|runs?|suggests?|indicat\\w*|shows?|reflects?|points?\\s+to)\\s+(?:\\w+\\s+){0,2}${RISK_LEVEL_EN}`;
+const SPELLED_DE =
+  "(?:null|eins?|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig)";
+const PCT_WORD_DE = `${SPELLED_DE}\\s+prozent`;
+const QUAL_NUM_DE = `(?:\\d{1,3}\\s*%|${PCT_WORD_DE})`;
+const RISK_NOUN_DE = "(?:risiko|wahrscheinlichkeit|chance)";
+const HORIZON_DE = "(?:10[- ]jahres|zehn[- ]jahres|lebenszeit)[- ]?risiko";
+const RESULT_VERB_DE =
+  "(?:ordnet\\s+(?:dich|sie)\\s+ein|stuft\\s+(?:dich|sie)\\s+ein|f[äa]llst\\s+in|einordnen|liegst\\s+im)";
+const RISK_BAND_DE =
+  "(?:hoh|niedrig|mittler|erhöht|moderat|gering)\\w*[- ]?risiko(?:bereich|kategorie|gruppe|band)";
+const RISK_LEVEL_DE =
+  "(?:erhöht|hoch|höher|mittel|mäßig|grenzwertig|besorgniserregend|deutlich)";
+const RISK_VERDICT_DE = `(?:ist|liegt|erscheint|wirkt|bleibt|zeigt|deutet\\s+auf|weist\\s+auf)\\s+(?:\\w+\\s+){0,2}${RISK_LEVEL_DE}`;
+
 const RISK_PATTERNS: Record<Locale, readonly RegExp[]> = {
   en: [
-    /\b\d{1,3}\s*%\s+(?:risk|chance|probability|likelihood)\b/i,
-    /\b(?:risk|chance|probability|likelihood)\s+(?:of|is|at)\s+(?:about\s+|roughly\s+|~)?\d{1,3}\s*%/i,
-    /\b(?:10[- ]year|ten[- ]year|lifetime)\s+(?:cardiovascular|cardiac|heart|stroke|mortality|cvd|ascvd)\s+risk\b/i,
-    // Named risk engines are fabrications on any surface — the server runs
-    // none. `score2?` (the `2` optional) was the #587 bug: it matched bare
-    // "score" too, so every mention of this app's OWN computed scores
-    // (Sleep Score, Readiness Score, Health Score, …) tripped the named-
-    // engine bank. SCORE2 is a specific clinical risk calculator (like
-    // Framingham/ASCVD/QRISK) — only the literal name is a fabrication
-    // signal; the bare word "score" carries none on its own.
-    /\b(?:framingham|ascvd|score2|qrisk)\b/i,
+    // (1) digit percent adjacent to a risk noun, either order
+    new RegExp(`\\b\\d{1,3}\\s*%\\s+${RISK_NOUN_EN}\\b`, "i"),
+    new RegExp(
+      `\\b${RISK_NOUN_EN}\\s+(?:of|is|at|around|about|near|sits?\\s+at|would\\s+be)\\s+(?:about\\s+|roughly\\s+|approximately\\s+|around\\s+|~)?\\d{1,3}\\s*%`,
+      "i",
+    ),
+    // (2) spelled-out percent as a risk figure, either order (D4b)
+    new RegExp(`\\b${RISK_NOUN_EN}\\b[^.?!]{0,40}\\b${PCT_WORD_EN}\\b`, "i"),
+    new RegExp(`\\b${PCT_WORD_EN}\\b[^.?!]{0,40}\\b${RISK_NOUN_EN}\\b`, "i"),
+    // (3) 10-year horizon phrase + a qualifying number, either order (M4)
+    new RegExp(`\\b${HORIZON_EN}\\b[^.?!]{0,40}${QUAL_NUM_EN}`, "i"),
+    new RegExp(`${QUAL_NUM_EN}[^.?!]{0,40}\\b${HORIZON_EN}\\b`, "i"),
+    // (4) named engine + a qualifying number, either order
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,50}${QUAL_NUM_EN}`, "i"),
+    new RegExp(`${QUAL_NUM_EN}[^.?!]{0,50}\\b${ENGINE}\\b`, "i"),
+    // (5) engine / horizon + a categorical RESULT assertion, numberless (D4)
+    new RegExp(
+      `\\b(?:${ENGINE}|${HORIZON_EN})\\b[^.?!]{0,60}${RESULT_VERB_EN}`,
+      "i",
+    ),
+    new RegExp(
+      `\\b(?:${ENGINE}|${HORIZON_EN})\\b[^.?!]{0,60}${RISK_BAND_EN}`,
+      "i",
+    ),
+    // (6) engine / horizon + a categorical risk-level verdict, numberless
+    new RegExp(
+      `\\b(?:${ENGINE}|${HORIZON_EN})\\b[^.?!]{0,40}${RISK_VERDICT_EN}`,
+      "i",
+    ),
   ],
   de: [
-    /\brisiko\s+(?:von|bei|liegt\s+bei)\s+(?:etwa\s+|ungefähr\s+|~)?\d{1,3}\s*%/i,
-    /\b\d{1,3}\s*%\s+(?:risiko|wahrscheinlichkeit)\b/i,
-    /\b(?:10[- ]jahres|zehn[- ]jahres|lebenszeit)[- ]?(?:risiko)\b/i,
+    new RegExp(
+      `\\brisiko\\s+(?:von|bei|liegt\\s+bei)\\s+(?:etwa\\s+|ungefähr\\s+|~)?\\d{1,3}\\s*%`,
+      "i",
+    ),
+    new RegExp(`\\b\\d{1,3}\\s*%\\s+${RISK_NOUN_DE}\\b`, "i"),
+    // spelled-out percent as a risk figure, either order
+    new RegExp(`\\b${RISK_NOUN_DE}\\b[^.?!]{0,40}\\b${PCT_WORD_DE}\\b`, "i"),
+    new RegExp(`\\b${PCT_WORD_DE}\\b[^.?!]{0,40}\\b${RISK_NOUN_DE}\\b`, "i"),
+    // 10-year horizon + a qualifying number, either order
+    new RegExp(`\\b${HORIZON_DE}\\b[^.?!]{0,40}${QUAL_NUM_DE}`, "i"),
+    new RegExp(`${QUAL_NUM_DE}[^.?!]{0,40}\\b${HORIZON_DE}\\b`, "i"),
+    // named engine (same literals) + qualifying number or categorical result
+    new RegExp(`\\b${ENGINE}\\b[^.?!]{0,50}${QUAL_NUM_DE}`, "i"),
+    new RegExp(`${QUAL_NUM_DE}[^.?!]{0,50}\\b${ENGINE}\\b`, "i"),
+    new RegExp(
+      `\\b(?:${ENGINE}|${HORIZON_DE})\\b[^.?!]{0,60}${RESULT_VERB_DE}`,
+      "i",
+    ),
+    new RegExp(
+      `\\b(?:${ENGINE}|${HORIZON_DE})\\b[^.?!]{0,60}${RISK_BAND_DE}`,
+      "i",
+    ),
+    new RegExp(
+      `\\b(?:${ENGINE}|${HORIZON_DE})\\b[^.?!]{0,40}${RISK_VERDICT_DE}`,
+      "i",
+    ),
   ],
   fr: [
     /\brisque\s+(?:est\s+)?(?:de\s+|d['’])?(?:environ\s+|~)?\d{1,3}\s*%/i,
@@ -359,6 +453,64 @@ export const INSIGHTS_CONTRACTS: readonly OutboundContract[] = [
 ];
 
 /**
+ * Continuation-exclusion for the dose bank (v1.32.7 — D7). A sentence that
+ * matches a dose pattern is EXEMPT only when it is anchored to a maintenance
+ * object ("keep taking … as prescribed") AND carries no change stem. So
+ * "you should keep taking your prescribed 7.5 mg" passes, while
+ * "you should keep in mind that trying 5 mg" (no maintenance anchor) and
+ * "you should continue tapering to 2.4 mg" (a change stem present) stay
+ * blocked. The direction is exclusion-of-continuation, never
+ * requirement-of-change — "you should try 5 mg" must keep blocking.
+ *
+ * Accepted residual FP, failing safe: "I'd recommend discussing the 2.4 mg
+ * step with your doctor" stays blocked ("step" is a change stem).
+ */
+const DOSE_CONTINUATION: Record<Locale, RegExp> = {
+  en: /\b(?:keep\s+taking|keep\s+on\s+taking|continue\s+(?:taking|with|on)|stay(?:ing)?\s+(?:on|at)|remain(?:ing)?\s+on|as\s+prescribed|as\s+directed)\b/i,
+  de: /\b(?:weiterhin|weiter\s+(?:einnehmen|nehmen)|nimm\s+weiter|beibehalten|behalte\s+bei|wie\s+(?:verordnet|verschrieben|besprochen)|bleib(?:e|st)?\s+bei)\b/i,
+  fr: /\b(?:continuez?\s+(?:à|de|le)|gardez|comme\s+prescrit|tel\s+que\s+prescrit)\b/i,
+  es: /\b(?:siga\s+(?:tomando|con)|continúe|mantenga|según\s+lo\s+prescrito)\b/i,
+  it: /\b(?:continui\s+(?:a|con|il)|mantenga|come\s+prescritto)\b/i,
+  pl: /\b(?:kontynuuj|przyjmuj\s+dalej|zgodnie\s+z\s+zaleceniem|pozosta[ńn]\s+przy)\b/i,
+};
+
+const DOSE_CHANGE_STEM: Record<Locale, RegExp> = {
+  en: /\b(?:increas|reduc|taper|titrat|step\s+(?:up|down)|lower|raise|halv|doubl|skip|bump|ramp)\w*/i,
+  de: /\b(?:erhöh|steiger|reduzier|senk|verringer|halbier|verdoppel|absetz|auslass|hochsetz|runtersetz|titrier)\w*/i,
+  fr: /\b(?:augment|réduis|réduir|diminu|baiss|abaiss|doubl|arrêt|saut)\w*/i,
+  es: /\b(?:aument|reduzc|reduc|baj|disminu|dobl|omit|salt)\w*/i,
+  it: /\b(?:aument|riduc|ridur|abbass|diminu|raddoppi|salt|dimezz)\w*/i,
+  pl: /\b(?:zwiększ|zmniejsz|obniż|podnie[śs]|podwyższ|zreduk|pomi[ńn]|opu[śs][ćc])\w*/i,
+};
+
+/** Sentence-level split — the dose exemption must be scoped to one sentence. */
+function splitSentences(text: string): string[] {
+  return text.split(/(?<=[.?!\n])\s+/);
+}
+
+/** True when a dose-change imperative trips, honouring the continuation rule. */
+function doseTrips(subject: string, locale: Locale): boolean {
+  const bank = BANKS.dose;
+  const patterns = locale === "en" ? bank.en : [...bank[locale], ...bank.en];
+  const continuation =
+    locale === "en"
+      ? [DOSE_CONTINUATION.en]
+      : [DOSE_CONTINUATION[locale], DOSE_CONTINUATION.en];
+  const changeStem =
+    locale === "en"
+      ? [DOSE_CHANGE_STEM.en]
+      : [DOSE_CHANGE_STEM[locale], DOSE_CHANGE_STEM.en];
+  for (const sentence of splitSentences(subject)) {
+    if (!patterns.some((p) => p.test(sentence))) continue;
+    const exempt =
+      continuation.some((p) => p.test(sentence)) &&
+      !changeStem.some((p) => p.test(sentence));
+    if (!exempt) return true;
+  }
+  return false;
+}
+
+/**
  * Screen one assembled model output.
  *
  * Contracts are evaluated in the caller's declared order, so the reason a
@@ -375,6 +527,14 @@ export function screenModelOutput(
   if (subject.trim().length === 0) return { block: false, reason: null };
 
   for (const contract of contracts) {
+    if (contract === "dose") {
+      // Dose is sentence-scoped so the continuation exemption cannot be
+      // voided by a change stem in an unrelated sentence.
+      if (doseTrips(subject, locale)) {
+        return { block: true, reason: REASON_FOR_CONTRACT.dose };
+      }
+      continue;
+    }
     const bank = BANKS[contract];
     // The reader's bank plus EN — a provider often answers in English
     // regardless of the locale directive, and EN carries the proven shapes.

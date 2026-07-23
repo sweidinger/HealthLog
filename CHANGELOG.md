@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [1.32.7] — 2026-07-23
+
+The Coach output guard now reads numbers the way you actually write them, so a
+correct figure stops getting marked unverified while an invented one still gets
+caught.
+
+- **A number you reformatted is no longer flagged.** The guard recognises a
+  rounded restatement, a delta narrated as a drop, an adherence rate written as
+  a percent, minutes read back as hours, a reformatted date, and a
+  thousands-separated step count, each checked against the figure the server
+  actually gave the Coach. A drifted number, like an average of 128 quoted back
+  as 138, is still caught.
+- **A blood-pressure claim can no longer borrow a weight number.** Every figure
+  is matched inside its own unit family, and a raw reading never earns the
+  looser rounding reserved for a headline average, so a fabricated average
+  cannot slip through on a nearby sample.
+- **A correct clinical-risk refusal streams through untouched.** Naming ASCVD or
+  a ten-year risk to explain that a clinician computes it now passes. What still
+  blocks is an asserted figure or a categorical verdict, whether it carries
+  digits ("your risk is about 14%"), spelled-out words ("roughly twelve
+  percent"), or no number at all ("SCORE2 would put you in the high-risk band").
+- **A dose you already take reads as support.** "Keep taking your 7.5 mg as
+  prescribed" passes, while anything that moves the dose stays blocked.
+- **A figure removed as unverifiable leaves the sentence intact.** The strip
+  touches only the exact token, so a year like 2023 is never clipped by a
+  flagged 23.
+
+Refs #587, #591.
+
 ## [1.32.6] — 2026-07-23
 
 Hardening and data-integrity fixes that were reviewed earlier and are now folded
