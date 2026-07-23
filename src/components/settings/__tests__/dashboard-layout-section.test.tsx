@@ -69,7 +69,10 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
-import { DashboardLayoutSection, reorderWidgets } from "../dashboard-layout-section";
+import {
+  DashboardLayoutSection,
+  reorderWidgets,
+} from "../dashboard-layout-section";
 
 function render(node: React.ReactElement, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
