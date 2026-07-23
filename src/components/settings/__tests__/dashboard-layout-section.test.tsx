@@ -69,10 +69,7 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
-import {
-  DashboardLayoutSection,
-  reorderWidgets,
-} from "../dashboard-layout-section";
+import { DashboardLayoutSection, reorderWidgets } from "../dashboard-layout-section";
 
 function render(node: React.ReactElement, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -530,5 +527,20 @@ describe("<DashboardLayoutSection> — health-score anchor + reorder (v1.27.27)"
     expect(src).toContain("heroRingOrder: next.heroRingOrder");
     // The order is the single source of truth: selection is derived from it.
     expect(src).toMatch(/id !== HEALTH_SCORE_RING_ID/);
+  });
+
+  it("the ring mutation builds its body via buildRingMutationPayload, not a `...remote` spread (regression #581 source pin)", () => {
+    const src = readFileSync(
+      join(
+        process.cwd(),
+        "src/components/settings/dashboard-layout-section.tsx",
+      ),
+      "utf8",
+    );
+    expect(src).toContain("buildRingMutationPayload(next)");
+    // The pre-fix shape must never come back: spreading a query-cache
+    // snapshot into the ring PUT body is exactly the stale-`widgets`
+    // race issue #581 reported.
+    expect(src).not.toMatch(/\.\.\.remote,/);
   });
 });

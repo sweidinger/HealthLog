@@ -47,6 +47,7 @@ import {
   MAX_SELECTED_SCORE_RINGS,
   HEALTH_SCORE_RING_ID,
   resolveHeroRingOrder,
+  buildRingMutationPayload,
 } from "@/lib/dashboard-layout";
 import {
   Select,
@@ -327,23 +328,34 @@ export function DashboardLayoutSection({ id }: { id: string }) {
    * machine the rest of the section keeps. The first cut routed ring
    * toggles through the draft, and the combination of an unflushed
    * draft, the server snapshot cache, and client staleness read as
-   * "flipping does nothing, rings appear later". The mutation PUTs the
-   * SERVER layout copy with only `selectedScoreRings` changed (an open
-   * draft's other edits stay unsent and untouched), optimistically
-   * updates the widgets query, and invalidates the dashboard snapshot on
-   * settle so the hero reflects the choice on the next visit.
+   * "flipping does nothing, rings appear later". The mutation
+   * optimistically updates the widgets query and invalidates the
+   * dashboard snapshot on settle so the hero reflects the choice on the
+   * next visit.
+   *
+   * v1.32.1 — the PUT body used to be the FULL server layout copy,
+   * spreading this component's `remote` query-cache snapshot in ahead of
+   * the two ring fields. That snapshot can be stale by the time the
+   * request actually lands: if the normal
+   * tile/chart Save button committed a newer layout first, this
+   * request's explicit — present, not omitted — stale `widgets` (and
+   * `comparisonBaseline` / `chartOverlayPrefs`) still won on write and
+   * silently reverted the just-saved layout (issue #581). The payload
+   * now carries ONLY the ring fields; the server's preserve-when-absent
+   * merge (`LAYOUT_FIELD_MERGE_DISPOSITION` — `widgets` joined it in the
+   * same release) carries every omitted field forward from whatever is
+   * CURRENTLY stored, so this request can no longer race a concurrent
+   * Save no matter which one lands last.
    */
   const ringMutation = useMutation({
     mutationFn: async (next: {
       selectedScoreRings: ScoreRingId[];
       heroRingOrder: HeroRingId[];
     }) => {
-      if (!remote) throw new Error("layout not loaded");
-      return apiPut<DashboardLayout>("/api/dashboard/widgets", {
-        ...remote,
-        selectedScoreRings: next.selectedScoreRings,
-        heroRingOrder: next.heroRingOrder,
-      });
+      return apiPut<DashboardLayout>(
+        "/api/dashboard/widgets",
+        buildRingMutationPayload(next),
+      );
     },
     onMutate: async (next) => {
       await queryClient.cancelQueries({

@@ -62,7 +62,13 @@ import {
   DASHBOARD_WIDGET_IDS,
   DASHBOARD_IOS_ONLY_WIDGET_IDS,
   DASHBOARD_WIDGET_CATALOGUE_IDS,
+  DEFAULT_DASHBOARD_LAYOUT,
   serializeDashboardLayout,
+  // v1.32.1 — the exact payload builder `ringMutation.mutationFn` calls
+  // (see the settings component). Importing the shipped function rather
+  // than re-implementing its shape means this test exercises the REAL
+  // client contract against the REAL route, not a hand-rolled stand-in.
+  buildRingMutationPayload,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 
@@ -634,5 +640,104 @@ describe("dashboard widgets — preserve-when-absent on PUT", () => {
     for (const id of clinicalIds) {
       expect(persistedIds).toContain(id);
     }
+  });
+});
+
+/**
+ * v1.32.1 — regression for issue #581: dashboard layout changes silently
+ * overwritten by a concurrent score-ring save.
+ *
+ * The scenario from the report: the user edits tile/chart visibility
+ * (local draft B), then reorders/toggles a hero score ring before hitting
+ * Save. The ring PUT (`ringMutation`) fires immediately, built from
+ * whatever layout the client had cached (layout A — the state BEFORE the
+ * draft edit). The normal Save button then PUTs the full draft (layout B)
+ * and commits first. If the earlier-fired ring request resolves AFTER
+ * Save, its body — built from the stale A snapshot — used to carry
+ * `widgets: A` explicitly, and an explicitly-present field always wins on
+ * write. Save's B silently reverted to A even though the ring PUT reported
+ * 200 and only meant to touch the ring selection.
+ *
+ * The fix is `buildRingMutationPayload` (imported from the real component
+ * module, not re-implemented here): it never includes `widgets` at all.
+ * This test proves the SERVER half of the fix — a PUT shaped exactly like
+ * the shipped ring mutation's body preserves whatever layout is CURRENTLY
+ * stored, so the request that resolves last can no longer matter.
+ */
+describe("dashboard widgets — ring-only PUT cannot race a concurrent full-layout Save (regression #581)", () => {
+  it("preserves the widgets a concurrent Save already committed, even though the ring request started from a stale snapshot", async () => {
+    // The state AFTER the normal Save committed layout B — a tile turned
+    // off that was on in the stale snapshot A the ring mutation started
+    // from. Starts from the FULL default widget catalogue (rather than a
+    // single-widget array) so `resolveDashboardLayout`'s auto-upgrade
+    // append (missing catalogue ids get seeded invisible) is a no-op here
+    // and the persisted array can be compared for exact equality below.
+    const savedLayoutB: DashboardLayout = serializeDashboardLayout({
+      version: 1,
+      widgets: DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) =>
+        w.id === "weight" ? { ...w, visible: false, tileVisible: false } : w,
+      ),
+      comparisonBaseline: "lastYear",
+      selectedScoreRings: ["MED_COMPLIANCE"],
+      heroRingOrder: ["HEALTH_SCORE", "MED_COMPLIANCE"],
+    });
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dashboardWidgetsJson: savedLayoutB,
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    // The ring mutation's real, shipped payload — built without any
+    // knowledge of layout B. If this were still `{...staleA, ...}` the
+    // stale `widgets`/`comparisonBaseline` would land here explicitly and
+    // overwrite B; `buildRingMutationPayload` never carries them.
+    const ringOnlyBody = buildRingMutationPayload({
+      selectedScoreRings: ["READINESS"],
+      heroRingOrder: ["HEALTH_SCORE", "READINESS"],
+    });
+
+    const res = await callPut(makeReq(ringOnlyBody));
+    expect(res.status).toBe(200);
+
+    const updateArg = vi.mocked(prisma.user.update).mock
+      .calls[0]?.[0] as unknown as {
+      data: { dashboardWidgetsJson: DashboardLayout };
+    };
+    // B's widgets (and comparisonBaseline) survive — the ring PUT never
+    // touched them, so nothing it carries can outrace the Save that
+    // already committed.
+    expect(updateArg.data.dashboardWidgetsJson.widgets).toEqual(
+      savedLayoutB.widgets,
+    );
+    expect(updateArg.data.dashboardWidgetsJson.comparisonBaseline).toBe(
+      "lastYear",
+    );
+    // The ring selection itself DID apply.
+    expect(updateArg.data.dashboardWidgetsJson.selectedScoreRings).toEqual([
+      "READINESS",
+    ]);
+
+    const body = (await res.json()) as { data: DashboardLayout };
+    expect(body.data.widgets[0].visible).toBe(false);
+    expect(body.data.widgets[0].tileVisible).toBe(false);
+    expect(body.data.selectedScoreRings).toEqual(["READINESS"]);
+  });
+
+  it("still accepts a normal full-layout Save (widgets present + replace semantics unchanged)", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dashboardWidgetsJson: null,
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({
+        version: 1,
+        widgets: [
+          { id: "weight", visible: false, tileVisible: false, order: 0 },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: DashboardLayout };
+    expect(body.data.widgets[0].visible).toBe(false);
   });
 });

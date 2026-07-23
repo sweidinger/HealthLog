@@ -574,8 +574,8 @@ export interface DashboardLayout {
  * omits it.
  *
  * - `"replace"` — the field is the point of the request. A PUT that omits it
- *   is either rejected by Zod (`version`, `widgets` are required) or means
- *   the caller genuinely has nothing to say.
+ *   is rejected by Zod (`version` is required) — the caller always has
+ *   something to say about a `"replace"` field.
  * - `"preserve"` — the field is owned by a surface OTHER than the one making
  *   this request, so an omission means "I don't know about this", never
  *   "clear it". The route reads the stored layout and carries the existing
@@ -591,6 +591,18 @@ export interface DashboardLayout {
  * clamps a missing value to `"none"`, so every native layout save wiped the
  * baseline the user had picked on the web.
  *
+ * `widgets` moved from `"replace"` to `"preserve"` in v1.32.1 (issue #581).
+ * The Settings page's instant score-ring toggle used to resend the FULL
+ * layout — including `widgets` — built from the query cache's `remote`
+ * snapshot. That snapshot can be stale by the time the ring request lands:
+ * if a normal tile/chart Save committed a newer layout first, the
+ * ring request's explicit (present, not omitted) stale `widgets` value
+ * still won on write and silently reverted the just-saved layout. Making
+ * `widgets` optional + preserve-when-absent lets the ring mutation omit it
+ * entirely, so the field it never touches can no longer race a concurrent
+ * Save — the route always carries forward whatever is CURRENTLY stored,
+ * not a client-held copy.
+ *
  * `satisfies Record<keyof DashboardLayout, …>` is the load-bearing part.
  * Adding a field to `DashboardLayout` without adding it here is a TYPE error,
  * so the next field cannot repeat the `comparisonBaseline` mistake by
@@ -598,7 +610,7 @@ export interface DashboardLayout {
  */
 export const LAYOUT_FIELD_MERGE_DISPOSITION = {
   version: "replace",
-  widgets: "replace",
+  widgets: "preserve",
   comparisonBaseline: "preserve",
   chartOverlayPrefs: "preserve",
   selectedScoreRings: "preserve",
@@ -645,6 +657,38 @@ export function mergePreservedLayoutFields(
     }
   }
   return merged;
+}
+
+/**
+ * v1.32.1 — pure payload builder for the Settings page's instant score-ring
+ * PUT (`ringMutation` in `dashboard-layout-section.tsx`). Lives in this
+ * client-safe module (imported by both the client component and the server
+ * route already) rather than the "use client" component file, so a
+ * server-side regression test can import it without pulling the component's
+ * UI dependency graph across the client/server boundary — see
+ * `src/app/api/dashboard/widgets/__tests__/route.test.ts`.
+ *
+ * Deliberately returns ONLY the ring fields (plus `version`) — no
+ * `widgets`, `comparisonBaseline`, or `chartOverlayPrefs`. Before v1.32.1 the
+ * ring mutation resent the FULL layout built from the client's `remote`
+ * query-cache snapshot, which can be stale by the time the request lands: if
+ * a normal tile/chart Save committed a newer layout first, the ring
+ * request's explicit — present, not omitted — stale `widgets` still won on
+ * write and silently reverted the just-saved layout (issue #581). Those
+ * three fields are all `"preserve"`-disposition here
+ * (`LAYOUT_FIELD_MERGE_DISPOSITION`): omitting them means the route always
+ * carries forward whatever is CURRENTLY stored, so this payload can no
+ * longer race a concurrent Save no matter which request lands last.
+ */
+export function buildRingMutationPayload(next: {
+  selectedScoreRings: ScoreRingId[];
+  heroRingOrder: HeroRingId[];
+}): Partial<DashboardLayout> {
+  return {
+    version: DASHBOARD_LAYOUT_VERSION,
+    selectedScoreRings: next.selectedScoreRings,
+    heroRingOrder: next.heroRingOrder,
+  };
 }
 
 const DASHBOARD_LAYOUT_VERSION = 1;

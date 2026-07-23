@@ -84,7 +84,15 @@ const layoutSchema = z.object({
     // catalogue (42 ids). The cap only has to clear the catalogue size —
     // the enum bounds each entry and the id set is closed — so it carries
     // headroom rather than tracking the count exactly.
-    .max(50),
+    .max(50)
+    // v1.32.1 — optional + preserve-when-absent (issue #581). The
+    // Settings page's instant score-ring toggle now PUTs ONLY the ring
+    // fields; omitting `widgets` lets the server carry forward whatever
+    // is CURRENTLY stored instead of the ring mutation resending a
+    // client-held snapshot that can go stale mid-flight and race a
+    // concurrent full-layout Save. A normal Save still always sends
+    // `widgets` — this only widens what a PARTIAL PUT can leave out.
+    .optional(),
   // v1.4.16 phase B8 — comparison baseline (Vormonat / Vorjahr) rides
   // on the layout blob per research §7 Q3 (no Prisma migration). Optional
   // so v1.4.15 clients that don't know the field can still PUT.
@@ -285,7 +293,11 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   // visibility / order, while chart prefs are PUT through their own route
   // (`/api/dashboard/chart-overlay-prefs`), the hero rings come from
   // Settings, and `comparisonBaseline` is web-only — an omission from any
-  // one surface must not reset a choice made on another.
+  // one surface must not reset a choice made on another. `widgets` itself
+  // joined this set in v1.32.1 (issue #581): the Settings page's instant
+  // score-ring PUT omits it entirely so it always carries forward
+  // whatever is CURRENTLY stored, rather than a client-held snapshot that
+  // could be stale relative to a concurrent full-layout Save.
   //
   // The preserve set is not a list maintained here: it is derived from
   // `LAYOUT_FIELD_MERGE_DISPOSITION`, which the type system forces to cover
