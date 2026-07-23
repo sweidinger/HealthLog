@@ -132,7 +132,12 @@ export const NUTRIENT_CATALOG: Readonly<
     female: 650,
     source: "EFSA DRV 2015 (retinol equivalents, adults)",
   }),
-  thiamin: def("thiamin", "Thiamin", "mg", 1000, {
+  // The cap is 500, not the 1000 the other B-vitamins carry, because thiamin's
+  // PRI is exactly 1.0 mg: a µg-read-as-mg sample lands on exactly 1000, and
+  // the ingest guard compares with `>`, so a 1000× error slipped through at
+  // precisely this one analyte. 500 still clears any real supplement dose
+  // (high-dose thiamin tops out around 300 mg) while catching that collision.
+  thiamin: def("thiamin", "Thiamin", "mg", 500, {
     kind: "PRI",
     direction: "target",
     adult: 1.0,

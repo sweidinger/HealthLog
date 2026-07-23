@@ -22,6 +22,8 @@ import {
 } from "@/lib/jobs/medication-intake-import";
 import { annotate } from "@/lib/logging/context";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { isPlausibleEntryInstant } from "@/lib/validations/entry-instant";
 
 const importEntrySchema = z.object({
   datum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -43,15 +45,35 @@ function isValidImportTimestamp(datum: string, uhrzeit: string): boolean {
   );
 }
 
-const validatedImportEntrySchema = importEntrySchema.refine(
-  ({ datum, uhrzeit }) => isValidImportTimestamp(datum, uhrzeit),
-  { message: "Invalid date or time" },
-);
+const validatedImportEntrySchema = importEntrySchema
+  .refine(({ datum, uhrzeit }) => isValidImportTimestamp(datum, uhrzeit), {
+    message: "Invalid date or time",
+  })
+  // The `\d{4}-\d{2}-\d{2}` regex above has no upper bound, so a `2999-12-31`
+  // row would enqueue a future "taken" intake that then feeds compliance and
+  // the dose-history ledger through the worker. The single and bulk intake
+  // twins bound this through `boundedTakenAtSchema`; this path did not. The
+  // past side stays open (no `maxAgeMs`, only the 1900 floor) because
+  // importing years of history is the whole point of this route, so only the
+  // future bound applies.
+  .refine(
+    ({ datum, uhrzeit }) =>
+      isPlausibleEntryInstant(new Date(`${datum}T${uhrzeit}`)),
+    { message: "Timestamp is not a plausible capture time" },
+  );
 
 const validatedImportSchema = z
   .array(validatedImportEntrySchema)
   .min(1)
   .max(1000);
+
+// Mirrors the bulk intake twin's budget. The heavy find + create +
+// inventory-consume loop now runs in the background worker, but the admission
+// transaction still does per-request DB work (a `FOR UPDATE` lock plus a stale
+// -job sweep), so the same limiter the bulk twin carries keeps a rapid-fire
+// caller from hammering it.
+const IMPORT_RATE_LIMIT_MAX = 60;
+const IMPORT_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -64,6 +86,15 @@ export const POST = apiHandler(
     // 404 leak shape stays identical across every `[id]/**` handler.
     const guard = await assertMedicationOwnership(id, user.id);
     if (guard) return guard;
+
+    const rl = await checkRateLimit(
+      `medications:intake:import:${user.id}`,
+      IMPORT_RATE_LIMIT_MAX,
+      IMPORT_RATE_LIMIT_WINDOW_MS,
+    );
+    if (!rl.allowed) {
+      return apiError("Too many import submissions, try again later", 429);
+    }
 
     const { data: body, error: jsonError } = await safeJson(request, {
       maxBytes: 1024 * 1024,

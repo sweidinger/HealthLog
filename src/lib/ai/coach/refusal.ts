@@ -96,8 +96,8 @@ export interface CoachRefusalDecision {
  */
 const INJECTION_PATTERNS: readonly RegExp[] = [
   /\bignore\s+(?:all\s+)?(?:previous|prior|earlier|above|the\s+above)\s+(?:instructions?|rules?|prompts?|messages?)\b/i,
-  /\bignoriere\s+(?:alle\s+)?(?:vorherigen?|vorigen?|bisherigen?|obigen?)\s+(?:anweisungen?|regeln?|vorgaben?|prompts?)\b/i,
-  /\bvergiss\s+(?:alle\s+)?(?:vorherigen?|bisherigen?|obigen?)\s+(?:anweisungen?|regeln?|vorgaben?)\b/i,
+  /\bignoriere\s+(?:(?:alle|sämtliche|saemtliche|die|deine|meine)\s+)?(?:vorherigen?|vorigen?|bisherigen?|obigen?)?\s*(?:anweisungen?|regeln?|vorgaben?|prompts?)\b/i,
+  /\bvergiss\s+(?:(?:alle|sämtliche|saemtliche|die|deine|meine)\s+)?(?:vorherigen?|bisherigen?|obigen?)?\s*(?:anweisungen?|regeln?|vorgaben?)\b/i,
   /\bdisregard\s+(?:all\s+)?(?:previous|prior|earlier|above)\s+(?:instructions?|rules?|prompts?)\b/i,
   /\boverride\s+(?:your|the)\s+(?:system|previous|original)\s+(?:prompt|instructions?|rules?)\b/i,
   /\byou\s+are\s+now\s+(?:a|an)?\s*(?:dan|jailbreak|developer|admin|root)\b/i,

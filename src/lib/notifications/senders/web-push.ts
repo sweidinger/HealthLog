@@ -7,6 +7,7 @@ import { getVapidConfig } from "@/lib/notifications/vapid-config";
 import { getEvent } from "@/lib/logging/context";
 import { recordPushAttempt } from "@/lib/notifications/senders/push-attempt-record";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { safeFetch } from "@/lib/safe-fetch";
 import { plainPushText } from "@/lib/notifications/strip-emoji";
 
 /**
@@ -154,14 +155,49 @@ export async function sendViaWebPush(
         const p256dh = decrypt(sub.p256dh);
         const auth = decrypt(sub.auth);
 
-        await webpush.sendNotification(
+        // The dial itself goes through `safeFetch` with `requirePublicHost`,
+        // not through `web-push`'s own internal `https.request`. The literal
+        // `isPublicUrl` check above is an input-time floor and cannot see a
+        // DNS rebind between the check and the connect; the pinned dispatcher
+        // vets every address the resolver actually returns (issue #217).
+        // `generateRequestDetails` performs the identical VAPID signing and
+        // payload encryption `sendNotification` would have — only the
+        // transport changes.
+        const details = webpush.generateRequestDetails(
           {
             endpoint: sub.endpoint,
             keys: { p256dh, auth },
           },
           pushPayload,
           sendOptions,
+        ) as {
+          endpoint: string;
+          method: string;
+          headers: Record<string, string>;
+          body: Buffer | string | null;
+        };
+
+        const pushRes = await safeFetch(
+          details.endpoint,
+          {
+            method: details.method,
+            headers: details.headers,
+            // `generateRequestDetails` hands back a Node Buffer for an
+            // encrypted payload; widen it to the BodyInit the fetch API takes.
+            body: (details.body ?? undefined) as BodyInit | undefined,
+          },
+          { requirePublicHost: true },
         );
+
+        if (pushRes.status < 200 || pushRes.status >= 300) {
+          // Re-shape as the `{ statusCode }` rejection the classification
+          // below already understands, so the 410/404 expiry path and the
+          // transient/permanent split stay byte-for-byte unchanged.
+          throw Object.assign(
+            new Error(`Web Push responded ${pushRes.status}`),
+            { statusCode: pushRes.status },
+          );
+        }
         anySuccess = true;
         allPermanentReject = false;
       } catch (err: unknown) {

@@ -253,7 +253,14 @@ async function readLiveDaily(opts: {
     buildSourceRankCase(priorityJson, 'm."type"', 'm."source"'),
   );
   const buckets = await prisma.$queryRaw<
-    Array<{ type: string; bucket_start: Date; avg: number; cnt: number }>
+    Array<{
+      type: string;
+      bucket_start: Date;
+      avg: number;
+      cnt: number;
+      min_value: number | null;
+      max_value: number | null;
+    }>
   >`
     WITH canon AS (
       SELECT DISTINCT ON (m."type", date_trunc(${truncUnitLiteral}, m."measured_at"))
@@ -272,7 +279,9 @@ async function readLiveDaily(opts: {
       m."type"::text AS type,
       date_trunc(${truncUnitLiteral}, m."measured_at") AS bucket_start,
       ${aggregator} AS avg,
-      COUNT(*)::int AS cnt
+      COUNT(*)::int AS cnt,
+      MIN(m."value") AS min_value,
+      MAX(m."value") AS max_value
     FROM measurements m
     JOIN canon c
       ON c.t = m."type"
@@ -296,5 +305,15 @@ async function readLiveDaily(opts: {
     value: Number(b.avg),
     measuredAt: b.bucket_start.toISOString(),
     count: Number(b.cnt),
+    // The rollup path emits these; the live fallback used to omit them, so a
+    // rollup-cold account silently lost the min/max spread band on the chart
+    // for the same underlying data — contradicting this file's own
+    // byte-for-byte parity claim.
+    minValue: b.min_value === null ? undefined : Number(b.min_value),
+    maxValue: b.max_value === null ? undefined : Number(b.max_value),
+    // The rollup path emits these; the live fallback used to omit them, so a
+    // rollup-cold account silently lost the min/max spread band on the chart
+    // for the same underlying data — contradicting this file's own
+    // byte-for-byte parity claim.
   }));
 }

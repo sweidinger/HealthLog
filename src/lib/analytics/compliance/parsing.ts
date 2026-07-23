@@ -1,6 +1,7 @@
 // Extracted from the former single-file `compliance.ts`. See `../compliance.ts`
 // (the barrel) for the module map. Pure move — no logic changes.
 
+import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
 import { localHmAsUtc } from "@/lib/tz/local-day";
 
 export type IntakeTimingClass =
@@ -68,11 +69,21 @@ export function classifyIntakeTiming(
 ): IntakeTimingClass {
   if (takenAt === null) return "missed";
 
-  const start = toDateOnDay(windowStart, scheduledDate, options?.tz);
+  let start = toDateOnDay(windowStart, scheduledDate, options?.tz);
   let end = toDateOnDay(windowEnd, scheduledDate, options?.tz);
 
-  // Handle overnight windows (e.g. windowStart="23:00", windowEnd="01:00")
-  if (end <= start) {
+  // A degenerate POINT window (`windowStart === windowEnd` — a single dose time
+  // echoed into both fields, a real shape on legacy rows) used to fall into the
+  // overnight branch below and inflate into a ~30h on-time band, so a dose taken
+  // many hours late still classified `on_time` and fed a perfect-compliance
+  // streak. Widen it symmetrically by the default on-time half-width instead,
+  // matching `resolveLegacyWindowBounds` in `@/lib/medications/window-status`.
+  if (end.getTime() === start.getTime()) {
+    const halfMs = DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes * 60 * 1000;
+    start = new Date(start.getTime() - halfMs);
+    end = new Date(end.getTime() + halfMs);
+  } else if (end < start) {
+    // Genuine overnight window (e.g. windowStart="23:00", windowEnd="01:00").
     end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
   }
 

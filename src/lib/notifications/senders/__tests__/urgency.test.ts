@@ -11,12 +11,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   safeFetchMock,
   recordPushAttemptMock,
-  sendNotificationMock,
+  generateRequestDetailsMock,
   findManyMock,
 } = vi.hoisted(() => ({
   safeFetchMock: vi.fn(),
   recordPushAttemptMock: vi.fn(),
-  sendNotificationMock: vi.fn(),
+  generateRequestDetailsMock: vi.fn(),
   findManyMock: vi.fn(),
 }));
 
@@ -61,7 +61,19 @@ vi.mock("@/lib/validations/notifications", () => ({
 
 vi.mock("web-push", () => ({
   setVapidDetails: vi.fn(),
-  sendNotification: (...args: unknown[]) => sendNotificationMock(...args),
+  // The sender now signs + encrypts via `generateRequestDetails` and dials
+  // through `safeFetch` (pinned dispatcher) instead of letting web-push run
+  // its own `https.request`. Same three arguments, so the urgency assertions
+  // below are unchanged.
+  generateRequestDetails: (...args: unknown[]) => {
+    generateRequestDetailsMock(...args);
+    return {
+      endpoint: "https://push.example.com/x",
+      method: "POST",
+      headers: {},
+      body: null,
+    };
+  },
 }));
 
 import { sendViaNtfy } from "../ntfy";
@@ -81,7 +93,7 @@ function payload(over?: Record<string, unknown>) {
 beforeEach(() => {
   safeFetchMock.mockReset();
   recordPushAttemptMock.mockReset();
-  sendNotificationMock.mockReset();
+  generateRequestDetailsMock.mockReset();
   findManyMock.mockReset();
 });
 
@@ -164,9 +176,9 @@ describe("web-push urgent mapping", () => {
         auth: "b",
       },
     ]);
-    sendNotificationMock.mockResolvedValue(undefined);
+    safeFetchMock.mockResolvedValue({ ok: true, status: 201 });
     await sendViaWebPush("user-1", payload({ urgent: true }));
-    const [, body, options] = sendNotificationMock.mock.calls[0];
+    const [, body, options] = generateRequestDetailsMock.mock.calls[0];
     expect((options as { urgency?: string }).urgency).toBe("high");
     expect(JSON.parse(body as string).requireInteraction).toBe(true);
   });
@@ -180,9 +192,9 @@ describe("web-push urgent mapping", () => {
         auth: "b",
       },
     ]);
-    sendNotificationMock.mockResolvedValue(undefined);
+    safeFetchMock.mockResolvedValue({ ok: true, status: 201 });
     await sendViaWebPush("user-1", payload());
-    const [, body, options] = sendNotificationMock.mock.calls[0];
+    const [, body, options] = generateRequestDetailsMock.mock.calls[0];
     expect(options).toBeUndefined();
     expect(JSON.parse(body as string).requireInteraction).toBe(false);
   });
@@ -201,7 +213,6 @@ describe("APNs-less instance degrades gracefully", () => {
         auth: "b",
       },
     ]);
-    sendNotificationMock.mockResolvedValue(undefined);
 
     const ntfy = await sendViaNtfy(
       { serverUrl: "https://ntfy.example.com", topic: "t" },
@@ -216,7 +227,8 @@ describe("APNs-less instance degrades gracefully", () => {
         .headers.Priority,
     ).toBe("5");
     expect(
-      (sendNotificationMock.mock.calls[0][2] as { urgency?: string }).urgency,
+      (generateRequestDetailsMock.mock.calls[0][2] as { urgency?: string })
+        .urgency,
     ).toBe("high");
   });
 });

@@ -36,6 +36,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: vi.fn() }));
 
 vi.mock("@/lib/jobs/boss-instance", () => ({
   getGlobalBoss: vi.fn(),
@@ -57,6 +58,7 @@ import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
   MEDICATION_INTAKE_IMPORT_QUEUE,
   MEDICATION_INTAKE_IMPORT_STALE_AFTER_MS,
@@ -86,6 +88,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+  vi.mocked(checkRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 60,
+    resetAt: Date.now() + 60_000,
+  });
   vi.mocked(getGlobalBoss).mockReturnValue({
     send: vi.fn().mockResolvedValue("boss-1"),
   } as never);
@@ -342,5 +349,66 @@ describe("POST /api/medications/[id]/intake/import — durable kickoff", () => {
         completedAt: expect.any(Date),
       }),
     });
+  });
+});
+
+describe("POST /api/medications/[id]/intake/import — future bound and limiter", () => {
+  // The `\d{4}-\d{2}-\d{2}` regex has no upper bound and the calendar-validity
+  // refine accepts any real date, future ones included. A future-dated row
+  // would enqueue a "taken" intake ahead of now, which the worker then feeds
+  // into compliance and the dose-history ledger. The single and bulk intake
+  // twins bound this through `boundedTakenAtSchema`; reject at validation here.
+  it("rejects a future-dated row with 422 before creating a job", async () => {
+    const future = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    const datum = future.toISOString().slice(0, 10);
+    const res = await POST(
+      postReq([{ datum, uhrzeit: "07:00:00" }]),
+      ROUTE_CTX,
+    );
+
+    expect(res.status).toBe(422);
+    expect(prisma.medicationIntakeImportJob.create).not.toHaveBeenCalled();
+    expect(getGlobalBoss).not.toHaveBeenCalled();
+  });
+
+  it("still admits a historical row — the past side stays unbounded", async () => {
+    const res = await POST(
+      postReq([{ datum: "2019-03-04", uhrzeit: "07:00:00" }]),
+      ROUTE_CTX,
+    );
+
+    expect(res.status).toBe(202);
+    expect(prisma.medicationIntakeImportJob.create).toHaveBeenCalledTimes(1);
+  });
+
+  // This was the one intake write path with no limiter; the heavy loop now runs
+  // in the worker, but the admission transaction still does per-request DB work.
+  it("refuses with 429 once the import limiter trips", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 60_000,
+    });
+    const res = await POST(
+      postReq([{ datum: "2026-01-01", uhrzeit: "07:00:00" }]),
+      ROUTE_CTX,
+    );
+
+    expect(res.status).toBe(429);
+    expect(prisma.medicationIntakeImportJob.create).not.toHaveBeenCalled();
+    expect(getGlobalBoss).not.toHaveBeenCalled();
+  });
+
+  it("buckets the limiter per user", async () => {
+    await POST(
+      postReq([{ datum: "2026-01-01", uhrzeit: "07:00:00" }]),
+      ROUTE_CTX,
+    );
+
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      "medications:intake:import:user-1",
+      expect.any(Number),
+      expect.any(Number),
+    );
   });
 });

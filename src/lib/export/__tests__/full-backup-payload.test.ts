@@ -176,6 +176,17 @@ function makePrisma() {
         },
       ]),
     },
+    nutrientIntakeDay: {
+      findMany: vi.fn().mockResolvedValue([
+        {
+          day: "2026-07-19",
+          nutrient: "water",
+          amount: 1500,
+          unit: "ml",
+          source: "MANUAL",
+        },
+      ]),
+    },
   };
 }
 
@@ -332,6 +343,15 @@ describe("buildFullBackupPayload disaster-recovery mode", () => {
           externalId: "moodlog-42",
           deletedAt: deletedAt.toISOString(),
           factors: [{ key: "sleep_quality", rating: 4 }],
+        },
+      ],
+      nutrientDays: [
+        {
+          day: "2026-07-19",
+          nutrient: "water",
+          amount: 1500,
+          unit: "ml",
+          source: "MANUAL",
         },
       ],
     });
