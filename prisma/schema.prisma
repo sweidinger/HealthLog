@@ -3415,10 +3415,22 @@ model RefreshToken {
 // (`WHERE consumed_at IS NULL`); a second presentation after consumption revokes
 // the token pair the first exchange issued (refresh-token reuse-detection
 // posture). 90-second TTL enforced at read; a daily sweep prunes stale rows.
+// v1.32.11 — this table now backs BOTH native handoff flows: the original
+// OIDC SSO leg (`flow = "oidc"`) and the first-party web-handoff login the iOS
+// app uses on a self-hosted domain (`flow = "web_login"`, iOS #65). The mint +
+// consume core is shared (`src/lib/auth/native-handoff.ts`); the `flow`
+// discriminator is written at mint and CHECKED at exchange, so an oidc code can
+// never be redeemed at the web-login token route and vice versa.
 model OidcNativeHandoff {
   id                     String    @id @default(cuid())
   userId                 String    @map("user_id")
   codeHash               String    @unique @map("code_hash") // hashToken(hlh_<…>)
+  /// Which handoff flow minted this code — `oidc` (the SSO native leg) or
+  /// `web_login` (the first-party web-handoff, iOS #65). Defaults to `oidc` so
+  /// every pre-existing row keeps its meaning. The consume path filters on it,
+  /// making a cross-flow redemption structurally impossible (not merely
+  /// unobserved).
+  flow                   String    @default("oidc") @map("flow")
   /// The app's S256 PKCE challenge, bound at mint; the exchange verifies
   /// s256(code_verifier) against it (constant-time) before consuming.
   codeChallenge          String    @map("code_challenge")

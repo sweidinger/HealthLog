@@ -23,6 +23,14 @@ const PUBLIC_PATHS = [
   "/api/auth/oidc/login",
   "/api/auth/oidc/callback",
   "/api/auth/oidc/status",
+  // v1.32.11 — first-party web-handoff login (iOS #65). `login` sets the state
+  // cookie and redirects to the web login page, `complete` mints the handoff
+  // code after an interactive login, `token` exchanges it. All three
+  // authenticate the flow themselves (state cookie / session / handoff code),
+  // never by a pre-existing session, so they bypass the page auth gate. The
+  // TRAILING SLASH is load-bearing: `isPublicPath` is a bare `startsWith`, so
+  // `/api/auth/native/` admits exactly this family and never `/api/auth/native-…`.
+  "/api/auth/native/",
   "/api/health",
   "/api/version",
   "/api/notifications/vapid",

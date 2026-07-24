@@ -364,6 +364,9 @@
       "errorRegistrationDisabled": "Aucun compte ne correspond à cette identité et les nouvelles inscriptions sont actuellement fermées.",
       "errorFailed": "L'authentification unique a échoué. Veuillez réessayer."
     },
+    "native": {
+      "signingInToApp": "Connexion à l'application HealthLog"
+    },
     "mfa": {
       "title": "Authentification à deux facteurs",
       "totpHint": "Saisissez le code à 6 chiffres de votre application d'authentification.",

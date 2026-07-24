@@ -114,6 +114,42 @@ export async function validateSessionFromCookieValue(
   };
 }
 
+/**
+ * Like `validateSessionFromCookieValue`, but ALSO projects `Session.createdAt`.
+ *
+ * Exists for the native web-handoff completion (`/api/auth/native/complete`),
+ * whose load-bearing freshness binding compares `session.createdAt` against the
+ * DB-clock `startedAt` stamped when the flow began. `validateSessionFromCookieValue`
+ * deliberately does not return `createdAt`; wiring the completion route to it
+ * would leave `createdAt` undefined and either refuse every completion or, worse,
+ * tempt a caller to drop the comparison and delete the whole defence (red-team
+ * A3). So the projection lives here, next to the primitive it mirrors, and the
+ * completion route reads `createdAt` from a value that is structurally always
+ * present.
+ *
+ * `createdAt` is immutable per login: `createSession` is insert-only and the
+ * sliding-expiry / last-active writes never touch it, so it is reliably the
+ * instant of THIS interactive login.
+ */
+export async function validateSessionWithCreatedAt(
+  cookieValue: string | undefined | null,
+): Promise<{
+  session: { id: string; createdAt: Date; expiresAt: Date };
+  user: User;
+} | null> {
+  if (!cookieValue) return null;
+  const session = await findSessionByCookie(cookieValue).catch(() => null);
+  if (!session || session.expiresAt < new Date()) return null;
+  return {
+    session: {
+      id: session.id,
+      createdAt: session.createdAt,
+      expiresAt: session.expiresAt,
+    },
+    user: session.user,
+  };
+}
+
 // v1.23 — throttle window for the user-facing active-session list's "last
 // seen" stamp. A write only happens when the prior stamp is older than this,
 // so the high-churn `getSession` path costs at most one extra UPDATE per

@@ -107,11 +107,28 @@ export default function LoginPage() {
     );
   }
 
+  // v1.32.11 — first-party web-handoff login (iOS #65). The app opens this page
+  // as `/auth/login?flow=native` inside an ASWebAuthenticationSession so the
+  // login runs in the self-hoster's real web origin (fixing password autofill +
+  // passkeys). It stays true for the whole component so every success path
+  // (password, passkey button, passkey autofill, MFA step) routes to completion.
+  const isNativeHandoff = searchParams.get("flow") === "native";
+
   // v1.16.6 first-load waterfall fix — the session cookie exists the
   // moment the login POST resolves, so the dashboard snapshot request
   // can ride in parallel with the route transition + page-chunk
   // download instead of queueing behind the dashboard mount.
   function navigateAfterLogin() {
+    // Native web-handoff: hand control back to the app via the server's
+    // single-use code mint. Top-level navigation, not router.push — the
+    // completion answer is a 302 to `healthlog://login-callback` that only the
+    // browser/OS can follow. `next` is meaningless to the app and ignored; the
+    // page always requires a fresh interactive login here (no ambient one-click
+    // pass), which is exactly what the completion route's freshness rule needs.
+    if (isNativeHandoff) {
+      window.location.href = "/api/auth/native/complete";
+      return;
+    }
     // Start the new session from an empty in-memory cache. The root
     // QueryClient is created once and outlives every client-side navigation,
     // so a previous user who closed the tab WITHOUT logging out (no logout
@@ -318,6 +335,15 @@ export default function LoginPage() {
             <h1 className="text-xl font-bold tracking-tight">HealthLog</h1>
           </div>
         </div>
+
+        {isNativeHandoff && (
+          <div
+            data-slot="native-handoff-banner"
+            className="bg-primary/10 text-foreground mt-6 rounded-lg p-3 text-center text-sm"
+          >
+            {t("auth.native.signingInToApp")}
+          </div>
+        )}
 
         {mfaChallenge ? (
           <div className="mt-8">
