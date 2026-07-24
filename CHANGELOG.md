@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [1.32.11] — 2026-07-24
+
+Signing in to the iOS app on a self-hosted domain now runs through your own web
+login, so saved passwords and passkeys behave the way they should.
+
+- **Sign in through your own domain.** On a self-hosted instance the app now
+  opens your instance's real web login page inside a secure in-app browser.
+  Because the login happens on your own origin, your password manager files the
+  credentials under the right site and passkeys can run at all, which the older
+  native form could not do on a custom domain.
+- **A single-use handoff, not a token in a link.** Once you have logged in, the
+  server hands the app a one-time code that lives for about ninety seconds and
+  can be redeemed only once. The access and refresh tokens never ride a URL. The
+  whole exchange mirrors the existing native single sign-on handoff and reuses
+  its protections, including the per-request PKCE binding.
+- **The login has to happen inside the flow.** The app receives a code only when
+  you actually authenticate during that browser session. A login left open in
+  the background from before cannot complete the handoff by itself, so a stray
+  link can never quietly sign the app in as you.
+- **Your second factor still applies.** An account with an authenticator app or
+  a security key completes that step on the web page before any code is issued,
+  exactly as it does everywhere else.
+
 ## [1.32.9] — 2026-07-23
 
 The Coach output guard now remembers the numbers you were actually shown across

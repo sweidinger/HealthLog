@@ -362,6 +362,9 @@
       "errorRegistrationDisabled": "Ninguna cuenta coincide con esa identidad y los nuevos registros están cerrados actualmente.",
       "errorFailed": "El inicio de sesión único falló. Inténtalo de nuevo."
     },
+    "native": {
+      "signingInToApp": "Iniciando sesión en la app de HealthLog"
+    },
     "mfa": {
       "title": "Autenticación de dos factores",
       "totpHint": "Introduce el código de 6 dígitos de tu aplicación de autenticación.",

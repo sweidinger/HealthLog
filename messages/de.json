@@ -360,6 +360,9 @@
       "errorRegistrationDisabled": "Kein Konto passt zu dieser Identität, und neue Registrierungen sind derzeit geschlossen.",
       "errorFailed": "Single Sign-On ist fehlgeschlagen. Bitte versuche es erneut."
     },
+    "native": {
+      "signingInToApp": "Anmeldung bei der HealthLog-App"
+    },
     "mfa": {
       "title": "Zwei-Faktor-Authentifizierung",
       "totpHint": "Gib den 6-stelligen Code aus deiner Authenticator-App ein.",

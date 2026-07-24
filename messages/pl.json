@@ -348,6 +348,9 @@
       "errorRegistrationDisabled": "Żadne konto nie pasuje do tej tożsamości, a nowe rejestracje są obecnie zamknięte.",
       "errorFailed": "Logowanie jednokrotne nie powiodło się. Spróbuj ponownie."
     },
+    "native": {
+      "signingInToApp": "Logowanie do aplikacji HealthLog"
+    },
     "mfa": {
       "title": "Uwierzytelnianie dwuskładnikowe",
       "totpHint": "Wprowadź 6-cyfrowy kod z aplikacji uwierzytelniającej.",

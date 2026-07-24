@@ -350,6 +350,9 @@
       "errorRegistrationDisabled": "No account matches that identity, and new sign-ups are currently closed.",
       "errorFailed": "Single sign-on failed. Please try again."
     },
+    "native": {
+      "signingInToApp": "Signing in to the HealthLog app"
+    },
     "mfa": {
       "title": "Two-factor authentication",
       "totpHint": "Enter the 6-digit code from your authenticator app.",

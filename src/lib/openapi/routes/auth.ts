@@ -18,6 +18,7 @@ import {
   mfaWebauthnLoginVerifySchema,
 } from "@/lib/validations/mfa";
 import { oidcNativeTokenSchema } from "@/lib/validations/oidc-native";
+import { nativeHandoffTokenSchema } from "@/lib/validations/native-handoff";
 import {
   stepUpMintSchema,
   stepUpOptionsSchema,
@@ -426,6 +427,73 @@ export const authPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 accessRefreshBundle,
                 "OidcNativeTokenResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/native/login": {
+    get: {
+      tags: ["Auth"],
+      summary: "Start the first-party web-handoff login (browser navigation)",
+      description:
+        "First leg of the native web-handoff login (iOS #65). On a self-hosted domain the iOS app opens this URL inside an `ASWebAuthenticationSession` with its PKCE `code_challenge`, so the login runs in the instance's real web origin (fixing password autofill + passkeys). The endpoint validates the challenge, sets a short-lived encrypted state cookie carrying the challenge + a DB-clock start time, and 302-redirects to `/auth/login?flow=native`. It writes no database rows. Every error 302-redirects to `healthlog://login-callback?error=<reason>` (a closed set: `invalid_request`, `rate_limited`) — an error carries no code or session. Anonymous; rate-limited 10 / 15 min.",
+      requestParams: {
+        query: z.object({
+          code_challenge: z
+            .string()
+            .min(43)
+            .max(128)
+            .describe(
+              "The app's PKCE S256 challenge (RFC 7636). `plain` is unsupported.",
+            ),
+        }),
+      },
+      responses: {
+        "302": {
+          description:
+            "Redirect to `/auth/login?flow=native` (state cookie set) on success, or to `healthlog://login-callback?error=<reason>` on failure.",
+        },
+      },
+    },
+  },
+  "/api/auth/native/complete": {
+    get: {
+      tags: ["Auth"],
+      summary:
+        "Complete the web-handoff login and mint the code (browser navigation)",
+      description:
+        "Second leg of the native web-handoff login (iOS #65). After an interactive login on `/auth/login?flow=native`, the page navigates the browser here as a top-level GET. The endpoint validates the web session against the database, enforces the freshness binding (`session.createdAt >= startedAt`, both DB-clock — a pre-existing session is refused), mints a single-use PKCE-locked handoff code, deletes the state cookie, destroys the scaffold web session, and 302-redirects to `healthlog://login-callback?code=hlh_…`. The token pair never rides the URL; only the opaque code does. The app never calls this directly. Every failure 302-redirects to `healthlog://login-callback?error=<reason>` (`invalid_state`, `no_session`, `stale_session`, `rate_limited`). Rate-limited 20 / 15 min.",
+      responses: {
+        "302": {
+          description:
+            "Redirect to `healthlog://login-callback?code=hlh_…` on success, or `…?error=<reason>` on any failure.",
+        },
+      },
+    },
+  },
+  "/api/auth/native/token": {
+    post: {
+      tags: ["Auth"],
+      summary: "Exchange a web-handoff code for the token bundle",
+      description:
+        "Third leg of the native web-handoff login (iOS #65). The app exchanges the one-time handoff code from `healthlog://login-callback?code=hlh_…` plus its PKCE `codeVerifier` for the SAME native bundle password login issues.\n\n" +
+        "Requires the native transport (no cookie, non-browser UA) — a browser is rejected. The code is single-use and expires in ~90 seconds; a replay of a consumed code revokes the pair the first exchange issued. The exchange is flow-gated: a code minted by the OIDC native leg is not redeemable here (and vice versa). A single generic 401 covers every invalid / expired / used / PKCE-mismatch / cross-flow case.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: nativeHandoffTokenSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Handoff accepted — native access + refresh bundle.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                accessRefreshBundle,
+                "NativeHandoffTokenResponse",
               ),
             },
           },
