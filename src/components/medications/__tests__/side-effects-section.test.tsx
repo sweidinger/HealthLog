@@ -192,12 +192,15 @@ describe("<SideEffectsSection> — failed reads", () => {
       const fetchMock = vi.fn(response);
       vi.stubGlobal("fetch", fetchMock);
 
-      render(<SideEffectsSection medicationId="med-failure" />, client);
+      render(
+        <SideEffectsSection medicationId="med-failure" treatmentClass="GLP1" />,
+        client,
+      );
       await executeSideEffectsQuery(client, "med-failure");
       await waitForQueryStatus(client, "med-failure", "error");
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const html = render(
-        <SideEffectsSection medicationId="med-failure" />,
+        <SideEffectsSection medicationId="med-failure" treatmentClass="GLP1" />,
         client,
       );
 
@@ -217,11 +220,14 @@ describe("<SideEffectsSection> — failed reads", () => {
       .mockResolvedValueOnce(emptySideEffectsResponse());
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<SideEffectsSection medicationId="med-retry" />, client);
+    render(
+      <SideEffectsSection medicationId="med-retry" treatmentClass="GLP1" />,
+      client,
+    );
     await executeSideEffectsQuery(client, "med-retry");
     await waitForQueryStatus(client, "med-retry", "error");
     const errorHtml = render(
-      <SideEffectsSection medicationId="med-retry" />,
+      <SideEffectsSection medicationId="med-retry" treatmentClass="GLP1" />,
       client,
     );
     expect(errorHtml).toContain(en.common.retry);
@@ -232,7 +238,7 @@ describe("<SideEffectsSection> — failed reads", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const recoveredHtml = render(
-      <SideEffectsSection medicationId="med-retry" />,
+      <SideEffectsSection medicationId="med-retry" treatmentClass="GLP1" />,
       client,
     );
     expect(recoveredHtml).not.toContain('data-slot="query-error-card"');
