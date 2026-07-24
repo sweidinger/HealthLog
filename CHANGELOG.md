@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.32.13] — 2026-07-24
+
+The iOS app's initial Apple Health import no longer gets throttled into a retry
+storm on a fresh setup.
+
+- **Higher ceiling for bulk measurement uploads.** The per-user rate limit on
+  the measurement batch endpoint was raised from 60 to 600 submissions per
+  minute. A fresh install performing the initial HealthKit backfill legitimately
+  emits several batches per second; at 60/min the server returned `429` and the
+  iOS client (0.17.0) retried immediately without backing off, so the import
+  never drained. 600/min lets a real backfill complete while still bounding a
+  leaked or misbehaving token.
+
 ## [1.32.12] — 2026-07-24
 
 A mood you log late in the evening now lands on the day you logged it, in your

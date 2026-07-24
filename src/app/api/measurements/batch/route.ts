@@ -96,14 +96,17 @@ const MAX_BATCH_ENTRIES = 500;
 // The cap is a DoS ceiling, not a tight bound.
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
-// v1.4.25 W10 reconcile (security H-2): cap batch ingest at 60
-// batches per user per minute. Healthy iOS sync drains its
-// HealthKit observer queue in well under one batch per minute (the
-// observer pattern coalesces), so 60/min × 500 entries/batch =
-// 30 000 rows/min headroom — generous for legitimate use, and a
-// hard stop for a leaked wildcard token trying to saturate the
-// write pipeline.
-const BATCH_RATE_LIMIT_MAX = 60;
+// v1.4.25 W10 reconcile (security H-2): cap batch ingest per user per
+// minute. The original 60/min assumed the iOS observer coalesces to
+// "well under one batch per minute", but a fresh install performing the
+// initial HealthKit backfill legitimately emits several batches per
+// second, and the iOS client (0.17.0) retries a 429 immediately with no
+// backoff — so 60/min throttled a legitimate bulk import into a retry
+// storm that never drained. Raised to 600/min (10/s): 600 × 500
+// entries/batch = 300 000 rows/min, enough for an initial backfill to
+// complete while still a hard ceiling against a leaked wildcard token
+// saturating the write pipeline.
+const BATCH_RATE_LIMIT_MAX = 600;
 const BATCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 // v1.8.6 W6 — the set of `source` values this client-facing ingest
@@ -216,9 +219,10 @@ async function postBatch(request: NextRequest): Promise<Response> {
   // v1.4.25 W10 reconcile (security H-2): per-user rate limit. Without
   // it, a leaked wildcard iOS token can sustain unbounded writes
   // (500 rows/batch × N batches/sec) and degrade the database for
-  // every other user on the host. 60 batches/min/user is generous
-  // for healthy iOS sync and tight enough that a misbehaving client
-  // bottoms out within a minute.
+  // every other user on the host. 600 batches/min/user (10/s) lets a
+  // fresh install's initial HealthKit backfill drain — the iOS client
+  // bursts several batches/sec and does not back off on 429 — while
+  // still bounding a misbehaving or leaked token.
   const rl = await checkRateLimit(
     `measurements:batch:${user.id}`,
     BATCH_RATE_LIMIT_MAX,
