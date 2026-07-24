@@ -432,23 +432,20 @@ async function postBulk(request: NextRequest): Promise<Response> {
   // unique `(user, dayStart)` set first to bound the recompute count.
   // Best-effort: rollup failures must not surface as 5xx.
   if (inserted > 0 || duplicates > 0) {
-    const touchedDayStarts = new Set<number>();
+    // v1.32.12 — collapse to the unique set of `date` labels touched by
+    // this batch (the same per-row `moodDateKey` the insert used), so
+    // the rollup keys byte-identically to the stored `MoodEntry.date`.
+    const touchedLabels = new Set<string>();
     for (let i = 0; i < entries.length; i++) {
       const status = results[i]?.status;
       if (status === "inserted" || status === "duplicate") {
-        const d = entries[i].moodLoggedAt;
-        const dayStart = Date.UTC(
-          d.getUTCFullYear(),
-          d.getUTCMonth(),
-          d.getUTCDate(),
-        );
-        touchedDayStarts.add(dayStart);
+        touchedLabels.add(moodDateKey(entries[i].moodLoggedAt, tz));
       }
     }
     try {
       await Promise.all(
-        Array.from(touchedDayStarts).map((t) =>
-          recomputeMoodBucketsForEntry(user.id, new Date(t)),
+        Array.from(touchedLabels).map((label) =>
+          recomputeMoodBucketsForEntry(user.id, label),
         ),
       );
     } catch (rollupErr) {

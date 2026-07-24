@@ -247,13 +247,16 @@ export const PUT = apiHandler(
     // (user, day) tuples) so we fan them out in parallel. Best-
     // effort: rollup failures must not surface as 5xx.
     try {
-      const targets = new Set<number>([entry.moodLoggedAt.getTime()]);
-      if (existing.moodLoggedAt.getTime() !== entry.moodLoggedAt.getTime()) {
-        targets.add(existing.moodLoggedAt.getTime());
+      // v1.32.12 — key on the `date` label. When the update moved the
+      // entry across a local-day boundary its `date` changed, so both
+      // the old and new labels need a recompute (independent buckets).
+      const targets = new Set<string>([entry.date]);
+      if (existing.date !== entry.date) {
+        targets.add(existing.date);
       }
       await Promise.all(
-        Array.from(targets).map((t) =>
-          recomputeMoodBucketsForEntry(user.id, new Date(t)),
+        Array.from(targets).map((label) =>
+          recomputeMoodBucketsForEntry(user.id, label),
         ),
       );
     } catch (rollupErr) {
@@ -324,7 +327,7 @@ export const DELETE = apiHandler(
     // deleted entry's bucket; the recompute helper handles the
     // "now-empty day → drop the rollup row" branch internally.
     try {
-      await recomputeMoodBucketsForEntry(user.id, existing.moodLoggedAt);
+      await recomputeMoodBucketsForEntry(user.id, existing.date);
     } catch (rollupErr) {
       annotate({
         meta: {

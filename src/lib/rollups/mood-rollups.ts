@@ -16,11 +16,19 @@
  * to a bounded `prisma.moodEntryRollup.findMany` with the daily mean
  * already materialised.
  *
+ * Keying (v1.32.12): every bucket is keyed on the canonical per-row
+ * `MoodEntry.date` label (minted at write time by `moodDateKey` under
+ * the row's own `tz`), NOT the UTC truncation of `mood_logged_at`. The
+ * rollup is therefore byte-identical to every live `entry.date`
+ * fallback, and a late-evening / after-midnight local mood lands on the
+ * calendar day the user logged it in their timezone. `bucket_start`
+ * stores that label as its UTC-midnight instant.
+ *
  * Write hooks:
  *   - Every mood-entry create/update/delete fires
- *     `recomputeMoodBucketsForEntry`. The DAY pass runs inline
- *     (cheap — single `(user, day)` aggregate) so the next read sees
- *     the fresh row without waiting on pg-boss.
+ *     `recomputeMoodBucketsForEntry(userId, dateLabel)`. The DAY pass
+ *     runs inline (cheap — single `(user, day-label)` aggregate) so the
+ *     next read sees the fresh row without waiting on pg-boss.
  *   - WEEK / MONTH / YEAR are enqueued onto `mood-rollup-recompute`
  *     for the worker to fold. No current reader consumes them; the
  *     buckets exist so future cross-granularity readers ship without
@@ -69,6 +77,36 @@ export const MOOD_ROLLUP_FULL_BACKFILL_QUEUE = "mood-rollup-full-backfill";
 
 /** Boot-fold worker concurrency. Serial so we don't crowd the pool. */
 export const MOOD_ROLLUP_FULL_BACKFILL_CONCURRENCY = 1;
+
+/**
+ * Format a `Date` as a `YYYY-MM-DD` label from its UTC calendar parts.
+ * Used to convert a bucket-window bound (always a UTC-midnight instant,
+ * or `now` for the full fold) into the lexicographic day label the
+ * `mood_entries."date"` column carries.
+ */
+function utcDateLabel(d: Date): string {
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * Exclusive upper day-label for a window `to` bound. A `to` that lands
+ * exactly on UTC midnight already IS the exclusive boundary (e.g. a
+ * `bucketSpan` week's next-Monday). A `to` mid-day (the full-fold's
+ * `new Date()`) rounds up to the following midnight so the day
+ * containing `to` is still folded — a plain UTC-slice of `now` would
+ * drop today's label under the half-open `< toLabel` filter.
+ */
+function exclusiveUpperLabel(to: Date): string {
+  const midnight = startOfUtcDay(to);
+  const boundary =
+    to.getTime() === midnight.getTime()
+      ? midnight
+      : new Date(midnight.getTime() + 24 * 60 * 60 * 1000);
+  return utcDateLabel(boundary);
+}
 
 /** Payload the worker queue carries. */
 export interface MoodRollupRecomputePayload {
@@ -135,6 +173,16 @@ export async function recomputeUserMoodRollups(
     granularities?: RollupGranularity[];
     from?: Date;
     to?: Date;
+    /**
+     * Delete the user's existing rollup rows for the folded
+     * granularities before refolding. Used by the boot-time
+     * full-backfill worker (§ rebuild): it makes the fold
+     * self-cleaning against any row minted under an older keying
+     * (e.g. a rolling-deploy old-container write) rather than merely
+     * upserting over it. Left off for the per-bucket async fold, which
+     * targets a narrow window and must not wipe neighbouring buckets.
+     */
+    replace?: boolean;
   } = {},
 ): Promise<{ rowsUpserted: number; durationMs: number }> {
   const startedAt = Date.now();
@@ -142,6 +190,16 @@ export async function recomputeUserMoodRollups(
   const fiveYearsAgo = new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000);
   const from = opts.from ?? fiveYearsAgo;
   const to = opts.to ?? new Date();
+
+  if (opts.replace) {
+    // Empty the folded granularities first so the refold below is the
+    // only source of truth. With zero rows in place every read for this
+    // user falls back to the live `date`-keyed walk (correct data) for
+    // the brief window until the fold lands.
+    await prisma.moodEntryRollup.deleteMany({
+      where: { userId, granularity: { in: granularities } },
+    });
+  }
 
   let rowsUpserted = 0;
 
@@ -174,7 +232,7 @@ export async function recomputeUserMoodRollups(
  */
 export async function recomputeMoodBucketsForEntry(
   userId: string,
-  moodLoggedAt: Date,
+  dateLabel: string,
 ): Promise<void> {
   const client = prisma;
   // DAY pass — synchronous. v1.4.39 hotfix (QA F-H-02): one atomic SQL
@@ -183,8 +241,15 @@ export async function recomputeMoodBucketsForEntry(
   // could interleave A-SELECT → B-SELECT → B-UPSERT (correct) →
   // A-UPSERT (stale N-1). The trailing DELETE handles the "all entries
   // for the day were removed" case in the same shot.
-  const dayStart = startOfUtcDay(moodLoggedAt);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  //
+  // v1.32.12: the bucket is keyed on the canonical per-row `date` label
+  // (`MoodEntry.date`, minted at write time via `moodDateKey` under the
+  // row's own `tz`), NOT the UTC truncation of `mood_logged_at`. This
+  // makes the rollup byte-identical to every live fallback (which keys
+  // on `entry.date`) and puts a late-evening / after-midnight local
+  // mood on the calendar day the user logged it in their own timezone.
+  // `bucket_start` encodes the label as its UTC midnight instant.
+  const bucketStart = new Date(`${dateLabel}T00:00:00.000Z`);
   await client.$executeRaw`
     WITH aggregate AS (
       SELECT
@@ -194,17 +259,16 @@ export async function recomputeMoodBucketsForEntry(
         MAX(m."score")::integer                      AS max_score,
         STDDEV_POP(m."score")::double precision      AS sd
       FROM "mood_entries" m
-      WHERE m."user_id"        = ${userId}
-        AND m."deleted_at"     IS NULL
-        AND m."mood_logged_at" >= ${dayStart}
-        AND m."mood_logged_at" <  ${dayEnd}
+      WHERE m."user_id"    = ${userId}
+        AND m."deleted_at" IS NULL
+        AND m."date"       = ${dateLabel}
     )
     INSERT INTO "mood_entry_rollups"
       ("user_id", "granularity", "bucket_start", "count", "mean", "min_score", "max_score", "sd", "computed_at")
     SELECT
       ${userId},
       'DAY',
-      ${dayStart},
+      ${bucketStart},
       aggregate.count,
       aggregate.mean,
       aggregate.min_score,
@@ -225,14 +289,13 @@ export async function recomputeMoodBucketsForEntry(
     DELETE FROM "mood_entry_rollups"
     WHERE "user_id"      = ${userId}
       AND "granularity"  = 'DAY'
-      AND "bucket_start" = ${dayStart}
+      AND "bucket_start" = ${bucketStart}
       AND NOT EXISTS (
         SELECT 1
         FROM "mood_entries" m
-        WHERE m."user_id"        = ${userId}
-          AND m."deleted_at"     IS NULL
-          AND m."mood_logged_at" >= ${dayStart}
-          AND m."mood_logged_at" <  ${dayEnd}
+        WHERE m."user_id"    = ${userId}
+          AND m."deleted_at" IS NULL
+          AND m."date"       = ${dateLabel}
       )
   `;
 
@@ -246,7 +309,7 @@ export async function recomputeMoodBucketsForEntry(
   // captures any pg-boss failure.
   void Promise.all(
     ASYNC_GRANULARITIES.map((granularity) => {
-      const { from, to } = bucketSpan(moodLoggedAt, granularity);
+      const { from, to } = bucketSpan(dateLabel, granularity);
       return enqueueMoodRollupRecompute({
         userId,
         granularity,
@@ -527,13 +590,21 @@ export async function enqueueBootTimeMoodRollupBackfill(
 // ─── internals ────────────────────────────────────────────
 
 /**
- * Pull the raw aggregates from Postgres. Groups by
- * `date_trunc(<granularity>, mood_logged_at)` and folds the stats
- * with `STDDEV_POP`. The `date_trunc` unit literal must be inlined
- * because Postgres rejects a parameterised expression in a GROUP BY;
- * the value comes from a closed enum (DATE_TRUNC_UNIT) so there's no
- * injection surface — we still assert against the whitelist before
- * splicing.
+ * Pull the raw aggregates from Postgres. Groups by the local calendar
+ * bucket of the canonical `MoodEntry.date` label —
+ * `date_trunc(<granularity>, m."date"::date)` — so a day belongs to the
+ * week / month / year of its *local* label, not the UTC instant of its
+ * `mood_logged_at`. `bucket_start` is the label's UTC-midnight encoding
+ * (`::timestamptz` under the UTC session), byte-identical to the DAY
+ * hook and to every live `entry.date` fallback (v1.32.12).
+ *
+ * The `date_trunc` unit literal must be inlined because Postgres rejects
+ * a parameterised expression in a GROUP BY; the value comes from a
+ * closed enum (DATE_TRUNC_UNIT) so there's no injection surface — we
+ * still assert against the whitelist before splicing. The window bounds
+ * are the `date` column's lexicographic day labels (YYYY-MM-DD sorts as
+ * the calendar day), so a boundary-straddling entry can never fall out
+ * of its own recompute window.
  */
 async function runMoodRollupAggregate(
   client: PrismaTxOrClient,
@@ -548,28 +619,28 @@ async function runMoodRollupAggregate(
   if (!["day", "week", "month", "year"].includes(truncUnit)) {
     throw new Error(`unexpected granularity: ${input.granularity}`);
   }
-  const dateTrunc = `date_trunc('${truncUnit}', m."mood_logged_at")`;
+  const bucketExpr = `date_trunc('${truncUnit}', m."date"::date)::timestamptz`;
 
   const sql = `
     SELECT
-      ${dateTrunc}                                              AS bucket_start,
+      ${bucketExpr}                                             AS bucket_start,
       COUNT(*)                                                  AS count,
       AVG(m."score")::double precision                          AS mean,
       MIN(m."score")::integer                                   AS min_score,
       MAX(m."score")::integer                                   AS max_score,
       STDDEV_POP(m."score")::double precision                   AS sd
     FROM mood_entries m
-    WHERE m."user_id"        = $1
-      AND m."deleted_at"     IS NULL
-      AND m."mood_logged_at" >= $2
-      AND m."mood_logged_at" <  $3
-    GROUP BY ${dateTrunc}
+    WHERE m."user_id"    = $1
+      AND m."deleted_at" IS NULL
+      AND m."date"       >= $2
+      AND m."date"       <  $3
+    GROUP BY ${bucketExpr}
   `;
   return client.$queryRawUnsafe<MoodRollupRow[]>(
     sql,
     input.userId,
-    input.from,
-    input.to,
+    utcDateLabel(input.from),
+    exclusiveUpperLabel(input.to),
   );
 }
 
@@ -627,44 +698,49 @@ async function persistMoodRollupRows(
 }
 
 /**
- * Span of the bucket containing `moodLoggedAt` at the given
- * granularity. Mirrors `measurement-rollups` so the WEEK / MONTH /
- * YEAR fold queries select the same set of rows the read-side
- * `date_trunc` would group on.
+ * Span of the bucket containing the calendar day `dateLabel`
+ * (`YYYY-MM-DD`, a `MoodEntry.date` value) at the given granularity.
+ * The window bounds are UTC-midnight instants of the local label
+ * boundaries; `runMoodRollupAggregate` converts them back to day labels
+ * for its `m."date"` range filter, so the fold selects exactly the rows
+ * whose label falls in this bucket — the local calendar week / month /
+ * year, not the UTC span of a `mood_logged_at` instant (v1.32.12).
  */
 function bucketSpan(
-  moodLoggedAt: Date,
+  dateLabel: string,
   granularity: RollupGranularity,
 ): { from: Date; to: Date } {
+  // Anchor at the label's UTC midnight; its UTC calendar parts ARE the
+  // label's parts, so the existing UTC date math below is exact.
+  const anchor = new Date(`${dateLabel}T00:00:00.000Z`);
   switch (granularity) {
     case "DAY": {
-      const from = startOfUtcDay(moodLoggedAt);
-      return { from, to: new Date(from.getTime() + 24 * 60 * 60 * 1000) };
+      return {
+        from: anchor,
+        to: new Date(anchor.getTime() + 24 * 60 * 60 * 1000),
+      };
     }
     case "WEEK": {
-      const day = startOfUtcDay(moodLoggedAt);
       // Postgres ISO week: Monday is day 1. JS getUTCDay(): Sunday=0.
-      const dayOfWeek = day.getUTCDay();
+      const dayOfWeek = anchor.getUTCDay();
       const mondayOffset = (dayOfWeek + 6) % 7;
-      const from = new Date(day.getTime() - mondayOffset * 24 * 60 * 60 * 1000);
+      const from = new Date(
+        anchor.getTime() - mondayOffset * 24 * 60 * 60 * 1000,
+      );
       return { from, to: new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000) };
     }
     case "MONTH": {
       const from = new Date(
-        Date.UTC(moodLoggedAt.getUTCFullYear(), moodLoggedAt.getUTCMonth(), 1),
+        Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), 1),
       );
       const to = new Date(
-        Date.UTC(
-          moodLoggedAt.getUTCFullYear(),
-          moodLoggedAt.getUTCMonth() + 1,
-          1,
-        ),
+        Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + 1, 1),
       );
       return { from, to };
     }
     case "YEAR": {
-      const from = new Date(Date.UTC(moodLoggedAt.getUTCFullYear(), 0, 1));
-      const to = new Date(Date.UTC(moodLoggedAt.getUTCFullYear() + 1, 0, 1));
+      const from = new Date(Date.UTC(anchor.getUTCFullYear(), 0, 1));
+      const to = new Date(Date.UTC(anchor.getUTCFullYear() + 1, 0, 1));
       return { from, to };
     }
   }

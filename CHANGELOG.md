@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.32.12] — 2026-07-24
+
+A mood you log late in the evening now lands on the day you logged it, in your
+own timezone, both on the dashboard and in the Coach's mood view.
+
+- **Your late-night mood stays on the right day.** The pre-computed mood history
+  used to file each entry by its UTC date, so a mood logged after dark in a
+  timezone that runs ahead of or behind UTC could jump to the neighbouring day
+  once the nightly rebuild ran. Every mood now files under the calendar day it
+  was logged in your own timezone, matching the raw entry list.
+- **The dashboard and the Coach agree.** The daily mood series behind the
+  dashboard tile and the Coach's mood view now read the same day for an entry as
+  the entry list does, so a value no longer shifts by a day when the faster
+  pre-computed path takes over from the live one.
+- **The correction applies itself.** On upgrade the pre-computed mood history is
+  cleared and rebuilt under the corrected keying. While it rebuilds, mood reads
+  fall back to the live calculation, which was already correct, so there is no
+  window where the wrong day is shown.
+
 ## [1.32.11] — 2026-07-24
 
 Signing in to the iOS app on a self-hosted domain now runs through your own web

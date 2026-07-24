@@ -498,8 +498,16 @@ export async function registerRollupQueues(
       for (const job of jobs) {
         const { userId } = job.data;
         try {
-          const { rowsUpserted, durationMs } =
-            await recomputeUserMoodRollups(userId);
+          // v1.32.12 — delete-then-refold. Empties the user's rollup
+          // rows before refolding so the boot backfill is self-cleaning
+          // against any row minted under an older keying (e.g. a
+          // rolling-deploy old-container write during the swap window).
+          // The brief empty window serves correct data via the live
+          // `entry.date` fallback.
+          const { rowsUpserted, durationMs } = await recomputeUserMoodRollups(
+            userId,
+            { replace: true },
+          );
           workerLog(
             "info",
             `[mood-rollup-full-backfill] user=${userId} rows=${rowsUpserted} duration=${durationMs}ms`,
