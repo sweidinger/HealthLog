@@ -163,6 +163,49 @@ describe("AnthropicClient", () => {
     ).toBe(false);
   });
 
+  it("unwraps a ```json-fenced reply produced on the no-prefill fallback", async () => {
+    const prefillError = JSON.stringify({
+      type: "error",
+      error: {
+        type: "invalid_request_error",
+        message:
+          "This model does not support assistant message prefill. The conversation must end with a user message.",
+      },
+    });
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        clone: () => ({ text: () => Promise.resolve(prefillError) }),
+        text: () => Promise.resolve(prefillError),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            // No prefill this round, so the model returns the whole object —
+            // here wrapped in a markdown fence with a trailing newline.
+            content: [{ type: "text", text: '```json\n{"summary":"ok"}\n```' }],
+            usage: { input_tokens: 5, output_tokens: 5 },
+          }),
+      });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new AnthropicClient({
+      apiKey: "sk-ant-test",
+      model: "claude-sonnet-4-6",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
+
+    // The fence is stripped so the JSON caller parses a clean object.
+    expect(result.content).toBe('{"summary":"ok"}');
+    expect(JSON.parse(result.content)).toEqual({ summary: "ok" });
+  });
+
   it("does NOT prefill for the prose (non-JSON) path", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,

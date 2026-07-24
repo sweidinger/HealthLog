@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.32.16] — 2026-07-24
+
+Insights parse cleanly on Anthropic models that wrap JSON in a code fence.
+
+- **Unwrap fenced JSON on the no-prefill path.** v1.32.15 drops the `{`-prefill
+  for models that reject it; without that bare-object anchor, a model can return
+  its JSON inside a ```json code fence or with a short preamble, which the strict
+  downstream `JSON.parse` rejected ("AI response was not valid JSON"). The
+  Anthropic client now strips a surrounding fence and slices to the outermost
+  braces for JSON callers, so Insights/extraction get a parseable object. Clean
+  objects and the prefill path are untouched; tool calls are exempt.
+
 ## [1.32.15] — 2026-07-24
 
 AI insights work with Anthropic models that reject assistant-message prefill.

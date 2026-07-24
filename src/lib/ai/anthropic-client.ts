@@ -60,6 +60,27 @@ const JSON_INSTRUCTION =
   "\n\nRespond only with valid JSON matching the requested schema. Do not include any prose, markdown fences, or explanation outside the JSON object.";
 
 /**
+ * Unwrap a JSON object from a model reply that may carry a ```json code fence
+ * or a short preamble/epilogue. The `{`-prefill normally guarantees a bare
+ * object, but a model that rejects prefill (v1.32.15 fallback) can wrap the
+ * reply despite the JSON instruction. Strip a surrounding fence, then slice to
+ * the outermost braces. Returns the trimmed input unchanged when no object is
+ * found, so a genuinely malformed reply still surfaces the same parse error
+ * downstream, and a clean object passes through untouched.
+ */
+function extractJsonPayload(text: string): string {
+  let t = text.trim();
+  const fence = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fence) t = fence[1].trim();
+  if (!t.startsWith("{")) {
+    const first = t.indexOf("{");
+    const last = t.lastIndexOf("}");
+    if (first !== -1 && last > first) t = t.slice(first, last + 1);
+  }
+  return t;
+}
+
+/**
  * Map an `AiContentPart[]` body into Anthropic content blocks. The media blocks
  * (image / document) are emitted FIRST and the text blocks LAST so the model
  * reads the report before the instruction — matching the pre-refactor
@@ -365,10 +386,20 @@ export class AnthropicClient implements AIProvider {
     // from there and its returned text omits that leading brace — re-prepend
     // it so the caller parses a complete object. Guard against a model that
     // (rarely) echoes the prefill itself.
-    const content =
+    let content =
       usePrefill && rawText && !rawText.trimStart().startsWith("{")
         ? `{${rawText}`
         : (rawText ?? "");
+
+    // v1.32.16 — a JSON surface that ran WITHOUT the `{`-prefill (a model that
+    // rejected it, so the v1.32.15 fallback dropped it) can return the object
+    // wrapped in a ```json fence or with a short preamble that the strict
+    // downstream JSON.parse rejects. Unwrap it here so the JSON caller gets a
+    // parseable object; the prefill path and well-behaved models pass through
+    // untouched. Tool calls are never JSON-parsed, so they are exempt.
+    if (params.responseFormat === "json" && !hasTools) {
+      content = extractJsonPayload(content);
+    }
 
     const inputTokens = json.usage?.input_tokens ?? 0;
     const outputTokens = json.usage?.output_tokens ?? 0;
