@@ -133,7 +133,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // webhook 200 response (the rollup is a cache tier, the source-of-
     // truth is the mood_entries write that already committed).
     try {
-      await recomputeMoodBucketsForEntry(user.id, moodLoggedAt);
+      await recomputeMoodBucketsForEntry(user.id, entry.date);
     } catch (rollupErr) {
       getEvent()?.addWarning(
         "Mood rollup recompute failed: " +

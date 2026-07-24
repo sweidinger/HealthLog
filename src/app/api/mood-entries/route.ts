@@ -334,7 +334,7 @@ async function postMoodEntry(request: NextRequest) {
     // Best-effort: a failure here must not surface as a 5xx to the
     // user, the rollup is a cache tier, not a write-path invariant.
     try {
-      await recomputeMoodBucketsForEntry(user.id, moodLoggedAt);
+      await recomputeMoodBucketsForEntry(user.id, date);
     } catch (rollupErr) {
       annotate({
         meta: {

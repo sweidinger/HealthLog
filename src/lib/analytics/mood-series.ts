@@ -43,12 +43,14 @@ export interface MoodDailySeries {
 }
 
 /**
- * Format a UTC `Date` as a YYYY-MM-DD label. The rollup tier anchors on
- * UTC midnight (same convention as the measurement rollup tier). For
- * tenants within ±3 h of UTC (Berlin year-round) the label agrees with
- * the local wall-clock day on every entry whose timestamp doesn't
- * straddle the UTC boundary — i.e. every realistic mood log. v1.5
- * per-user-tz bucketing (audit P7) closes the DST fall-back-night gap.
+ * Format a rollup `bucketStart` as a YYYY-MM-DD label from its UTC
+ * calendar parts. Since v1.32.12 the mood rollup writer stores
+ * `bucketStart` as the UTC-midnight encoding of the canonical per-row
+ * `MoodEntry.date` label, so reading the UTC parts back yields exactly
+ * that label — byte-identical to the live `entry.date` fallback below,
+ * across every timezone and DST boundary. (Before v1.32.12 the writer
+ * UTC-truncated `mood_logged_at`, which shifted the day for any local
+ * mood straddling the UTC boundary; that gap is now closed.)
  */
 function utcDayLabel(d: Date): string {
   const yyyy = d.getUTCFullYear();
