@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.32.15] — 2026-07-24
+
+AI insights work with Anthropic models that reject assistant-message prefill.
+
+- **Graceful fallback for the JSON prefill.** For JSON callers (Insights,
+  extraction) the Anthropic client seeds the reply with a `{` assistant turn to
+  force a clean JSON object. Some models (e.g. the Claude 4.x family) reject
+  that with `400 "does not support assistant message prefill"`. The client now
+  detects exactly that error, drops the prefilled turn, and retries once — the
+  JSON instruction already in the prompt carries the contract. Models that
+  accept prefill are unchanged; tool calls never prefill.
+
 ## [1.32.14] — 2026-07-24
 
 The operator "AI server key" now works when it points at Anthropic.

@@ -173,7 +173,7 @@ export class AnthropicClient implements AIProvider {
     // incompatible with a `tool_use` response in the same call, so tools and
     // the prefill are mutually exclusive: when tools are present we drop the
     // prefill (the tool flow is non-JSON-prefill).
-    const usePrefill = params.responseFormat === "json" && !hasTools;
+    let usePrefill = params.responseFormat === "json" && !hasTools;
 
     const wireMessages: AnthropicWireMessage[] =
       params.messages.map(mapMessage);
@@ -234,40 +234,64 @@ export class AnthropicClient implements AIProvider {
           : { type: "auto" as const }
         : undefined;
 
-    const res = await safeFetch(
-      url,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": this.config.apiKey,
-          "anthropic-version": ANTHROPIC_VERSION,
+    // NOTE: Anthropic's Messages API has no `seed` parameter, so
+    // `params.seed` is intentionally not forwarded here — output on this
+    // provider is non-deterministic regardless of the pinned seed.
+    // 60 s ceiling — see openai-client.ts for the rationale.
+    // v1.11.2 — base URL is user/admin-overridable; pin the connect-time DNS
+    // check so a private/metadata address is rejected (SSRF/rebinding).
+    // v1.20.1 — compose the caller's cancel signal (Coach SSE disconnect) so
+    // a mid-generation abort tears the upstream call down early.
+    // v1.21.5 — honour the caller's per-request timeout override; default 60 s.
+    const send = () =>
+      safeFetch(
+        url,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": this.config.apiKey,
+            "anthropic-version": ANTHROPIC_VERSION,
+          },
+          body: JSON.stringify({
+            model: this.config.model,
+            max_tokens: params.maxTokens ?? 1000,
+            temperature: params.temperature ?? 0.3,
+            system,
+            messages: wireMessages,
+            ...(tools ? { tools } : {}),
+            ...(toolChoice ? { tool_choice: toolChoice } : {}),
+          }),
         },
-        // NOTE: Anthropic's Messages API has no `seed` parameter, so
-        // `params.seed` is intentionally not forwarded here — output on this
-        // provider is non-deterministic regardless of the pinned seed.
-        body: JSON.stringify({
-          model: this.config.model,
-          max_tokens: params.maxTokens ?? 1000,
-          temperature: params.temperature ?? 0.3,
-          system,
-          messages: wireMessages,
-          ...(tools ? { tools } : {}),
-          ...(toolChoice ? { tool_choice: toolChoice } : {}),
-        }),
-      },
-      // 60 s ceiling — see openai-client.ts for the rationale.
-      // v1.11.2 — base URL is user/admin-overridable; pin the connect-time DNS
-      // check so a private/metadata address is rejected (SSRF/rebinding).
-      // v1.20.1 — compose the caller's cancel signal (Coach SSE disconnect) so
-      // a mid-generation abort tears the upstream call down early.
-      // v1.21.5 — honour the caller's per-request timeout override; default 60 s.
-      {
-        timeoutMs: params.timeoutMs ?? 60_000,
-        requirePublicHost: true,
-        signal: params.signal,
-      },
-    );
+        {
+          timeoutMs: params.timeoutMs ?? 60_000,
+          requirePublicHost: true,
+          signal: params.signal,
+        },
+      );
+
+    let res = await send();
+
+    // v1.32.15 — some Anthropic models (e.g. the Claude 4.x family) reject the
+    // `{`-prefill JSON trick with a 400 "does not support assistant message
+    // prefill. The conversation must end with a user message." The prefill is
+    // only a reliability nicety layered on top of the JSON_INSTRUCTION already
+    // in the prompt, so on that specific error drop the prefilled assistant
+    // turn and retry once — the instruction alone carries the JSON contract.
+    // Models that accept prefill never enter this branch; tool calls never
+    // prefill. The `{`-reprepend below reads `usePrefill`, so clearing it here
+    // keeps the retried, unprefilled reply intact.
+    if (usePrefill && res.status === 400) {
+      const probe = await res
+        .clone()
+        .text()
+        .catch(() => "");
+      if (/assistant message prefill/i.test(probe)) {
+        wireMessages.pop();
+        usePrefill = false;
+        res = await send();
+      }
+    }
 
     if (!res.ok) {
       // Mirror the openai-client body-capture so 4xx/5xx upstream incidents

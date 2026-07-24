@@ -107,6 +107,62 @@ describe("AnthropicClient", () => {
     expect(body.messages[1]).toEqual({ role: "assistant", content: "{" });
   });
 
+  it("retries without the `{`-prefill when the model rejects assistant prefill", async () => {
+    const prefillError = JSON.stringify({
+      type: "error",
+      error: {
+        type: "invalid_request_error",
+        message:
+          "This model does not support assistant message prefill. The conversation must end with a user message.",
+      },
+    });
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        clone: () => ({ text: () => Promise.resolve(prefillError) }),
+        text: () => Promise.resolve(prefillError),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            content: [{ type: "text", text: '{"summary":"ok"}' }],
+            usage: { input_tokens: 5, output_tokens: 5 },
+          }),
+      });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const client = new AnthropicClient({
+      apiKey: "sk-ant-test",
+      model: "claude-sonnet-4-6",
+    });
+
+    const result = await client.generateCompletion(
+      singleUserTurn({ system: "s", user: "u", responseFormat: "json" }),
+    );
+
+    // Fell back to the no-prefill request and parsed the full object (no
+    // `{`-reprepend on the retry path).
+    expect(result.content).toBe('{"summary":"ok"}');
+    expect(JSON.parse(result.content)).toEqual({ summary: "ok" });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    // First attempt carried the `{`-prefill assistant turn...
+    const firstBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(firstBody.messages.at(-1)).toEqual({
+      role: "assistant",
+      content: "{",
+    });
+    // ...the retry dropped it, ending on the user turn.
+    const retryBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(retryBody.messages.at(-1).role).toBe("user");
+    expect(
+      retryBody.messages.some((m: { role: string }) => m.role === "assistant"),
+    ).toBe(false);
+  });
+
   it("does NOT prefill for the prose (non-JSON) path", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
