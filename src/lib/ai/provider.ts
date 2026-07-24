@@ -92,16 +92,47 @@ function buildUserProvider(row: UserAIRow): AIProvider | null {
   }
 }
 
+/**
+ * True when a base URL points at Anthropic's own API host. The admin
+ * "server key" slot is OpenAI-compatible, but an operator can point its
+ * base URL at Anthropic — whose OpenAI-compat endpoint rejects
+ * `response_format` with HTTP 400, so an admin key aimed there must speak
+ * the native Anthropic protocol instead. Matched on the exact host so a
+ * third-party Anthropic-compatible gateway on another host still rides the
+ * OpenAI-compat client (its whole point is to accept the OpenAI wire).
+ */
+function isAnthropicApiBaseUrl(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  try {
+    return new URL(raw).hostname.toLowerCase() === "api.anthropic.com";
+  } catch {
+    return false;
+  }
+}
+
 async function resolveAdminProvider(): Promise<AIProvider> {
   const settings = await prisma.appSettings.findUnique({
     where: { id: "singleton" },
   });
 
   if (settings?.adminAiKeyEncrypted) {
+    const baseUrl = settings.adminAiBaseUrl ?? "https://api.openai.com/v1";
+    // An admin key aimed at Anthropic's API is routed through the native
+    // Anthropic client — same key, correct wire — because Anthropic's
+    // OpenAI-compat endpoint rejects the `response_format` field the
+    // OpenAI client sends for JSON callers (insights/extraction) with a
+    // hard 400. The chain still tags this entry `admin-openai`, so the
+    // operator-key consent gate is unchanged.
+    if (isAnthropicApiBaseUrl(baseUrl)) {
+      return new AnthropicClient({
+        apiKey: decrypt(settings.adminAiKeyEncrypted),
+        model: settings.adminAiModel ?? "claude-sonnet-4-6",
+      });
+    }
     return new OpenAIClient({
       apiKey: decrypt(settings.adminAiKeyEncrypted),
       model: settings.adminAiModel ?? "gpt-4o",
-      baseUrl: settings.adminAiBaseUrl ?? "https://api.openai.com/v1",
+      baseUrl,
     });
   }
 

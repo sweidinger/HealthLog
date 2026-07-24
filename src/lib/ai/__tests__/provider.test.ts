@@ -162,6 +162,35 @@ describe("resolveProvider", () => {
     expect(provider.type).toBe("admin-key");
   });
 
+  it("routes the admin key to the native Anthropic client when its base URL targets api.anthropic.com", async () => {
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({
+        aiProvider: null,
+        aiModel: null,
+        aiBaseUrl: null,
+        aiAnthropicKeyEncrypted: null,
+        aiLocalKeyEncrypted: null,
+      } as never)
+      .mockResolvedValueOnce({
+        codexAccessTokenEncrypted: null,
+        codexRefreshTokenEncrypted: null,
+        codexTokenExpiresAt: null,
+        codexConnectionStatus: "disconnected",
+      } as never);
+
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      adminAiKeyEncrypted: "enc-admin",
+      adminAiModel: "claude-sonnet-4-6",
+      adminAiBaseUrl: "https://api.anthropic.com/v1/",
+    } as never);
+
+    const provider = await resolveProvider("user-123");
+    // Same operator key, native wire — the OpenAI-compat endpoint would
+    // reject `response_format` with a 400, so an admin key aimed at
+    // api.anthropic.com must speak the Anthropic protocol.
+    expect(provider.type).toBe("anthropic");
+  });
+
   it("returns Anthropic provider when user picks ANTHROPIC and has key", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
       aiProvider: "ANTHROPIC",

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.32.14] — 2026-07-24
+
+The operator "AI server key" now works when it points at Anthropic.
+
+- **Admin key aimed at Anthropic uses the native protocol.** When the admin
+  server key's base URL targets `api.anthropic.com`, HealthLog now routes it
+  through the native Anthropic client instead of the OpenAI-compatibility
+  client. Anthropic's OpenAI-compat endpoint rejects the `response_format`
+  field that JSON callers (Insights, extraction) send, returning a hard HTTP
+  400 — so a Claude key in the server-key slot previously failed every insight
+  with a 503. The provider chain still tags this entry `admin-openai`, so the
+  operator-key consent gate is unchanged.
+
 ## [1.32.13] — 2026-07-24
 
 The iOS app's initial Apple Health import no longer gets throttled into a retry
