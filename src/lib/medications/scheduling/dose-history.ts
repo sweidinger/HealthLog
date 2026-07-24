@@ -64,6 +64,15 @@ export interface HistoryIntake {
    * applies. Pure pass-through for the read ledger (no status impact).
    */
   doseTaken?: string | null;
+  /**
+   * v1.32.8 (iOS #64) — write provenance of the stored intake row: `WEB`
+   * (browser cookie), `API` (Bearer / native app), `REMINDER` (the Telegram
+   * worker), `IMPORT` (CSV importer), `APPLE_HEALTH` (the HealthKit dose-event
+   * mirror). Pure pass-through for the read ledger (no status impact); lets a
+   * client label how each dose was recorded. Optional so legacy callers /
+   * fixtures omit it.
+   */
+  source?: "WEB" | "API" | "REMINDER" | "IMPORT" | "APPLE_HEALTH";
 }
 
 export type DoseHistoryStatus =

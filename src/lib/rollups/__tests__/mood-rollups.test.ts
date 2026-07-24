@@ -83,7 +83,9 @@ import {
   enqueueMoodRollupRecompute,
   ensureUserMoodRollupsFresh,
   recomputeMoodBucketsForEntry,
+  recomputeUserMoodRollups,
 } from "../mood-rollups";
+import { moodDateKey } from "@/lib/mood/date-key";
 
 beforeEach(() => {
   queryRaw.mockReset();
@@ -119,16 +121,14 @@ describe("recomputeMoodBucketsForEntry", () => {
     getGlobalBossMock.mockReturnValue({ send: bossSend });
     bossSend.mockResolvedValue("job-id");
 
-    await recomputeMoodBucketsForEntry(
-      "user-1",
-      new Date("2026-05-10T14:30:00.000Z"),
-    );
+    await recomputeMoodBucketsForEntry("user-1", "2026-05-10");
 
     expect(executeRaw).toHaveBeenCalledTimes(2);
     const insertBinds = bindValues(executeRaw.mock.calls[0]);
     expect(insertBinds).toContain("user-1");
-    // bucket_start is bound twice (INSERT row + INSERT SELECT predicate
-    // are both inside the same CTE shape via the same parameter).
+    // v1.32.12 — the aggregate WHERE keys on the `date` label string,
+    // and `bucket_start` is that label's UTC-midnight instant.
+    expect(insertBinds).toContain("2026-05-10");
     const dayStart = new Date("2026-05-10T00:00:00.000Z");
     expect(
       (insertBinds.filter((b) => b instanceof Date) as Date[]).some(
@@ -152,10 +152,7 @@ describe("recomputeMoodBucketsForEntry", () => {
   it("issues the paired DELETE so a fully-cleared day removes its row", async () => {
     getGlobalBossMock.mockReturnValue(null);
 
-    await recomputeMoodBucketsForEntry(
-      "user-1",
-      new Date("2026-05-10T14:30:00.000Z"),
-    );
+    await recomputeMoodBucketsForEntry("user-1", "2026-05-10");
 
     // The DELETE always fires; its NOT EXISTS predicate matches zero
     // rows on the populated-day branch and matches the row on the
@@ -169,14 +166,8 @@ describe("recomputeMoodBucketsForEntry", () => {
   it("is idempotent under re-run for the same (user, day)", async () => {
     getGlobalBossMock.mockReturnValue(null);
 
-    await recomputeMoodBucketsForEntry(
-      "user-1",
-      new Date("2026-05-10T14:30:00.000Z"),
-    );
-    await recomputeMoodBucketsForEntry(
-      "user-1",
-      new Date("2026-05-10T14:30:00.000Z"),
-    );
+    await recomputeMoodBucketsForEntry("user-1", "2026-05-10");
+    await recomputeMoodBucketsForEntry("user-1", "2026-05-10");
 
     expect(executeRaw).toHaveBeenCalledTimes(4);
     // Bind values for the INSERT statement match across both runs.
@@ -197,14 +188,8 @@ describe("recomputeMoodBucketsForEntry", () => {
     getGlobalBossMock.mockReturnValue(null);
 
     await Promise.all([
-      recomputeMoodBucketsForEntry(
-        "user-1",
-        new Date("2026-05-10T14:30:00.000Z"),
-      ),
-      recomputeMoodBucketsForEntry(
-        "user-1",
-        new Date("2026-05-10T14:30:00.000Z"),
-      ),
+      recomputeMoodBucketsForEntry("user-1", "2026-05-10"),
+      recomputeMoodBucketsForEntry("user-1", "2026-05-10"),
     ]);
     // 2 callers × 2 statements (INSERT + DELETE) each.
     expect(executeRaw).toHaveBeenCalledTimes(4);
@@ -226,16 +211,209 @@ describe("recomputeMoodBucketsForEntry", () => {
     });
     getGlobalBossMock.mockReturnValue({ send: () => enqueueGate });
 
-    await recomputeMoodBucketsForEntry(
-      "user-1",
-      new Date("2026-05-10T14:30:00.000Z"),
-    );
+    await recomputeMoodBucketsForEntry("user-1", "2026-05-10");
 
     // The helper has resolved even though the boss.send promise is
     // still pending. Resolve it after the assertion so the test does
     // not leak a pending promise across the suite.
     resolveEnqueue!();
     await enqueueGate;
+  });
+});
+
+describe("mood rollup keying — canonical MoodEntry.date label (v1.32.12)", () => {
+  // Each case is a boundary-straddling local mood. `moodDateKey` mints
+  // the label the WRITE path stores in `MoodEntry.date` and every live
+  // fallback keys on. The rollup writer must key its bucket on that SAME
+  // label — the UTC truncation of `moodLoggedAt` (the old bug) lands the
+  // entry on the wrong calendar day. All inputs are absolute instants +
+  // named zones, so the assertions hold under TZ=UTC.
+  const cases: Array<{
+    name: string;
+    moodLoggedAt: string;
+    tz: string;
+    expectedLabel: string;
+    straddles: boolean;
+  }> = [
+    {
+      name: "23:30 America/New_York straddles the UTC boundary forward",
+      moodLoggedAt: "2026-05-11T03:30:00.000Z", // 23:30 EDT on 2026-05-10
+      tz: "America/New_York",
+      expectedLabel: "2026-05-10",
+      straddles: true,
+    },
+    {
+      name: "00:30 Europe/Berlin straddles the UTC boundary back",
+      moodLoggedAt: "2026-05-09T22:30:00.000Z", // 00:30 CEST on 2026-05-10
+      tz: "Europe/Berlin",
+      expectedLabel: "2026-05-10",
+      straddles: true,
+    },
+    {
+      name: "legacy tz-null row anchors to Europe/Berlin",
+      moodLoggedAt: "2026-05-09T22:30:00.000Z",
+      tz: "",
+      expectedLabel: "2026-05-10",
+      straddles: true,
+    },
+    {
+      name: "DST fall-back night (Europe/Berlin, 2025-10-26) straddles forward",
+      moodLoggedAt: "2025-10-25T23:30:00.000Z", // 01:30 CEST on 2025-10-26
+      tz: "Europe/Berlin",
+      expectedLabel: "2025-10-26",
+      straddles: true,
+    },
+  ];
+
+  function utcLabel(d: Date): string {
+    return d.toISOString().slice(0, 10);
+  }
+
+  it.each(cases)(
+    "keys on the local date label, not the UTC day of moodLoggedAt — $name",
+    async ({ moodLoggedAt, tz, expectedLabel, straddles }) => {
+      getGlobalBossMock.mockReturnValue(null);
+      const at = new Date(moodLoggedAt);
+
+      // Parity: the label the write path stored (fallback key) is exactly
+      // what the hook keys on.
+      const label = moodDateKey(at, tz);
+      expect(label).toBe(expectedLabel);
+
+      await recomputeMoodBucketsForEntry("user-1", label);
+
+      const insertBinds = executeRaw.mock.calls[0].slice(1);
+      // Bucket keyed on the label string...
+      expect(insertBinds).toContain(expectedLabel);
+      // ...and bucket_start is that label's UTC midnight, which reads
+      // back as exactly the stored label (byte-identical to the fallback).
+      const bucketStart = insertBinds.find((b) => b instanceof Date) as Date;
+      expect(bucketStart.toISOString()).toBe(`${expectedLabel}T00:00:00.000Z`);
+      expect(utcLabel(bucketStart)).toBe(label);
+
+      // The OLD (buggy) UTC-truncation of moodLoggedAt lands on a
+      // different calendar day for every straddling entry.
+      const buggyUtcDay = new Date(
+        Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()),
+      );
+      expect(utcLabel(buggyUtcDay) !== expectedLabel).toBe(straddles);
+      if (straddles) {
+        expect(bucketStart.getTime()).not.toBe(buggyUtcDay.getTime());
+      }
+    },
+  );
+});
+
+describe("runMoodRollupAggregate keys on the date label (v1.32.12)", () => {
+  it('groups by m."date" (never mood_logged_at) and binds day labels', async () => {
+    // Mutation guard: reverting the GROUP BY / WHERE back to
+    // date_trunc(..., m."mood_logged_at") fails one of these assertions.
+    getGlobalBossMock.mockReturnValue(null);
+    queryRawUnsafe.mockResolvedValue([]);
+
+    await recomputeUserMoodRollups("user-1", {
+      granularities: ["DAY"],
+      from: new Date("2021-05-10T00:00:00.000Z"),
+      to: new Date("2026-05-10T12:00:00.000Z"),
+    });
+
+    expect(queryRawUnsafe).toHaveBeenCalledTimes(1);
+    const [sql, ...binds] = queryRawUnsafe.mock.calls[0] as [
+      string,
+      ...unknown[],
+    ];
+    expect(sql).toContain('m."date"');
+    expect(sql).not.toContain("mood_logged_at");
+    // Window bounds are lexicographic YYYY-MM-DD labels; the upper bound
+    // rounds up past a mid-day `to` so today's label is still folded.
+    expect(binds).toEqual(["user-1", "2021-05-10", "2026-05-11"]);
+  });
+
+  it("folds WEEK/MONTH/YEAR by the local label's calendar bucket", async () => {
+    getGlobalBossMock.mockReturnValue(null);
+    queryRawUnsafe.mockResolvedValue([]);
+
+    await recomputeUserMoodRollups("user-1", {
+      granularities: ["WEEK", "MONTH", "YEAR"],
+      from: new Date("2026-05-04T00:00:00.000Z"),
+      to: new Date("2026-05-11T00:00:00.000Z"),
+    });
+
+    for (const call of queryRawUnsafe.mock.calls) {
+      const sql = call[0] as string;
+      // The coarser tiers cast the label column to a date before
+      // truncating — never touch mood_logged_at.
+      expect(sql).toContain('m."date"::date');
+      expect(sql).not.toContain("mood_logged_at");
+    }
+  });
+});
+
+describe("recomputeUserMoodRollups replace (delete-then-refold, v1.32.12)", () => {
+  it("empties the folded granularities before refolding when replace:true", async () => {
+    getGlobalBossMock.mockReturnValue(null);
+    queryRawUnsafe.mockResolvedValue([]);
+    deleteMany.mockResolvedValue({ count: 0 });
+
+    await recomputeUserMoodRollups("user-1", {
+      granularities: ["DAY", "WEEK"],
+      replace: true,
+    });
+
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", granularity: { in: ["DAY", "WEEK"] } },
+    });
+  });
+
+  it("does NOT delete when replace is unset (per-bucket async fold)", async () => {
+    getGlobalBossMock.mockReturnValue(null);
+    queryRawUnsafe.mockResolvedValue([]);
+
+    await recomputeUserMoodRollups("user-1", { granularities: ["WEEK"] });
+
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("is idempotent — refolding twice upserts the identical bucket key + stats", async () => {
+    getGlobalBossMock.mockReturnValue(null);
+    deleteMany.mockResolvedValue({ count: 0 });
+    const aggRow = {
+      bucket_start: new Date("2026-05-10T00:00:00.000Z"),
+      count: BigInt(3),
+      mean: 4.2,
+      min_score: 3,
+      max_score: 5,
+      sd: 0.5,
+    };
+    queryRawUnsafe.mockResolvedValue([aggRow]);
+    upsert.mockResolvedValue({});
+
+    await recomputeUserMoodRollups("user-1", {
+      granularities: ["DAY"],
+      replace: true,
+    });
+    const first = upsert.mock.calls.map((c) => c[0] as Record<string, unknown>);
+    upsert.mockClear();
+    await recomputeUserMoodRollups("user-1", {
+      granularities: ["DAY"],
+      replace: true,
+    });
+    const second = upsert.mock.calls.map(
+      (c) => c[0] as Record<string, unknown>,
+    );
+
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(1);
+    // Same bucket key + same folded stats across both rebuilds (only the
+    // computedAt wall-clock differs, which we don't compare).
+    expect(first[0].where).toEqual(second[0].where);
+    expect((first[0].create as { count: number }).count).toBe(
+      (second[0].create as { count: number }).count,
+    );
+    expect((first[0].create as { mean: number }).mean).toBe(
+      (second[0].create as { mean: number }).mean,
+    );
   });
 });
 

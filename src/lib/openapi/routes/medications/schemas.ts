@@ -768,6 +768,101 @@ export const medicationExtractRequest = z
       "Free-text medication description payload. The route runs the text through the Coach provider chain and returns a partial structured payload the wizard merges. Rate-limited 10 requests / 5 minutes / user; budget-gated against the daily Coach token ceiling.",
   });
 
+// v1.15.18 — traceable dose-history read (the "Verlauf" tab ledger). Additive
+// GET; iOS-consumed. Transcribed from the handler's `SerializedDoseHistoryRow`
+// / response in `src/app/api/medications/[id]/dose-history/route.ts`. v1.32.8
+// (iOS #64) adds `intake.source` so a client can label how each dose was
+// recorded.
+export const doseHistoryQuery = z.object({
+  from: z.iso
+    .datetime({ offset: true })
+    .optional()
+    .describe(
+      "Window start (inclusive). Defaults to 90 days before `to`; clamped to the medication's `createdAt` and a 366-day span floor.",
+    ),
+  to: z.iso
+    .datetime({ offset: true })
+    .optional()
+    .describe("Window end (inclusive). Defaults to now. Must be ≥ `from`."),
+});
+
+const doseHistoryRow = z
+  .object({
+    kind: z
+      .enum(["slot", "ad_hoc"])
+      .describe(
+        "`slot` — a scheduled dose window; `ad_hoc` — a standalone off-schedule intake.",
+      ),
+    at: z.iso
+      .datetime({ offset: true })
+      .describe("The slot anchor instant, or the ad-hoc take's own time."),
+    timeOfDay: z
+      .string()
+      .nullable()
+      .describe("The slot's `HH:mm` label, or null for an ad-hoc row."),
+    status: z.enum([
+      "taken_on_time",
+      "taken_late",
+      "skipped",
+      "missed",
+      "upcoming",
+      "ad_hoc",
+    ]),
+    pinned: z
+      .boolean()
+      .optional()
+      .describe(
+        "Present and true when the row is served by a deliberate user pin ('zugeordnet').",
+      ),
+    nearestSlot: z
+      .object({
+        at: z.iso.datetime({ offset: true }),
+        timeOfDay: z.string(),
+        filled: z.boolean(),
+      })
+      .optional()
+      .describe(
+        "Due-context for an ad-hoc take: the nearest slot it could belong to (preferring an unserved one). `filled` false means the slot can still be offered for pinning.",
+      ),
+    intake: z
+      .object({
+        id: z.string().nullable(),
+        scheduledFor: z.iso.datetime({ offset: true }),
+        takenAt: z.iso.datetime({ offset: true }).nullable(),
+        skipped: z.boolean(),
+        autoMissed: z.boolean(),
+        doseTaken: z
+          .string()
+          .nullable()
+          .describe("Per-intake dose override; null = configured dose."),
+        source: z
+          .enum(["WEB", "API", "REMINDER", "IMPORT", "APPLE_HEALTH"])
+          .nullable()
+          .describe(
+            "v1.32.8 (iOS #64) — how the dose was recorded: `WEB` (browser), `API` (Bearer / native app), `REMINDER` (the medication reminder worker), `IMPORT` (CSV importer), `APPLE_HEALTH` (the HealthKit dose-event mirror). Null on legacy rows written before the column carried a value. Derived server-side from the write transport, never client-asserted.",
+          ),
+      })
+      .nullable()
+      .describe("The intake attributed to this row, if any."),
+  })
+  .meta({ id: "DoseHistoryRow" });
+
+export const doseHistoryResponse = z
+  .object({
+    from: z.iso.datetime({ offset: true }),
+    to: z.iso.datetime({ offset: true }),
+    family: z
+      .enum(["daily", "weekly", "one_shot", "none"])
+      .describe("Cadence family the window's slots were minted under."),
+    hasExpectedSlots: z.boolean(),
+    rows: z.array(doseHistoryRow),
+  })
+  .meta({
+    id: "DoseHistoryResponse",
+    description:
+      "Per-slot dose ledger over [from, to]: every expected slot with a status plus every off-schedule intake tagged ad-hoc. Built from the same band minter + `reconstructDoseHistory` the compliance % consumes, so the history view and the rate never contradict each other.",
+  });
+
 medicationExtractionSchema.meta({
   id: "MedicationExtractionResult",
   description:

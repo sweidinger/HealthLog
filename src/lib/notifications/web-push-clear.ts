@@ -22,6 +22,7 @@ import { decrypt } from "@/lib/crypto";
 import { getVapidConfig } from "@/lib/notifications/vapid-config";
 import { getEvent } from "@/lib/logging/context";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { safeFetch } from "@/lib/safe-fetch";
 import { medicationDoseTag } from "@/lib/notifications/dose-tag";
 
 export interface WebClearInput {
@@ -80,10 +81,35 @@ export async function dispatchMedicationIntakeWebClear(
         }
         const p256dh = decrypt(sub.p256dh);
         const auth = decrypt(sub.auth);
-        await webpush.sendNotification(
+        // Same transport swap as the main sender: sign + encrypt via
+        // `generateRequestDetails`, then dial through `safeFetch` with the
+        // pinned dispatcher so a DNS rebind between the literal
+        // `isPublicUrl` check above and the connect cannot reach a private
+        // address (issue #217).
+        const details = webpush.generateRequestDetails(
           { endpoint: sub.endpoint, keys: { p256dh, auth } },
           clearPayload,
+        ) as {
+          endpoint: string;
+          method: string;
+          headers: Record<string, string>;
+          body: Buffer | string | null;
+        };
+        const clearRes = await safeFetch(
+          details.endpoint,
+          {
+            method: details.method,
+            headers: details.headers,
+            body: (details.body ?? undefined) as BodyInit | undefined,
+          },
+          { requirePublicHost: true },
         );
+        if (clearRes.status < 200 || clearRes.status >= 300) {
+          throw Object.assign(
+            new Error(`Web Push clear responded ${clearRes.status}`),
+            { statusCode: clearRes.status },
+          );
+        }
       } catch (err: unknown) {
         const status = (err as { statusCode?: number }).statusCode;
         if (status === 410 || status === 404) expiredIds.push(sub.id);

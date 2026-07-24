@@ -658,6 +658,10 @@ model User {
   // skips the second factor (factor 2 only) within the window; the password
   // is still required. Revoked when the second factor is removed.
   trustedDevices              TrustedDevice[]
+  // v1.30.34 — short-lived, token-bound step-up elevations. The Bearer-transport
+  // equivalent of `Session.mfaVerifiedAt`: a token client re-proves a factor and
+  // receives one single-use elevation good for one MFA-management call.
+  stepUpElevations            StepUpElevation[]
   measurements                Measurement[]
   medications                 Medication[]
   intakeEvents                MedicationIntakeEvent[]
@@ -737,6 +741,7 @@ model User {
   // pg-boss job state so the polling endpoint can read live per-
   // phase progress without round-tripping through pg-boss internals.
   importJobs                  ImportJob[]
+  medicationIntakeImportJobs MedicationIntakeImportJob[]
   // v1.5.0 — persistent measurement rollup table. Carries the
   // count/min/max/mean/sd/slope/r2 stats per (type, granularity,
   // bucketStart) so the analytics + comprehensive read paths bypass
@@ -1596,6 +1601,14 @@ enum SleepStage {
   @@map("sleep_stage")
 }
 
+enum MeasurementAggregationProvenance {
+  HEALTHKIT_STATISTICS
+  EXPORT_XML_SOURCE_MAX
+  LEGACY_UNKNOWN
+
+  @@map("measurement_aggregation_provenance")
+}
+
 model Measurement {
   id                    String                @id @default(cuid())
   userId                String                @map("user_id")
@@ -1629,6 +1642,18 @@ model Measurement {
   // sample's `metadata.HKWasUserEntered`, Withings model code, …).
   // Stored as a string so the ingest path can replay it back unchanged.
   externalSourceVersion String?               @map("external_source_version")
+  // Authority of an aggregate stored under a `stats:*` identity. NULL for
+  // ordinary point/sample rows. Native HealthKit statistics outrank the
+  // source-day estimate derived from export.xml; migrated ambiguous rows are
+  // explicitly LEGACY_UNKNOWN until a native sync or archive reprocess repairs
+  // them.
+  aggregationProvenance         MeasurementAggregationProvenance? @map("aggregation_provenance")
+  // Distinct source identities contributing to an export.xml source-day
+  // estimate. Source labels themselves are never persisted.
+  aggregationContributorCount   Int?                             @map("aggregation_contributor_count")
+  // SHA-256 of the deterministically selected source identity. Non-identifying
+  // provenance for repeatability without retaining device/source labels.
+  aggregationSelectedSourceHash String?                          @map("aggregation_selected_source_hash")
   // Only set for BLOOD_GLUCOSE measurements. NULL for all others.
   glucoseContext        GlucoseContext?       @map("glucose_context")
   // v1.4.23 — per-stage sleep label. NULL for non-sleep rows; non-NULL
@@ -2404,6 +2429,7 @@ model Medication {
 
   schedules         MedicationSchedule[]
   intakeEvents      MedicationIntakeEvent[]
+  intakeImportJobs MedicationIntakeImportJob[]
   phaseConfig       ReminderPhaseConfig?
   telegramMessages  TelegramReminderMessage[]
   doseChanges       MedicationDoseChange[]
@@ -3232,10 +3258,69 @@ model ApiToken {
 
   user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   mcpConnection McpOAuthConnection? @relation(fields: [mcpConnectionId], references: [id], onDelete: SetNull)
+  // v1.30.34 — step-up elevations bound to this token. Cascade-deleted with it.
+  stepUpElevations StepUpElevation[]
 
   @@index([userId])
   @@index([mcpConnectionId])
   @@map("api_tokens")
+}
+
+// v1.30.34 — a step-up elevation: the Bearer-transport answer to
+// `Session.mfaVerifiedAt`.
+//
+// The web gates second-factor management on a freshness stamp written onto a
+// session row. A token client has no session row, so it had no way to express
+// "the human holding this device just re-proved a factor" and the whole
+// MFA-management surface was unreachable from a native client.
+//
+// A row here is that proof, and it is deliberately the weakest credential in
+// the tree:
+//   - it is minted ONLY after a password or primary-passkey re-proof, so
+//     presenting a stolen token gains nothing;
+//   - `apiTokenId` binds it to the exact token that re-proved, so a second
+//     token — the same user's included — cannot redeem it;
+//   - `consumedAt` makes it single-use, claimed by a conditional UPDATE so two
+//     concurrent redemptions cannot both win;
+//   - `expiresAt` caps it at minutes, matching the cookie path's step-up window.
+//
+// Only the hash of the opaque `hle_` secret is stored, so a table dump yields
+// nothing redeemable — the same posture as ApiToken, RefreshToken, and Session.
+// Revoking the token strands every elevation bound to it by construction:
+// redemption runs behind Bearer resolution, which refuses a revoked token.
+model StepUpElevation {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  // The `ApiToken` row this elevation is bound to. Cascade so a deleted token
+  // cannot leave a redeemable elevation behind.
+  apiTokenId String    @map("api_token_id")
+  // HMAC-SHA256 (`hashToken`) of the raw `hle_<64 hex>` secret. Unique so a
+  // redemption is a single indexed lookup and a collision cannot alias two rows.
+  tokenHash  String    @unique @map("token_hash")
+  // Which factor was re-proved: "password", "totp", "webauthn", or "passkey".
+  // This IS an authorisation input, not telemetry — see `FRESH_FACTOR_METHODS`
+  // in `@/lib/auth/step-up`. Only totp / webauthn / passkey satisfy a
+  // fresh-factor gate; password reaches what a plain cookie session reaches
+  // and stops there.
+  method     String
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiToken ApiToken @relation(fields: [apiTokenId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([apiTokenId])
+  @@index([expiresAt])
+  // NOTE: migration 0267 additionally creates a PARTIAL unique index —
+  // `(api_token_id) WHERE consumed_at IS NULL` — so at most one elevation per
+  // token is ever redeemable. Prisma cannot express a partial index, and a
+  // plain `@@unique([apiTokenId])` would be wrong: it would also forbid minting
+  // a second elevation after the first was legitimately consumed. The
+  // constraint therefore lives only in the migration, and the mint below
+  // handles its unique violation explicitly.
+  @@map("step_up_elevations")
 }
 
 // MCP OAuth connection — the revocable, theft-detectable anchor for a remote
@@ -3370,10 +3455,22 @@ model RefreshToken {
 // (`WHERE consumed_at IS NULL`); a second presentation after consumption revokes
 // the token pair the first exchange issued (refresh-token reuse-detection
 // posture). 90-second TTL enforced at read; a daily sweep prunes stale rows.
+// v1.32.11 — this table now backs BOTH native handoff flows: the original
+// OIDC SSO leg (`flow = "oidc"`) and the first-party web-handoff login the iOS
+// app uses on a self-hosted domain (`flow = "web_login"`, iOS #65). The mint +
+// consume core is shared (`src/lib/auth/native-handoff.ts`); the `flow`
+// discriminator is written at mint and CHECKED at exchange, so an oidc code can
+// never be redeemed at the web-login token route and vice versa.
 model OidcNativeHandoff {
   id                     String    @id @default(cuid())
   userId                 String    @map("user_id")
   codeHash               String    @unique @map("code_hash") // hashToken(hlh_<…>)
+  /// Which handoff flow minted this code — `oidc` (the SSO native leg) or
+  /// `web_login` (the first-party web-handoff, iOS #65). Defaults to `oidc` so
+  /// every pre-existing row keeps its meaning. The consume path filters on it,
+  /// making a cross-flow redemption structurally impossible (not merely
+  /// unobserved).
+  flow                   String    @default("oidc") @map("flow")
   /// The app's S256 PKCE challenge, bound at mint; the exchange verifies
   /// s256(code_verifier) against it (constant-time) before consuming.
   codeChallenge          String    @map("code_challenge")
@@ -3418,11 +3515,17 @@ model WithingsConnection {
   /// and re-syncs with the corrected END stamp, then sets this so the discovery
   /// query drops the connection. Null = backfill not yet run.
   sleepTimelineBackfillAt DateTime? @map("sleep_timeline_backfill_at")
+  /// v1.32 — durable per-category webhook subscription outcomes. The JSON
+  /// payload is versioned and validated before use; the timestamp mirrors the
+  /// earliest transient/pending category retry for indexed hourly discovery.
+  webhookSubscriptionState   Json?     @map("webhook_subscription_state")
+  webhookSubscriptionRetryAt DateTime? @map("webhook_subscription_retry_at")
   createdAt               DateTime  @default(now()) @map("created_at")
   updatedAt               DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([webhookSubscriptionRetryAt])
   @@map("withings_connections")
 }
 
@@ -3472,7 +3575,7 @@ model WithingsOAuthState {
 model WhoopConnection {
   id                      String    @id @default(cuid())
   userId                  String    @unique @map("user_id")
-  whoopUserId             String    @map("whoop_user_id")
+  whoopUserId             String?   @unique @map("whoop_user_id")
   accessToken             String    @map("access_token") // encrypted at app level
   refreshToken            String    @map("refresh_token") // encrypted at app level
   tokenExpiresAt          DateTime  @map("token_expires_at")
@@ -4348,6 +4451,9 @@ model ImportJob {
   /// kick-off endpoint short-circuit a re-upload of the exact same
   /// file back to the existing job id without re-queueing.
   uploadSha256       String?   @map("upload_sha256")
+  /// Parser semantics revision. Existing archives migrated at revision 1 can
+  /// be deliberately reprocessed when the current parser revision advances.
+  parserRevision     Int       @default(1) @map("parser_revision")
   /// Apple's `ExportDate` attribute string-formatted, parsed during
   /// the unpack phase. NULL until the parser sees it.
   exportedAt         DateTime? @map("exported_at")
@@ -4372,6 +4478,33 @@ model ImportJob {
   @@index([userId, startedAt])
   @@index([status])
   @@map("import_jobs")
+}
+
+// Durable medication-intake CSV imports. The validated, normalized payload
+// stays in Postgres so retries never depend on request-process memory.
+model MedicationIntakeImportJob {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  medicationId  String    @map("medication_id")
+  pgBossJobId   String?   @unique @map("pg_boss_job_id")
+  status        String    @default("queued")
+  payload       Json
+  progress      Json      @default("{}")
+  result        Json?
+  failureReason String?   @map("failure_reason")
+  heartbeatAt   DateTime? @map("heartbeat_at")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([medicationId, createdAt])
+  @@index([status, heartbeatAt])
+  @@map("medication_intake_import_jobs")
 }
 
 // ─── Rate Limiting ──────────────────────────────────────────
@@ -5418,11 +5551,10 @@ model InsightNarrative {
 // `data-arrival` worker after a SALIENT ingest — never by a backfill, which
 // the seam classifier drops before anything is enqueued.
 //
-// The unique index is load-bearing three times over: it is the "just in"
-// marker the reaction surfaces read, it is the at-most-one-generated-line
-// per kind per day claim (inserted with ON CONFLICT DO NOTHING, so a lost
-// race means another worker already owns today's line), and it is the audit
-// trail for what the spine actually reacted to.
+// The unique index is load-bearing twice over: it is the "just in" marker the
+// reaction surfaces read and the durable identity whose newest same-day
+// revision owns generation. A strictly newer arrival atomically invalidates
+// stale generation state; equal or older deliveries are deduplicated.
 model ArrivalReaction {
   id            String    @id @default(cuid())
   userId        String    @map("user_id")
@@ -5459,8 +5591,8 @@ model ArrivalReaction {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // The once-per-kind-per-local-day claim. Do not relax this to include
-  // `refId` — the day scope is the throttle.
+  // One mutable marker per kind and local day. Do not include `refId`: newer
+  // same-day referents replace this row atomically.
   @@unique([userId, kind, localDate])
   // The reaction surfaces read "today's rows for this user".
   @@index([userId, localDate])

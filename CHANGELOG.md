@@ -2,6 +2,334 @@
 
 ## [Unreleased]
 
+## [1.32.12] — 2026-07-24
+
+A mood you log late in the evening now lands on the day you logged it, in your
+own timezone, both on the dashboard and in the Coach's mood view.
+
+- **Your late-night mood stays on the right day.** The pre-computed mood history
+  used to file each entry by its UTC date, so a mood logged after dark in a
+  timezone that runs ahead of or behind UTC could jump to the neighbouring day
+  once the nightly rebuild ran. Every mood now files under the calendar day it
+  was logged in your own timezone, matching the raw entry list.
+- **The dashboard and the Coach agree.** The daily mood series behind the
+  dashboard tile and the Coach's mood view now read the same day for an entry as
+  the entry list does, so a value no longer shifts by a day when the faster
+  pre-computed path takes over from the live one.
+- **The correction applies itself.** On upgrade the pre-computed mood history is
+  cleared and rebuilt under the corrected keying. While it rebuilds, mood reads
+  fall back to the live calculation, which was already correct, so there is no
+  window where the wrong day is shown.
+
+## [1.32.11] — 2026-07-24
+
+Signing in to the iOS app on a self-hosted domain now runs through your own web
+login, so saved passwords and passkeys behave the way they should.
+
+- **Sign in through your own domain.** On a self-hosted instance the app now
+  opens your instance's real web login page inside a secure in-app browser.
+  Because the login happens on your own origin, your password manager files the
+  credentials under the right site and passkeys can run at all, which the older
+  native form could not do on a custom domain.
+- **A single-use handoff, not a token in a link.** Once you have logged in, the
+  server hands the app a one-time code that lives for about ninety seconds and
+  can be redeemed only once. The access and refresh tokens never ride a URL. The
+  whole exchange mirrors the existing native single sign-on handoff and reuses
+  its protections, including the per-request PKCE binding.
+- **The login has to happen inside the flow.** The app receives a code only when
+  you actually authenticate during that browser session. A login left open in
+  the background from before cannot complete the handoff by itself, so a stray
+  link can never quietly sign the app in as you.
+- **Your second factor still applies.** An account with an authenticator app or
+  a security key completes that step on the web page before any code is issued,
+  exactly as it does everywhere else.
+
+## [1.32.9] — 2026-07-23
+
+The Coach output guard now remembers the numbers you were actually shown across
+a whole conversation, so figures you legitimately carry forward stop getting
+marked unverified while an invented one still gets caught.
+
+- **A figure from earlier in the chat is no longer flagged when you bring it
+  back up.** The guard now keeps a running record of every number the Coach was
+  given this turn and in earlier turns, plus your goal figures, your medication
+  doses, and the reference bands it was shown. A value it can trace to one of
+  those is left alone even a few turns later. A value the Coach only wrote in an
+  earlier reply is never trusted on that basis, so a number that once slipped
+  through cannot quietly become authoritative later.
+- **An educational sentence keeps its numbers.** A line that states a general
+  guideline, like the note that adults usually need seven to nine hours of
+  sleep, is recognised as a reference and left intact instead of having its
+  numbers stripped. This works in every supported language.
+- **A dose you are actually on reads as a restatement, a different one does
+  not.** When the Coach says to keep taking a dose, the reminder is allowed only
+  when the amount matches a dose on your schedule. A wrong maintenance amount, or
+  any wording that nudges the dose up or down, is still held back.
+- **Fabricated risk numbers are caught in more languages.** The screen that
+  blocks an invented clinical risk figure or a named risk-engine result now
+  reads French, Spanish, Italian, and Polish to the same depth it already read
+  English and German, including a percentage written out in words.
+
+## [1.32.8] — 2026-07-23
+
+Health records written through the app now carry where they came from, and a
+HealthKit sync can say what set it off.
+
+- **A dose logged from the app is recorded as an app entry.** Every intake used
+  to be stored as a web entry no matter how it arrived. The server now reads the
+  transport it authenticated the call with and tags the dose to match, so a dose
+  logged in the native app reads as an app entry while one logged in the browser
+  stays a web entry. A reminder confirmation, an import, and an Apple Health
+  mirror keep their own labels. The value is derived on the server and can never
+  be set from the request body.
+- **The dose history shows how each dose was recorded.** The per-dose history
+  returns a source label on every intake, so a client can show at a glance
+  whether a dose came from the web, the app, a reminder, an import, or an Apple
+  Health mirror. Rows written before the label existed report as unknown rather
+  than guessing.
+- **A HealthKit sync can report what woke it.** The batch upload accepts an
+  optional trigger tag reading foreground, background, or push. It is recorded
+  for diagnostics only and never changes which readings are stored or how they
+  are deduplicated, so sending it or leaving it off produces the same result.
+
+## [1.32.7] — 2026-07-23
+
+The Coach output guard now reads numbers the way you actually write them, so a
+correct figure stops getting marked unverified while an invented one still gets
+caught.
+
+- **A number you reformatted is no longer flagged.** The guard recognises a
+  rounded restatement, a delta narrated as a drop, an adherence rate written as
+  a percent, minutes read back as hours, a reformatted date, and a
+  thousands-separated step count, each checked against the figure the server
+  actually gave the Coach. A drifted number, like an average of 128 quoted back
+  as 138, is still caught.
+- **A blood-pressure claim can no longer borrow a weight number.** Every figure
+  is matched inside its own unit family, and a raw reading never earns the
+  looser rounding reserved for a headline average, so a fabricated average
+  cannot slip through on a nearby sample.
+- **A correct clinical-risk refusal streams through untouched.** Naming ASCVD or
+  a ten-year risk to explain that a clinician computes it now passes. What still
+  blocks is an asserted figure or a categorical verdict, whether it carries
+  digits ("your risk is about 14%"), spelled-out words ("roughly twelve
+  percent"), or no number at all ("SCORE2 would put you in the high-risk band").
+- **A dose you already take reads as support.** "Keep taking your 7.5 mg as
+  prescribed" passes, while anything that moves the dose stays blocked.
+- **A figure removed as unverifiable leaves the sentence intact.** The strip
+  touches only the exact token, so a year like 2023 is never clipped by a
+  flagged 23.
+
+Refs #587, #591.
+
+## [1.32.6] — 2026-07-23
+
+Hardening and data-integrity fixes that were reviewed earlier and are now folded
+into the trunk.
+
+- **Outbound Web Push dials through the guarded network path.** A push endpoint
+  now goes through the same safeFetch wrapper the rest of the app uses, so an
+  operator-configured endpoint cannot be pointed at an internal address.
+- **A bulk mood edit saves all at once.** The mood rows and their tag links are
+  written in one transaction, so a failure part way through no longer leaves a
+  partial save.
+- **Nutrient entries are bounded on write and included in the backup.** Values
+  are range-checked when saved, and the per-day nutrient records now travel with
+  the full backup and restore.
+- **Every response path carries the baseline security headers**, including the
+  early returns that used to skip them.
+- **Provider re-sync tolerates an empty token-refresh body.** Oura, Polar, and
+  Fitbit treat an empty body as transient rather than a hard failure, so a
+  reconnect is not lost to a blank response.
+- **The Coach reply stream aborts cleanly when you navigate away**, and the
+  daily metric series carries its own min and max.
+- Also folded in: the WebAuthn relying-party origin gating (localhost only in
+  development), the medication-compliance point-window bound, a request-time
+  future-date bound on the medication-intake import, and pinned regression tests
+  for the snapshot-cache tenant key, the GlitchTip path-secret redaction, and the
+  Withings credentials delete.
+
+No migrations. No breaking changes.
+
+## [1.32.5] — 2026-07-23
+
+- **Browser SSO sign-in no longer fails on a duplicated callback.** With the
+  service worker's navigation preload enabled, a single-use OIDC callback could
+  be requested twice. The first request redeemed the authorization code and set
+  the session. The second hit the identity provider with the now-consumed code
+  and failed, so every successful sign-in landed on an error page. The service
+  worker now settles one-shot auth navigations itself, so the callback reaches
+  the server exactly once. The callback is also idempotent: a duplicate that
+  already holds a database-valid session is sent into the app instead of
+  erroring, while a forged or session-less state still fails closed and never
+  redeems a code.
+
+No migrations. No breaking changes.
+
+_Thanks to **@doenke** (#600), whose report pinned the cause (service worker
+navigation preload plus the single-use OIDC code) down to the exact mechanism,
+so the fix went in as reported._
+
+## [1.32.4] — 2026-07-23
+
+- **The Coach's numeric verifier stops flagging figures it was actually given.**
+  A restated difference, average, or percent change computed from two of the
+  numbers the model was shown, a sample count restated from the data inventory
+  that rides every turn, a calendar-date ordinal ("July 21st"), and a
+  numbered-list marker no longer trip the inline `[unverified]` rewrite that
+  was appearing in place of correct values. A genuinely fabricated figure, one
+  with no grounding at all, is still caught and stripped.
+
+No migrations. No breaking changes.
+
+## [1.32.3] — 2026-07-23
+
+Security release. It ships on its own so the change to how a second factor is
+proven can be watched in isolation.
+
+- **A native client can manage its own second factor.** The iOS app can now
+  turn two-factor authentication on or off, add or remove a security key, and
+  regenerate recovery codes over its API session. Those actions were reachable
+  only from a browser before. It does so through a short-lived, single-use
+  elevation the app earns by re-proving a factor, never by presenting its
+  token alone.
+- **The re-proved factor decides what the elevation reaches.** Re-proving with
+  a password reaches exactly what a plain browser session reaches. The actions
+  a browser gates behind a completed second factor now require the same over
+  the API: a re-proved TOTP code or security key, never the password alone.
+  Administrative endpoints remain reachable only from a browser session,
+  unchanged.
+
+One migration (0267), additive. Addresses the native 2FA-management gap
+(healthlog-iOS #57).
+
+## [1.32.2] — 2026-07-23
+
+Security release. Ships on its own and ahead of everything queued, because it
+closes a set of freshly disclosed framework vulnerabilities that affect the
+running instance today.
+
+- **Next.js updated to 16.2.11**, closing four high-severity advisories in the
+  App Router: a middleware/proxy bypass, two server-side request-forgery
+  paths (rewrites and Server Actions), and a denial of service. The
+  middleware/proxy advisory is the most relevant here, since the request edge
+  enforces the public-path allowlist and the authentication redirect. No
+  application code changed; this is the dependency patch alone.
+
+Carries the fixes already merged for 1.32.1 (honest health-score absence,
+Coach score questions, Apple Health import and Pulse fidelity, three
+silent data-loss races), since those reached the trunk first. No migrations
+beyond what 1.32.1 declared (none). No breaking changes.
+
+## [1.32.1] — 2026-07-23
+
+- **The Personal Health Score reads "not enough data yet" instead of zero.**
+  An account with records that do not yet meet any score pillar's minimum
+  (for example a single mood entry, no paired blood pressure, one weight
+  reading) showed a red 0 rather than an honest absence. The score is now
+  withheld until at least one pillar is computable; a genuinely computed 0 is
+  still shown.
+- **The Coach stops refusing ordinary questions about your own scores.** A
+  question about a Sleep Score or Health Score no longer trips the
+  fabricated-clinical-risk refusal; the guard now matches the specific risk
+  calculator it was meant to catch, not the plain word "score", and still
+  blocks a genuinely invented risk figure.
+- **The Apple Health import no longer stalls at "unpacking".** A large export
+  is now unpacked as a stream rather than decompressed whole into memory on
+  the shared event loop, and a job left mid-unpack by a restart is picked up
+  by a periodic reconcile instead of sitting stuck with no error. A byte
+  ceiling still guards against a decompression bomb.
+- **The Pulse insights page shows pulse, not resting heart rate.** It no
+  longer silently swaps its main chart to resting heart rate when any resting
+  data exists; resting heart rate appears as a clearly labelled second series
+  when present, and the resting-calibrated target band no longer paints
+  behind raw pulse readings.
+- **Dashboard layout changes can no longer be reverted by a concurrent
+  score-ring save.** The instant score-ring toggle now sends only the ring
+  fields instead of resending a cached snapshot of the whole layout, closing
+  a race where an in-flight ring update could land after a tile or chart Save
+  and silently restore the older layout.
+- **Measurement-reminder cadence edits recompute against the cadence that
+  was actually saved.** Clearing an interval or a recurrence rule to switch a
+  reminder's schedule no longer leaves the next-due date computed from the
+  just-replaced value for one cycle.
+- **ntfy notification settings keep a saved auth token across unrelated
+  edits.** Toggling the channel, or editing the server URL or topic, no
+  longer silently clears a previously configured token.
+
+No migrations. No breaking changes.
+
+_Thanks to **@lutzkind** (health-score zero-state, the Coach refusing score
+questions, the dashboard layout race, the Pulse page) and **@Nazza01** (the
+Apple Health import stall). These fixes came straight from their reports._
+
+## [1.32.0] — 2026-07-22
+
+- **Provider ingestion and daily reactions now preserve the correct identity.**
+  Arrival reactions are bound to the exact marker revision, workout selection
+  matches field donors to the correct surviving session, long-range buckets
+  honor the user's timezone, MCP pages stay stable, and one Withings
+  subscription repair can no longer block fallback polling for other users.
+- **Large reads and writes are bounded end to end.** Measurement exports stream
+  in pages without splitting sleep sessions, oversized projections cannot evict
+  the shared cache, dense reports and metric series use database aggregation,
+  upload reads have byte, time, and concurrency limits, full-history backfills
+  share admission control, and medication imports use durable chunks with
+  resumable, bounded final rollups.
+- **Capture and history flows are complete on mobile and desktop.** Workout
+  history loads beyond the first page, metric pages open preselected capture
+  forms and return to their origin, failed water submissions retain their draft,
+  and confirmed discards clear it.
+- **Interactive forms share one safe dismissal contract.** Dirty forms require
+  confirmation across tracked Back and Forward traversals, Apple Health setup
+  exposes successful native syncs, document selection is consumed on Coach
+  dismissal but preserved across full-page Coach navigation, conversation
+  titles can be renamed with rollback, and hidden tabs refresh meaningful
+  server state.
+- **Accessibility coverage now exercises representative authenticated routes,
+  themes, dialogs, and sheets.** Small text keeps compliant contrast, OCR uses a
+  visible labeled control, workout sections use real headings, and compact
+  actions retain 44-pixel touch targets.
+- **Client and API boundaries are explicit.** Localized stable error codes cover
+  measurement, mood, lab, and onboarding failures; client fetches and query
+  keys are lint-enforced; AI overrides are documented; and large Coach,
+  report, target, and provider modules now use one-way focused builders.
+
+- **Production image processing uses the patched Sharp 0.35 runtime.** This
+  closes the current high-severity libvips advisory chain inherited through
+  Next.js while retaining verified production-build compatibility.
+
+Migrations `0264_whoop_owner_identity`, `0265_withings_subscription_state`, and
+`0266_medication_intake_import_jobs`. No breaking changes.
+
+## [1.31.8] — 2026-07-21
+
+- **MCP search cursors keep lab results stable across pages.** Distinct analyte
+  names are ordered before offset pagination, preventing repeated or skipped
+  lab entries when a client follows `nextCursor`.
+- **Opening the medication wizard no longer risks clearing entered fields.**
+  The one-shot URL flag is removed without starting a second page navigation,
+  so slower browsers keep the active wizard instance and its form state.
+
+No migrations. No breaking changes.
+
+## [1.31.7] — 2026-07-20
+
+- **Current OpenAI reasoning models use their supported request contract.**
+  Official GPT-5, o1, o3, and o4 models receive `max_completion_tokens`
+  without unsupported `temperature` or `seed` fields; compatible custom
+  gateways retain the legacy parameters they advertise.
+- **Apple Health XML cumulative totals no longer add overlapping sources.**
+  Imports aggregate each source/day independently and select the highest
+  source subtotal, while explicit provenance prevents XML estimates or late
+  legacy samples from overwriting authoritative native HealthKit statistics.
+  Existing legacy aggregates can be repaired by re-uploading their archive.
+- **Every currently actionable medication reaches Today.** Equal-time doses no
+  longer collapse to one row, overdue doses win deterministic ties, and weekly
+  or custom intake windows use the scheduling engine's real availability
+  boundary. The shared digest fixes both the web start page and iOS Home.
+
+Migration `0263_apple_health_aggregate_authority`. No breaking changes.
+
 ## [1.31.6] — 2026-07-21
 
 - **The hardened runtime image can run database migrations again.** The

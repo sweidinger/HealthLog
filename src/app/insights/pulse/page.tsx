@@ -35,20 +35,23 @@ const IntradayPulseChart = dynamic(
     })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
-import {
-  getAgeFromDateOfBirth,
-  getPersonalizedPulseTarget,
-} from "@/lib/analytics/pulse-targets";
 
 /**
  * v1.4.25 W4 — `/insights/pulse`.
  *
- * Routed Pulse sub-page. Renders the pulse chart with the personalized
- * Karvonen-derived target band plus the per-section AI assessment.
- * Note: `chartKey="pulse"` so the chart-cog can override the
- * comparison-overlay independently from the dashboard pulse card; the
- * MeasurementType filter is `PULSE` (the same field used elsewhere
- * in the codebase).
+ * Routed Pulse sub-page. Renders the raw/workout-inclusive pulse chart
+ * plus the per-section AI assessment. Note: `chartKey="pulse"` so the
+ * chart-cog can override the comparison-overlay independently from the
+ * dashboard pulse card; the MeasurementType filter is `PULSE` (the same
+ * field used elsewhere in the codebase).
+ *
+ * v1.32.1 (issue #584) — this page no longer paints the personalized
+ * resting-pulse target band (`getPersonalizedPulseTarget()`, CDC/NCHS
+ * resting-pulse percentiles) behind the chart: that band is calibrated
+ * to steady-state resting readings and would misreport an expected
+ * workout spike in the raw PULSE series as "out of target". The
+ * personal target + its band belong on the dedicated
+ * `/insights/resting-pulse` page, against the clean resting series.
  *
  * Analytics fetch + empty-state branch consume `useInsightsAnalytics()`
  * + `<MetricEmptyState>`. VO₂ max is a cardio-fitness metric, so the page
@@ -66,11 +69,16 @@ export default function InsightsPulsPage() {
   // dedicated cardio-fitness page.
   const hasVo2 = (analytics?.summaries?.VO2_MAX?.count ?? 0) > 0;
   const pulseSummary = analytics?.summaries?.PULSE ?? null;
-  // v1.15.12 A2 — the resting-pulse band is judged against
-  // RESTING_HEART_RATE (Apple's clean daily resting figure). When the
-  // user has resting rows the chart shows that series against the band;
-  // otherwise it charts raw heart rate WITHOUT the resting-band overlay
-  // (which would flag expected-high workout HR as "outside target").
+  // v1.32.1 (issue #584) — this page is titled, captured, and stat-stripped
+  // as PULSE throughout; the chart must chart PULSE too. `hasRestingHr` used
+  // to swap the ENTIRE primary chart + Coach read to RESTING_HEART_RATE
+  // whenever any resting row existed, which silently showed a different
+  // metric than the page's own title/stat-strip/capture action claimed.
+  // RESTING_HEART_RATE now only ever appears as a second, clearly-labelled
+  // series alongside PULSE (same multi-series pattern the blood-pressure
+  // page uses for systolic/diastolic) — never a full swap. The dedicated
+  // `/insights/resting-pulse` page owns the resting-only view + its target
+  // band.
   const hasRestingHr =
     (analytics?.summaries?.RESTING_HEART_RATE?.count ?? 0) > 0;
 
@@ -108,44 +116,6 @@ export default function InsightsPulsPage() {
     );
   }
 
-  const pulseAge = getAgeFromDateOfBirth(user?.dateOfBirth ?? null);
-  const pulseTarget = getPersonalizedPulseTarget(
-    pulseAge,
-    (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
-  );
-  const pulseBands = [
-    {
-      min: 30,
-      max: pulseTarget.orangeMin,
-      color: "var(--destructive)",
-      opacity: 0.16,
-    },
-    {
-      min: pulseTarget.orangeMin,
-      max: pulseTarget.greenMin,
-      color: "var(--warning)",
-      opacity: 0.18,
-    },
-    {
-      min: pulseTarget.greenMin,
-      max: pulseTarget.greenMax,
-      color: "var(--success)",
-      opacity: 0.2,
-    },
-    {
-      min: pulseTarget.greenMax,
-      max: pulseTarget.orangeMax,
-      color: "var(--warning)",
-      opacity: 0.18,
-    },
-    {
-      min: pulseTarget.orangeMax,
-      max: 220,
-      color: "var(--destructive)",
-      opacity: 0.16,
-    },
-  ].filter((band) => band.max > band.min);
-
   return (
     <SubPageShell
       title={t("insights.pulseSectionTitle")}
@@ -161,11 +131,7 @@ export default function InsightsPulsPage() {
         />
       }
       coachReadStrip={
-        <CoachReadStrip
-          metricType={hasRestingHr ? "RESTING_HEART_RATE" : "PULSE"}
-          unit="bpm"
-          fractionDigits={0}
-        />
+        <CoachReadStrip metricType="PULSE" unit="bpm" fractionDigits={0} />
       }
       diversityNudge={
         <MeasurementDiversityNudge
@@ -175,16 +141,20 @@ export default function InsightsPulsPage() {
         />
       }
       coachLaunch
+      captureType="PULSE"
       showAllValuesType="PULSE"
     >
       <HealthChartDynamic
         chartKey="pulse"
-        types={hasRestingHr ? ["RESTING_HEART_RATE"] : ["PULSE"]}
+        types={hasRestingHr ? ["PULSE", "RESTING_HEART_RATE"] : ["PULSE"]}
         title={t("charts.pulse")}
         titleIcon={Heart}
-        colors={["var(--success)"]}
+        colors={
+          hasRestingHr
+            ? ["var(--success)", "var(--destructive)"]
+            : ["var(--success)"]
+        }
         unit="bpm"
-        valueBands={hasRestingHr ? pulseBands : undefined}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
         onVisibleStats={onVisibleStats}

@@ -13,6 +13,10 @@ import { LOCALE_COOKIE, setLocaleCookie } from "@/lib/i18n/locale-cookie";
 const SESSION_COOKIE = "healthlog_session";
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+/** Public name of the browser session cookie, for routes that read it off a
+ * `NextRequest` directly (rather than through `getSession()`'s `cookies()`). */
+export const SESSION_COOKIE_NAME = SESSION_COOKIE;
+
 /**
  * Marks a cookie value as a v1.30.32 session secret. Doubles as the branch
  * between the two resolution paths below, so a cookie is only ever looked up
@@ -82,6 +86,68 @@ async function findSessionByCookie(cookieValue: string) {
   });
   // A row that already holds a secret has retired its id as a credential.
   return legacy && legacy.tokenHash === null ? legacy : null;
+}
+
+/**
+ * Validate a session straight from a raw cookie value — no `next/headers`,
+ * no sliding-expiry write, no cookie mutation. Runs the same hardened lookup
+ * `getSession()` uses (`hashToken` secret path or the passive legacy-cuid
+ * path) plus an expiry check, and returns the resolved user, or null for a
+ * missing / unknown / expired session.
+ *
+ * Exists for routes that must confirm an already-established session from a
+ * `NextRequest` before they mint anything — notably the OIDC callback's
+ * duplicate-detection path, which runs before session creation and must not
+ * touch the cookie store. Presence of a cookie string is NOT enough: an
+ * attacker controls that string, so the value is resolved against the
+ * database and its expiry, exactly like the login path.
+ */
+export async function validateSessionFromCookieValue(
+  cookieValue: string | undefined | null,
+): Promise<{ session: { id: string; expiresAt: Date }; user: User } | null> {
+  if (!cookieValue) return null;
+  const session = await findSessionByCookie(cookieValue).catch(() => null);
+  if (!session || session.expiresAt < new Date()) return null;
+  return {
+    session: { id: session.id, expiresAt: session.expiresAt },
+    user: session.user,
+  };
+}
+
+/**
+ * Like `validateSessionFromCookieValue`, but ALSO projects `Session.createdAt`.
+ *
+ * Exists for the native web-handoff completion (`/api/auth/native/complete`),
+ * whose load-bearing freshness binding compares `session.createdAt` against the
+ * DB-clock `startedAt` stamped when the flow began. `validateSessionFromCookieValue`
+ * deliberately does not return `createdAt`; wiring the completion route to it
+ * would leave `createdAt` undefined and either refuse every completion or, worse,
+ * tempt a caller to drop the comparison and delete the whole defence (red-team
+ * A3). So the projection lives here, next to the primitive it mirrors, and the
+ * completion route reads `createdAt` from a value that is structurally always
+ * present.
+ *
+ * `createdAt` is immutable per login: `createSession` is insert-only and the
+ * sliding-expiry / last-active writes never touch it, so it is reliably the
+ * instant of THIS interactive login.
+ */
+export async function validateSessionWithCreatedAt(
+  cookieValue: string | undefined | null,
+): Promise<{
+  session: { id: string; createdAt: Date; expiresAt: Date };
+  user: User;
+} | null> {
+  if (!cookieValue) return null;
+  const session = await findSessionByCookie(cookieValue).catch(() => null);
+  if (!session || session.expiresAt < new Date()) return null;
+  return {
+    session: {
+      id: session.id,
+      createdAt: session.createdAt,
+      expiresAt: session.expiresAt,
+    },
+    user: session.user,
+  };
 }
 
 // v1.23 — throttle window for the user-facing active-session list's "last
@@ -369,6 +435,16 @@ export async function destroyAllSessions(userId: string): Promise<void> {
 }
 
 /**
+ * How the caller of a "revoke everything else" action authenticated.
+ *
+ * Exists so the caller's own credential can be spared without any code having
+ * to guess what kind of id it is holding — see `destroyOtherSessions`.
+ */
+export type CurrentCredential =
+  | { kind: "session"; sessionId: string }
+  | { kind: "accessToken"; accessTokenHash: string };
+
+/**
  * v1.23 — "sign out everywhere" for the user-facing active-session surface
  * (issue #64). Distinct from `destroyAllSessions`: this keeps the caller's
  * CURRENT cookie session alive so clicking the button doesn't log the user out
@@ -382,20 +458,41 @@ export async function destroyAllSessions(userId: string): Promise<void> {
  */
 export async function destroyOtherSessions(
   userId: string,
-  currentSessionId: string,
+  current: CurrentCredential,
 ): Promise<{ sessionsRevoked: number }> {
+  // Which rows describe the CALLER depends on how the caller authenticated, and
+  // the two shapes are not interchangeable. A cookie caller is a `Session` row.
+  // A Bearer caller is an `ApiToken` whose device login is the `RefreshToken`
+  // carrying the matching `accessTokenHash` — it has no session row at all, so
+  // every session goes. Passing an ApiToken id in as a session id (which an
+  // earlier revision did) silently excluded nothing and revoked the caller's own
+  // refresh token, logging the calling device out at its next rotation.
+  const keptSessionId =
+    current.kind === "session" ? current.sessionId : undefined;
+  const keptRefreshWhere =
+    current.kind === "accessToken"
+      ? { accessTokenHash: { not: current.accessTokenHash } }
+      : {};
+
   const [deleted] = await prisma.$transaction([
     prisma.session.deleteMany({
-      where: { userId, id: { not: currentSessionId } },
+      where: {
+        userId,
+        ...(keptSessionId ? { id: { not: keptSessionId } } : {}),
+      },
     }),
     prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
+      where: { userId, revokedAt: null, ...keptRefreshWhere },
       data: { revokedAt: new Date() },
     }),
     // v1.23 — "sign out everywhere" also drops every trusted device so a
     // remembered browser can no longer skip the second factor (§1.7: a device
     // cookie is killed on sign-out-everywhere).
     prisma.trustedDevice.deleteMany({ where: { userId } }),
+    // v1.30.34 — and every step-up elevation. A user who signs out everywhere
+    // expects nothing to remain that could act on the account; a live elevation
+    // is exactly that.
+    prisma.stepUpElevation.deleteMany({ where: { userId } }),
   ]);
   return { sessionsRevoked: deleted.count };
 }

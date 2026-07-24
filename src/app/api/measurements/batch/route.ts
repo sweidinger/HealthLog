@@ -61,6 +61,7 @@ import {
   type MergeCandidate,
 } from "@/lib/measurements/cross-source-merge";
 import { reconcileExternalMeasurement } from "@/lib/measurements/reconcile-external-measurement";
+import { isPlausibleEntryInstant } from "@/lib/validations/entry-instant";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
 import { deviceTypeEnum } from "@/lib/validations/source-priority";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -158,8 +159,18 @@ const batchEntrySchema = z.object({
   deviceType: deviceTypeEnum.nullable().optional(),
 });
 
+// v1.32.8 (iOS #66) — optional per-REQUEST diagnostic tag naming what woke the
+// client for this sync. Purely observational: it flows into the
+// `measurement.batch.ingest` wide event and NOTHING else — never persisted,
+// never part of the dedup key, never an input to attribution or how a sample is
+// stored. Only the client knows its own wake reason, so it is client-asserted
+// by necessity; being diagnostic-only, that carries no trust surface. Optional
+// so every pre-#66 caller stays byte-for-byte unchanged.
+const syncTriggerEnum = z.enum(["foreground", "background", "push"]);
+
 const batchPayloadSchema = z.object({
   entries: z.array(batchEntrySchema).min(1),
+  syncTrigger: syncTriggerEnum.optional(),
 });
 
 type BatchEntry = z.infer<typeof batchEntrySchema>;
@@ -247,7 +258,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
     return apiError(parsed.error.issues[0]?.message ?? "Invalid batch", 422);
   }
 
-  const { entries } = parsed.data;
+  const { entries, syncTrigger } = parsed.data;
 
   // First pass — map each inbound entry; record skipped entries.
   type Prepared = {
@@ -290,6 +301,22 @@ async function postBatch(request: NextRequest): Promise<Response> {
         index,
         status: "skipped",
         reason: "value_out_of_range",
+      };
+      continue;
+    }
+
+    // Time-plausibility guard, the bound the single-entry twin already applies
+    // through `validateEntryInstant` on `createMeasurementSchema.measuredAt`.
+    // Without it a future-dated row permanently won "latest reading" on every
+    // dashboard and poisoned the rollup buckets and the canonical picker. The
+    // past floor stays at 1900 (no `maxAgeMs`) because a historical Apple
+    // Health backfill is a legitimate, expected shape on this route; only the
+    // future side is a bug. Skipped per entry, like the range guard above.
+    if (!isPlausibleEntryInstant(mapped.takenAt)) {
+      results[index] = {
+        index,
+        status: "skipped",
+        reason: "implausible_timestamp",
       };
       continue;
     }
@@ -516,6 +543,9 @@ async function postBatch(request: NextRequest): Promise<Response> {
             rhythmClassification: p.row
               .rhythmClassification as Prisma.MeasurementUncheckedCreateInput["rhythmClassification"],
             deviceType: p.row.deviceType as string | null,
+            aggregationProvenance: statsRow ? "HEALTHKIT_STATISTICS" : null,
+            aggregationContributorCount: null,
+            aggregationSelectedSourceHash: null,
           },
           { exactExternalMatch: statsRow ? "update" : "duplicate" },
         ),
@@ -568,6 +598,26 @@ async function postBatch(request: NextRequest): Promise<Response> {
     }
   }
 
+  const healthKitSyncSucceeded =
+    failedCount === 0 &&
+    prepared.some((p) => {
+      if ((p.entry.source ?? "APPLE_HEALTH") !== "APPLE_HEALTH") return false;
+      const status = results[p.index]?.status;
+      return (
+        status === "inserted" || status === "updated" || status === "duplicate"
+      );
+    });
+
+  // This batch route is the native HealthKit ingestion boundary. Stamp only
+  // after every attempted write has reached a durable, non-failed verdict;
+  // MANUAL-only and skipped-only batches are not HealthKit syncs.
+  if (healthKitSyncSucceeded) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { healthKitLastSyncedAt: new Date() },
+    });
+  }
+
   const freshlyInsertedRows = insertedPrepared.map((p) => ({
     type: p.row.type as MeasurementType,
     measuredAt:
@@ -579,6 +629,18 @@ async function postBatch(request: NextRequest): Promise<Response> {
   const skipped = results
     .filter((r) => r.status === "skipped")
     .map((r) => ({ index: r.index, reason: r.reason ?? "unknown" }));
+
+  // v1.32.1 (issue #585) — per-reason skip breakdown. The baseline
+  // annotation below only ever carried the total `skipped` count, so an
+  // operator investigating "why does this account's uploaded data look
+  // sparser than expected" had no way to see WHICH validation gate an
+  // entry tripped (malformed bucket id, out-of-range value, unmappable
+  // identifier, …) without pulling raw rows. Grouping by reason turns
+  // that into a one-glance wide-event field.
+  const skippedByReason: Record<string, number> = {};
+  for (const s of skipped) {
+    skippedByReason[s.reason] = (skippedByReason[s.reason] ?? 0) + 1;
+  }
 
   await auditLog("measurement.batch.ingest", {
     userId: user.id,
@@ -620,6 +682,64 @@ async function postBatch(request: NextRequest): Promise<Response> {
       action: { name: "measurement.batch.cross-source-merge" },
       meta: {
         merged: crossSourceMergedCount,
+        processed: entries.length,
+      },
+    });
+  }
+
+  // v1.32.1 (issue #585) — dedicated outcome breakdown for entries
+  // targeting the go-forward aggregated 10-min heart-rate bucket prefix
+  // (`stats:HKQuantityTypeIdentifierHeartRate:<10-min-Z>`). The intraday
+  // pulse chart reads exactly these rows for a live-synced day; a report
+  // of "the chart looks sparser after the ZIP import cutoff" is
+  // unanswerable from the baseline ingest trace alone, since it never
+  // distinguished an HR-bucket write from any other entry in the batch.
+  // Grepping `measurement.batch.hr-bucket` now shows, per sync, how many
+  // bucket entries the client sent and what happened to each — confirming
+  // (or ruling out) server-side rejection/dedup as the density-gap cause.
+  // Only fires when the batch actually carried at least one HR-bucket
+  // entry so the baseline trace is unchanged for every other sync.
+  let hrBucketInserted = 0;
+  let hrBucketUpdated = 0;
+  let hrBucketDuplicate = 0;
+  let hrBucketSkipped = 0;
+  let hrBucketFailed = 0;
+  for (let index = 0; index < entries.length; index++) {
+    if (!targetsAggregatedBucket(entries[index].externalId)) continue;
+    switch (results[index]?.status) {
+      case "inserted":
+        hrBucketInserted++;
+        break;
+      case "updated":
+        hrBucketUpdated++;
+        break;
+      case "duplicate":
+        hrBucketDuplicate++;
+        break;
+      case "skipped":
+        hrBucketSkipped++;
+        break;
+      case "failed":
+        hrBucketFailed++;
+        break;
+    }
+  }
+  const hrBucketAttempted =
+    hrBucketInserted +
+    hrBucketUpdated +
+    hrBucketDuplicate +
+    hrBucketSkipped +
+    hrBucketFailed;
+  if (hrBucketAttempted > 0) {
+    annotate({
+      action: { name: "measurement.batch.hr-bucket" },
+      meta: {
+        attempted: hrBucketAttempted,
+        inserted: hrBucketInserted,
+        updated: hrBucketUpdated,
+        duplicate: hrBucketDuplicate,
+        skipped: hrBucketSkipped,
+        failed: hrBucketFailed,
         processed: entries.length,
       },
     });
@@ -670,7 +790,14 @@ async function postBatch(request: NextRequest): Promise<Response> {
       updated: updatedCount,
       duplicates: duplicateCount,
       skipped: skipped.length,
+      // v1.32.1 (issue #585) — per-reason skip breakdown; see the
+      // `skippedByReason` build above.
+      skipped_by_reason: skippedByReason,
       failed: failedCount,
+      // v1.32.8 (iOS #66) — diagnostic sync-trigger tag (foreground /
+      // background / push), or null when the client did not send one.
+      // Observability only; it never influenced any count above.
+      syncTrigger: syncTrigger ?? null,
     },
   });
 

@@ -1090,6 +1090,7 @@ export function CoachConversation({
         className={cn("flex min-h-0 flex-1 flex-col", className)}
       >
         {docScopeBanner}
+        {!heroActive ? <h1 className="sr-only">{title}</h1> : null}
         {/* v1.21.4 (A) — the page-toolbar gear was removed; Settings now lives
             in the composer's `+` actions menu alongside New chat and
             Conversations, keeping the page chrome to the composer alone. */}
@@ -1240,6 +1241,12 @@ export function CoachConversation({
               // seed so a pending attachment can't leak across a thread switch.
               setPendingAttachmentIds([]);
               dispatchGuided({ type: "RESET" });
+              // Drop the finished stream's trailing state, as `handleNewChat`
+              // already does. Without it the previous thread's last assistant
+              // or error bubble renders appended to the newly selected thread
+              // — `streamingActive` stays true because that messageId is
+              // absent from the new thread's messages — until the next send.
+              send.reset();
             }}
           />
         }

@@ -111,11 +111,11 @@ describe("POST /api/mood-entries/restore", () => {
   });
 
   it("collapses the mood rollup recompute to the unique day set, not per-row", async () => {
-    // 3 restored rows across 2 distinct UTC days → 2 recomputes.
+    // 3 restored rows across 2 distinct date labels → 2 recomputes.
     vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
-      { moodLoggedAt: new Date("2026-01-01T08:00:00Z") },
-      { moodLoggedAt: new Date("2026-01-01T20:00:00Z") },
-      { moodLoggedAt: new Date("2026-01-02T09:00:00Z") },
+      { date: "2026-01-01" },
+      { date: "2026-01-01" },
+      { date: "2026-01-02" },
     ] as never);
     vi.mocked(prisma.moodEntry.updateMany).mockResolvedValue({
       count: 3,

@@ -26,6 +26,7 @@ import { appendLogEvent, clearLogBuffer } from "@/lib/logging/in-memory-buffer";
 import type { WideEvent } from "@/lib/logging/types";
 
 const ADMIN_CTX = {
+  authMethod: "cookie" as const,
   session: { id: "s1", expiresAt: new Date(Date.now() + 3_600_000) },
   user: { id: "admin-1", username: "admin", role: "ADMIN" } as never,
 };

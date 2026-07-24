@@ -175,6 +175,8 @@ describe("readDailySeries — rollup read throw falls back to live SQL (F-DB-2)"
         bucket_start: new Date("2026-06-10T00:00:00.000Z"),
         avg: 80.5,
         cnt: 2,
+        min_value: 79.8,
+        max_value: 81.2,
       },
     ]);
 
@@ -189,6 +191,10 @@ describe("readDailySeries — rollup read throw falls back to live SQL (F-DB-2)"
     // The read did NOT throw — it fell through to live SQL and served a row.
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ type: "WEIGHT", value: 80.5, count: 2 });
+    // The live fallback must carry the min/max spread the rollup path emits —
+    // otherwise a rollup-cold account silently loses the chart's spread band
+    // for the same underlying data.
+    expect(result[0]).toMatchObject({ minValue: 79.8, maxValue: 81.2 });
     expect(mocks.queryRaw).toHaveBeenCalled();
   });
 

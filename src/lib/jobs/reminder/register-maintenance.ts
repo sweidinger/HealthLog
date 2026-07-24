@@ -38,11 +38,22 @@ import {
   type IntakeAutoSkipPayload,
 } from "@/lib/jobs/intake-auto-skip";
 import {
-  APPLE_HEALTH_IMPORT_QUEUE,
+  APPLE_HEALTH_IMPORT_V2_QUEUE,
+  APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
   APPLE_HEALTH_IMPORT_CONCURRENCY,
+  IMPORT_JOB_RECONCILE_QUEUE,
+  IMPORT_JOB_RECONCILE_CRON,
   handleAppleHealthImport,
+  handleImportJobReconcileTick,
+  migrateLegacyAppleHealthImport,
   type AppleHealthImportPayload,
 } from "@/lib/jobs/apple-health-import-worker";
+import {
+  MEDICATION_INTAKE_IMPORT_QUEUE,
+  MEDICATION_INTAKE_IMPORT_CONCURRENCY,
+  handleMedicationIntakeImport,
+  type MedicationIntakeImportQueuePayload,
+} from "@/lib/jobs/medication-intake-import";
 import {
   INTAKE_SLOT_DEDUP_QUEUE,
   INTAKE_SLOT_DEDUP_CONCURRENCY,
@@ -134,6 +145,7 @@ import {
 } from "./backup-handlers";
 import {
   RateLimitCleanupPayload,
+  StepUpElevationCleanupPayload,
   IdempotencyCleanupPayload,
   AuditLogCleanupPayload,
   MoodReminderCleanupPayload,
@@ -147,6 +159,7 @@ import {
   handleRateLimitCleanup,
   handleIdempotencyCleanup,
   handleAuditLogCleanup,
+  handleStepUpElevationCleanup,
   CoachMessageCleanupPayload,
   handleCoachMessageCleanup,
   McpTokenCleanupPayload,
@@ -185,6 +198,12 @@ const RATE_LIMIT_CLEANUP_CRON = "*/5 * * * *"; // every 5 minutes
 const IDEMPOTENCY_CLEANUP_QUEUE = "idempotency-cleanup";
 
 const IDEMPOTENCY_CLEANUP_CRON = "0 3 * * *"; // daily at 03:00 (Europe/Berlin)
+
+const STEP_UP_ELEVATION_CLEANUP_QUEUE = "step-up-elevation-cleanup";
+
+// Every 15 minutes. An elevation lives five, so nothing lingers long; the
+// cadence only has to be short enough that the table stays small.
+const STEP_UP_ELEVATION_CLEANUP_CRON = "*/15 * * * *";
 
 const AUDIT_LOG_CLEANUP_QUEUE = "audit-log-cleanup";
 
@@ -289,6 +308,7 @@ const allQueues = [
   RATE_LIMIT_CLEANUP_QUEUE,
   IDEMPOTENCY_CLEANUP_QUEUE,
   AUDIT_LOG_CLEANUP_QUEUE,
+  STEP_UP_ELEVATION_CLEANUP_QUEUE,
   OFFHOST_BACKUP_QUEUE,
   RESTORE_DRILL_QUEUE,
   HOST_METRIC_QUEUE,
@@ -304,7 +324,14 @@ const allQueues = [
   // this entry the schedule silently no-ops and pending rows older than
   // 24 h pile up unflipped.
   INTAKE_AUTO_SKIP_QUEUE,
-  APPLE_HEALTH_IMPORT_QUEUE,
+  APPLE_HEALTH_IMPORT_V2_QUEUE,
+  APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
+  // v1.32.1 (issue #588) — periodic sweep for ImportJob rows orphaned by a
+  // worker crash/restart mid-run. Without this entry the 15-minute cron
+  // below silently no-ops and a stuck "unpacking"/"parsing"/"upserting" row
+  // that survives past the next worker boot is never revisited.
+  IMPORT_JOB_RECONCILE_QUEUE,
+  MEDICATION_INTAKE_IMPORT_QUEUE,
   // v1.8.2 — one-time duplicate dose-slot cleanup. Boot discovery enqueues
   // one job per user holding two live intake rows that snap to the same
   // canonical slot (the pre-fix REMINDER-pending + API-taken pair). Also
@@ -392,6 +419,7 @@ const schedules: ScheduleEntry[] = [
   [RATE_LIMIT_CLEANUP_QUEUE, RATE_LIMIT_CLEANUP_CRON],
   [IDEMPOTENCY_CLEANUP_QUEUE, IDEMPOTENCY_CLEANUP_CRON],
   [AUDIT_LOG_CLEANUP_QUEUE, AUDIT_LOG_CLEANUP_CRON],
+  [STEP_UP_ELEVATION_CLEANUP_QUEUE, STEP_UP_ELEVATION_CLEANUP_CRON],
   [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
   [RESTORE_DRILL_QUEUE, RESTORE_DRILL_CRON],
   [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
@@ -452,6 +480,13 @@ const schedules: ScheduleEntry[] = [
   // Document vault — daily 04:10 Europe/Berlin purge for tombstoned
   // documents past the 30-day undo grace.
   [DOCUMENT_PURGE_QUEUE, DOCUMENT_PURGE_CRON],
+  // v1.32.1 (issue #588) — every-15-minute orphan-ImportJob sweep. Re-runs
+  // the same reconcile the boot path uses, so a stuck "unpacking" row
+  // whose worker crashed/restarted without the boot-time pass catching it
+  // (heartbeat not yet stale, pg-boss job not yet expired) still converges
+  // to a visible `failed` state within two ticks instead of staying stuck
+  // forever on an otherwise-healthy worker.
+  [IMPORT_JOB_RECONCILE_QUEUE, IMPORT_JOB_RECONCILE_CRON],
 ];
 
 /**
@@ -472,9 +507,10 @@ const schedules: ScheduleEntry[] = [
  *     become one. That is exactly the class of silent work-dropping a policy is
  *     supposed to prevent, so the queue keeps `standard` until the enqueue side
  *     gives the explicit-range variant a key of its own.
- *   - APPLE_HEALTH_IMPORT_QUEUE, DATA_BACKUP_QUEUE and PR_DETECTION_QUEUE send
- *     keylessly by design (each import / backup / detection run is a distinct
- *     unit of work). A policy would coalesce independent runs.
+ *   - APPLE_HEALTH_IMPORT_V2_QUEUE, APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
+ *     DATA_BACKUP_QUEUE and PR_DETECTION_QUEUE send keylessly by design (each
+ *     import / backup / detection run is a distinct unit of work). A policy
+ *     would coalesce independent runs.
  */
 const queuePolicies: QueuePolicyTable = {
   // Per-user, boot- and cron-discovery driven, self-converging one-shots. The
@@ -567,6 +603,11 @@ export async function registerMaintenanceQueues(
     AUDIT_LOG_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleAuditLogCleanup,
+  );
+  await boss.work<StepUpElevationCleanupPayload>(
+    STEP_UP_ELEVATION_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleStepUpElevationCleanup,
   );
   await boss.work<OffhostBackupPayload>(
     OFFHOST_BACKUP_QUEUE,
@@ -672,7 +713,7 @@ export async function registerMaintenanceQueues(
   // caps at 1 because the parse loop is CPU-bound and a concurrent
   // second 1 GB import would race the first for RSS.
   await boss.work<AppleHealthImportPayload>(
-    APPLE_HEALTH_IMPORT_QUEUE,
+    APPLE_HEALTH_IMPORT_V2_QUEUE,
     { localConcurrency: APPLE_HEALTH_IMPORT_CONCURRENCY },
     async (jobs) => {
       // pg-boss v12 work callbacks always receive an array (batched
@@ -680,6 +721,38 @@ export async function registerMaintenanceQueues(
       // process each job sequentially.
       for (const job of jobs) {
         await handleAppleHealthImport(job);
+      }
+    },
+  );
+  // Drain pre-revision-2 backlog by moving each claimed legacy job onto the
+  // isolated v2 queue. This preserves the ImportJob status id without letting
+  // the current parser execute under a revision-1 mirror.
+  await boss.work<AppleHealthImportPayload>(
+    APPLE_HEALTH_IMPORT_LEGACY_QUEUE,
+    { localConcurrency: APPLE_HEALTH_IMPORT_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        await migrateLegacyAppleHealthImport(job);
+      }
+    },
+  );
+  // v1.32.1 (issue #588) — periodic orphan-ImportJob sweep. Single-flight:
+  // the underlying `updateMany` is idempotent and two ticks racing the same
+  // read-then-write pass would just be wasted work.
+  await boss.work(
+    IMPORT_JOB_RECONCILE_QUEUE,
+    { localConcurrency: 1 },
+    handleImportJobReconcileTick,
+  );
+  await boss.work<MedicationIntakeImportQueuePayload>(
+    MEDICATION_INTAKE_IMPORT_QUEUE,
+    {
+      localConcurrency: MEDICATION_INTAKE_IMPORT_CONCURRENCY,
+      includeMetadata: true,
+    },
+    async (jobs) => {
+      for (const job of jobs) {
+        await handleMedicationIntakeImport(job);
       }
     },
   );

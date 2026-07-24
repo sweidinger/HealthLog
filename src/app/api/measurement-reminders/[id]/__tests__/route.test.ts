@@ -1,0 +1,229 @@
+/**
+ * v1.32.1 — regression for iOS coordination issue #62: the `nextDueAt`
+ * recomputation on `PATCH /api/measurement-reminders/{id}` used to read an
+ * explicit `null` cadence clear as "field omitted" (`?? existing.field`
+ * cannot distinguish the two — both are nullish) and recompute against the
+ * STALE cadence for one cycle, even though the persisted row itself already
+ * carried the correct cleared value.
+ *
+ * Every test below drives the REAL `computeReminderNextDueAt` (not a mock)
+ * so the "correct" and "stale" comparison values are genuine recurrence-
+ * engine output, not hand-picked dates — and asserts the fixtures actually
+ * differ before trusting the route's answer, so a fixture collision can't
+ * hide a regression.
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { NextRequest } from "next/server";
+
+vi.mock("@/lib/api-handler", () => ({
+  apiHandler: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
+  requireAuth: vi.fn(async () => ({ user: { id: "u1", locale: "en" } })),
+}));
+
+vi.mock("@/lib/auth/audit", () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
+
+const findFirstMock = vi.fn();
+const updateMock = vi.fn();
+const findUserMock = vi.fn();
+const auditLogCreateMock = vi.fn();
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    measurementReminder: {
+      findFirst: (...a: unknown[]) => findFirstMock(...a),
+      update: (...a: unknown[]) => updateMock(...a),
+    },
+    user: { findUnique: (...a: unknown[]) => findUserMock(...a) },
+    auditLog: { create: (...a: unknown[]) => auditLogCreateMock(...a) },
+  },
+}));
+
+import { PATCH } from "../route";
+import { computeReminderNextDueAt } from "@/lib/measurement-reminders/scheduling";
+
+const BASE_ROW = {
+  id: "r1",
+  userId: "u1",
+  label: "Blutdruck messen",
+  measurementType: "BLOOD_PRESSURE_SYS",
+  intervalDays: 30,
+  rrule: null as string | null,
+  anchorDate: null as Date | null,
+  endsOn: null,
+  origin: "VORSORGE",
+  notifyHour: 9,
+  location: null,
+  nextDueAt: new Date("2026-01-31T09:00:00Z"),
+  lastSatisfiedAt: null as Date | null,
+  enabled: true,
+  createdAt: new Date("2026-01-01T00:00:00Z"),
+  updatedAt: new Date("2026-01-01T00:00:00Z"),
+  deletedAt: null,
+};
+
+const NOW = new Date("2026-06-15T08:00:00.000Z");
+const TZ = "Europe/Berlin";
+
+function makeRequest(body: unknown): NextRequest {
+  return new NextRequest("http://localhost/api/measurement-reminders/r1", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+const params = { params: Promise.resolve({ id: "r1" }) };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  findUserMock.mockResolvedValue({ timezone: TZ });
+  updateMock.mockImplementation(
+    async ({ data }: { data: Record<string, unknown> }) => ({
+      ...BASE_ROW,
+      ...data,
+    }),
+  );
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("PATCH /api/measurement-reminders/[id] — nextDueAt honours explicit-null cadence clears (regression iOS #62)", () => {
+  it("interval → RRULE: recomputes off the NEW rrule, not the just-cleared interval", async () => {
+    // Existing rolling reminder: intervalDays=30, rrule=null.
+    findFirstMock.mockResolvedValue(BASE_ROW);
+
+    const res = await PATCH(
+      makeRequest({ intervalDays: null, rrule: "FREQ=YEARLY" }),
+      params,
+    );
+    expect(res.status).toBe(200);
+
+    const persisted = updateMock.mock.calls[0]?.[0]?.data as Record<
+      string,
+      unknown
+    >;
+    // The explicit-null clear + the new rrule both persist correctly —
+    // this half was never broken.
+    expect(persisted.intervalDays).toBeNull();
+    expect(persisted.rrule).toBe("FREQ=YEARLY");
+
+    const correct = computeReminderNextDueAt(
+      { ...BASE_ROW, intervalDays: null, rrule: "FREQ=YEARLY" },
+      TZ,
+      NOW,
+    );
+    // The bug: `?? existing` reads the cleared intervalDays as "omitted"
+    // and recomputes against the OLD rolling cadence for one cycle.
+    const staleBug = computeReminderNextDueAt(
+      { ...BASE_ROW, intervalDays: 30, rrule: null },
+      TZ,
+      NOW,
+    );
+    // Mutation-check guard: the fixtures must actually diverge, or this
+    // test can't tell a fix from a no-op.
+    expect(correct).not.toEqual(staleBug);
+
+    expect(persisted.nextDueAt).toEqual(correct);
+    expect(persisted.nextDueAt).not.toEqual(staleBug);
+  });
+
+  it("RRULE → interval: recomputes off the NEW interval, not the just-cleared rrule (incl. its BYHOUR)", async () => {
+    findFirstMock.mockResolvedValue({
+      ...BASE_ROW,
+      intervalDays: null,
+      rrule: "FREQ=DAILY;BYHOUR=7,19",
+    });
+
+    const res = await PATCH(
+      makeRequest({ rrule: null, intervalDays: 14 }),
+      params,
+    );
+    expect(res.status).toBe(200);
+
+    const persisted = updateMock.mock.calls[0]?.[0]?.data as Record<
+      string,
+      unknown
+    >;
+    expect(persisted.rrule).toBeNull();
+    expect(persisted.intervalDays).toBe(14);
+
+    const correct = computeReminderNextDueAt(
+      { ...BASE_ROW, intervalDays: 14, rrule: null },
+      TZ,
+      NOW,
+    );
+    const staleBug = computeReminderNextDueAt(
+      { ...BASE_ROW, intervalDays: null, rrule: "FREQ=DAILY;BYHOUR=7,19" },
+      TZ,
+      NOW,
+    );
+    expect(correct).not.toEqual(staleBug);
+
+    expect(persisted.nextDueAt).toEqual(correct);
+    expect(persisted.nextDueAt).not.toEqual(staleBug);
+  });
+
+  it("explicit anchorDate: null clear recomputes off no-anchor, not the stale anchor", async () => {
+    findFirstMock.mockResolvedValue({
+      ...BASE_ROW,
+      intervalDays: 30,
+      anchorDate: new Date("2026-01-15T00:00:00Z"),
+    });
+
+    const res = await PATCH(makeRequest({ anchorDate: null }), params);
+    expect(res.status).toBe(200);
+
+    const persisted = updateMock.mock.calls[0]?.[0]?.data as Record<
+      string,
+      unknown
+    >;
+    expect(persisted.anchorDate).toBeNull();
+
+    const correct = computeReminderNextDueAt(
+      { ...BASE_ROW, intervalDays: 30, anchorDate: null },
+      TZ,
+      NOW,
+    );
+    const staleBug = computeReminderNextDueAt(
+      {
+        ...BASE_ROW,
+        intervalDays: 30,
+        anchorDate: new Date("2026-01-15T00:00:00Z"),
+      },
+      TZ,
+      NOW,
+    );
+    expect(correct).not.toEqual(staleBug);
+
+    expect(persisted.nextDueAt).toEqual(correct);
+    expect(persisted.nextDueAt).not.toEqual(staleBug);
+  });
+
+  it("omitted cadence fields on a label-only edit leave the cadence — and nextDueAt — unchanged", async () => {
+    findFirstMock.mockResolvedValue(BASE_ROW);
+
+    const res = await PATCH(makeRequest({ label: "New label" }), params);
+    expect(res.status).toBe(200);
+
+    const persisted = updateMock.mock.calls[0]?.[0]?.data as Record<
+      string,
+      unknown
+    >;
+    expect(persisted.label).toBe("New label");
+    // The cadence keys are never written at all on a label-only edit — no
+    // clear, no touch.
+    expect("intervalDays" in persisted).toBe(false);
+    expect("rrule" in persisted).toBe(false);
+    expect("anchorDate" in persisted).toBe(false);
+
+    const expected = computeReminderNextDueAt(BASE_ROW, TZ, NOW);
+    expect(persisted.nextDueAt).toEqual(expected);
+  });
+});

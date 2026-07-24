@@ -431,7 +431,7 @@ describe("streamMultipartToDisk — large multi-chunk binary round-trip", () => 
         expect(written.equals(zip), `zip byte-exact for ${sizes}`).toBe(true);
         // The load-bearing assertion: the saved file is still a parseable
         // archive (EOCD intact) and the member round-trips.
-        const extracted = extractExportXml(result.filePath);
+        const extracted = await extractExportXml(result.filePath);
         xmlPath = extracted.xmlPath;
         expect(readFileSync(extracted.xmlPath).equals(xmlBuf)).toBe(true);
       } finally {

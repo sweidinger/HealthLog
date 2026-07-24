@@ -13,7 +13,7 @@
 import { Buffer } from "node:buffer";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { readNote } from "@/lib/crypto/note-cipher";
-import { findMeasurementsPaged } from "@/lib/export/paged-measurements";
+import { iterateMeasurementPages } from "@/lib/export/paged-measurements";
 import { BACKUP_SCHEMA_VERSION } from "@/lib/validations/backup";
 import { buildCycleBackupSection } from "@/lib/cycle/backup";
 import {
@@ -29,6 +29,7 @@ export interface FullBackupCounts extends RecordsBackupCounts {
   moodEntries: number;
   cycles: number;
   cycleDayLogs: number;
+  nutrientDays: number;
 }
 
 export interface FullBackupResult {
@@ -59,36 +60,85 @@ export async function buildFullBackupPayload(
     moodEntries,
     cycle,
     records,
+    nutrientDays,
   ] = await Promise.all([
     disasterRecovery
       ? prisma.appSettings.findUnique({ where: { id: "singleton" } })
       : Promise.resolve(null),
-    findMeasurementsPaged(
-      prisma,
-      disasterRecovery ? { userId } : { userId, deletedAt: null },
-      {
-        id: true,
-        type: true,
-        value: true,
-        valueMin: true,
-        valueMax: true,
-        unit: true,
-        measuredAt: true,
-        source: true,
-        notes: true,
-        notesEncrypted: true,
-        externalId: true,
-        externalSourceVersion: true,
-        glucoseContext: true,
-        sleepStage: true,
-        rhythmClassification: true,
-        deviceType: true,
-        syncVersion: true,
-        deletedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    ),
+    (async () => {
+      const rows: Array<Record<string, unknown>> = [];
+      const pages = iterateMeasurementPages(
+        prisma,
+        disasterRecovery ? { userId } : { userId, deletedAt: null },
+        {
+          id: true,
+          type: true,
+          value: true,
+          valueMin: true,
+          valueMax: true,
+          unit: true,
+          measuredAt: true,
+          source: true,
+          notes: true,
+          notesEncrypted: true,
+          externalId: true,
+          externalSourceVersion: true,
+          glucoseContext: true,
+          sleepStage: true,
+          rhythmClassification: true,
+          deviceType: true,
+          syncVersion: true,
+          deletedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      );
+      for await (const page of pages) {
+        for (const measurement of page) {
+          rows.push(
+            disasterRecovery
+              ? {
+                  id: measurement.id,
+                  type: measurement.type,
+                  value: measurement.value,
+                  valueMin: measurement.valueMin,
+                  valueMax: measurement.valueMax,
+                  unit: measurement.unit,
+                  measuredAt: measurement.measuredAt.toISOString(),
+                  source: measurement.source,
+                  notes: measurement.notes,
+                  notesEncrypted: measurement.notesEncrypted
+                    ? Buffer.from(measurement.notesEncrypted).toString("base64")
+                    : null,
+                  externalId: measurement.externalId,
+                  externalSourceVersion: measurement.externalSourceVersion,
+                  glucoseContext: measurement.glucoseContext,
+                  sleepStage: measurement.sleepStage,
+                  rhythmClassification: measurement.rhythmClassification,
+                  deviceType: measurement.deviceType,
+                  syncVersion: measurement.syncVersion,
+                  deletedAt: measurement.deletedAt?.toISOString() ?? null,
+                  createdAt: measurement.createdAt.toISOString(),
+                  updatedAt: measurement.updatedAt.toISOString(),
+                }
+              : {
+                  id: measurement.id,
+                  type: measurement.type,
+                  value: measurement.value,
+                  unit: measurement.unit,
+                  measuredAt: measurement.measuredAt.toISOString(),
+                  source: measurement.source,
+                  notes: readNote(
+                    measurement.notesEncrypted,
+                    measurement.notes,
+                  ),
+                  deletedAt: measurement.deletedAt?.toISOString() ?? null,
+                },
+          );
+        }
+      }
+      return rows;
+    })(),
     prisma.medication.findMany({
       where: { userId },
       include: { schedules: true },
@@ -117,6 +167,23 @@ export async function buildFullBackupPayload(
     buildRecordsBackupSection(prisma, userId, {
       purpose: disasterRecovery ? "disaster-recovery" : "portable-export",
     }),
+    // Nutrient day totals were absent from every export path, which
+    // contradicted the schema's own reason for denormalising the unit column
+    // ("rows stay self-describing in exports even if the catalog ever drifts").
+    // `source` is part of the composite PK, so it has to ride along or a
+    // restore cannot tell a manual water entry from a synced day total. The
+    // table carries no tombstone, so both purposes read the same shape.
+    prisma.nutrientIntakeDay.findMany({
+      where: { userId },
+      select: {
+        day: true,
+        nutrient: true,
+        amount: true,
+        unit: true,
+        source: true,
+      },
+      orderBy: [{ day: "desc" }, { nutrient: "asc" }],
+    }),
   ]);
 
   const payload = {
@@ -134,43 +201,7 @@ export async function buildFullBackupPayload(
             documentQuotaBytes: appSettings.documentQuotaBytes.toString(),
           }
         : null,
-    measurements: measurements.map((m) =>
-      disasterRecovery
-        ? {
-            id: m.id,
-            type: m.type,
-            value: m.value,
-            valueMin: m.valueMin,
-            valueMax: m.valueMax,
-            unit: m.unit,
-            measuredAt: m.measuredAt.toISOString(),
-            source: m.source,
-            notes: m.notes,
-            notesEncrypted: m.notesEncrypted
-              ? Buffer.from(m.notesEncrypted).toString("base64")
-              : null,
-            externalId: m.externalId,
-            externalSourceVersion: m.externalSourceVersion,
-            glucoseContext: m.glucoseContext,
-            sleepStage: m.sleepStage,
-            rhythmClassification: m.rhythmClassification,
-            deviceType: m.deviceType,
-            syncVersion: m.syncVersion,
-            deletedAt: m.deletedAt?.toISOString() ?? null,
-            createdAt: m.createdAt.toISOString(),
-            updatedAt: m.updatedAt.toISOString(),
-          }
-        : {
-            id: m.id,
-            type: m.type,
-            value: m.value,
-            unit: m.unit,
-            measuredAt: m.measuredAt.toISOString(),
-            source: m.source,
-            notes: readNote(m.notesEncrypted, m.notes),
-            deletedAt: m.deletedAt?.toISOString() ?? null,
-          },
-    ),
+    measurements,
     medications: medications.map((m) => ({
       ...(disasterRecovery
         ? {
@@ -278,6 +309,13 @@ export async function buildFullBackupPayload(
     familyHistory: records.familyHistory,
     workouts: records.workouts,
     documents: records.documents,
+    nutrientDays: nutrientDays.map((n) => ({
+      day: n.day,
+      nutrient: n.nutrient,
+      amount: n.amount,
+      unit: n.unit,
+      source: n.source,
+    })),
     manifest: records.manifest,
   };
 
@@ -290,6 +328,7 @@ export async function buildFullBackupPayload(
       moodEntries: moodEntries.length,
       cycles: cycle.cycles.length,
       cycleDayLogs: cycle.cycleDayLogs.length,
+      nutrientDays: nutrientDays.length,
       ...countRecordsBackupSection(records),
     },
   };

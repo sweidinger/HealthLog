@@ -126,6 +126,18 @@ export async function exchangeCode(
       upstreamError: typeof json?.error === "string" ? json.error : undefined,
     });
   }
+  // A 2xx with an empty or non-JSON body (captive portal, gateway 200, 204)
+  // leaves `json` null. Casting it straight to the token type handed callers a
+  // null they then dereferenced, surfacing an unclassified TypeError instead of
+  // a handled integration error. Narrow explicitly and classify as transient.
+  if (json === null || typeof json !== "object") {
+    throw new PolarApiError({
+      verb: "exchangeCode",
+      classification: "transient",
+      httpStatus: res.status,
+      reason: "empty_token_body",
+    });
+  }
   return json as PolarTokenResponse;
 }
 

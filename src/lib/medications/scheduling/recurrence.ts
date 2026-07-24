@@ -60,6 +60,7 @@ import { annotate } from "@/lib/logging/context";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { startOfLocalDayInTz } from "@/lib/tz/local-day";
+import { hhmmToMinutesOrNull } from "@/lib/medications/scheduling/hhmm";
 
 /**
  * v1.7.0 — schedule-type discriminator on the canonical schedule.
@@ -823,8 +824,8 @@ function graceWindowMs(schedule: CanonicalSchedule): number {
   if (schedule.reminderGraceMinutes !== null) {
     return schedule.reminderGraceMinutes * ONE_MINUTE_MS;
   }
-  const startMin = hhmmToMinutes(schedule.windowStart);
-  const endMin = hhmmToMinutes(schedule.windowEnd);
+  const startMin = hhmmToMinutesOrNull(schedule.windowStart);
+  const endMin = hhmmToMinutesOrNull(schedule.windowEnd);
   if (startMin === null || endMin === null) {
     return DEFAULT_GRACE_MINUTES * ONE_MINUTE_MS;
   }
@@ -832,14 +833,6 @@ function graceWindowMs(schedule: CanonicalSchedule): number {
   if (span < 0) span += 24 * 60; // overnight window
   if (span === 0) span = DEFAULT_GRACE_MINUTES;
   return span * ONE_MINUTE_MS;
-}
-
-function hhmmToMinutes(hhmm: string): number | null {
-  const [hStr, mStr] = hhmm.split(":");
-  const h = Number(hStr);
-  const m = Number(mStr);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-  return h * 60 + m;
 }
 
 // ────────────────────────────────────────────────────────────────────

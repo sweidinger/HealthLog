@@ -87,6 +87,8 @@ interface SerializedDoseHistoryRow {
     autoMissed: boolean;
     /** v1.16.4 — per-intake dose override; null = configured dose. */
     doseTaken: string | null;
+    /** v1.32.8 (iOS #64) — how the dose was recorded; null on legacy rows. */
+    source: "WEB" | "API" | "REMINDER" | "IMPORT" | "APPLE_HEALTH" | null;
   } | null;
 }
 
@@ -161,6 +163,9 @@ export const GET = apiHandler(
         attributionSource: true,
         // v1.16.4 — per-intake dose override for the ledger's deviation hint.
         doseTaken: true,
+        // v1.32.8 (iOS #64) — write provenance so the client can label how
+        // each dose was recorded (Web / API / Reminder / Import / AppleHealth).
+        source: true,
       },
     });
 
@@ -172,6 +177,7 @@ export const GET = apiHandler(
       autoMissed: e.autoMissed,
       pinned: e.attributionSource === "USER_PIN",
       doseTaken: e.doseTaken,
+      source: e.source,
     }));
 
     const lastIntakeAt = lastNonSkippedTakenAt(mapped);
@@ -244,6 +250,7 @@ export const GET = apiHandler(
         autoMissed: e.autoMissed,
         pinned: e.pinned,
         doseTaken: e.doseTaken,
+        source: e.source,
       }));
 
     const rows = reconstructDoseHistory(bands, historyIntakes, now);
@@ -269,6 +276,7 @@ export const GET = apiHandler(
             skipped: row.intake.skipped,
             autoMissed: row.intake.autoMissed ?? false,
             doseTaken: row.intake.doseTaken ?? null,
+            source: row.intake.source ?? null,
           }
         : null,
     }));

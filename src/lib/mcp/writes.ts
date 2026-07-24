@@ -563,7 +563,7 @@ export async function logMcpMood(input: {
 
   // Best-effort rollup refresh — a cache tier, never a write-path invariant.
   try {
-    await recomputeMoodBucketsForEntry(input.userId, moodLoggedAt);
+    await recomputeMoodBucketsForEntry(input.userId, date);
   } catch (rollupErr) {
     getEvent()?.addMeta(
       "mcp_mood_rollup_failed",

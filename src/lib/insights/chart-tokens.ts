@@ -188,79 +188,43 @@ const METRIC_WORD_REGEX = /\bMetric\s+[A-Za-z][A-Za-z0-9_]*\b/g;
 // fixed alternation so we never accidentally cleave a real word
 // (e.g. "MOOD") out of legitimate prose unless the model wrote it
 // as the raw enum in upper-snake form.
-const ORPHAN_ENUMS = [
-  "BLOOD_PRESSURE_SYS",
-  "BLOOD_PRESSURE_DIA",
+const EXTRA_ORPHAN_ENUMS = [
   "PULSE_BPM",
   "MOOD_SCORE",
   "MEDICATION_COMPLIANCE_PCT",
-  // v1.4.23 Apple Health additions — see ALLOWED_CHART_TOKENS above.
-  "HEART_RATE_VARIABILITY",
-  "RESTING_HEART_RATE",
-  "ACTIVE_ENERGY_BURNED",
-  "FLIGHTS_CLIMBED",
-  "WALKING_RUNNING_DISTANCE",
-  "VO2_MAX",
-  "BODY_TEMPERATURE",
-  "SLEEP_DURATION",
-  // v1.4.25 W5d Withings additions. Multi-word upper-snake enum names
-  // never appear in legitimate user-facing prose, so stripping them
-  // unconditionally is safe.
-  "FAT_FREE_MASS",
-  "FAT_MASS",
-  "MUSCLE_MASS",
-  "SKIN_TEMPERATURE",
-  "PULSE_WAVE_VELOCITY",
-  "VASCULAR_AGE",
-  "VISCERAL_FAT",
-  // v1.4.25 W8d Apple Health server-prep — multi-word upper-snake
-  // names that should never surface verbatim in user-facing prose.
-  "AUDIO_EXPOSURE_ENV",
-  "AUDIO_EXPOSURE_HEADPHONE",
-  "TIME_IN_DAYLIGHT",
-  // v1.5.5 iOS-coord additions — same shape, same posture.
-  "RESPIRATORY_RATE",
-  "BODY_MASS_INDEX",
-  "LEAN_BODY_MASS",
-  "WALKING_HEART_RATE_AVERAGE",
-  "WALKING_ASYMMETRY",
-  "WALKING_DOUBLE_SUPPORT",
-  // v1.5.5 iOS-coord follow-up — raw-SI gait pair, same shape.
-  "WALKING_STEP_LENGTH",
-  "WALKING_SPEED",
-  // v1.10.0 — additive HealthKit signals (WX-A), same shape.
-  "CARDIO_RECOVERY",
-  "WRIST_TEMPERATURE",
-  "FALL_COUNT",
-  "SIX_MINUTE_WALK_DISTANCE",
-  "STAIR_ASCENT_SPEED",
-  "STAIR_DESCENT_SPEED",
-  "BREATHING_DISTURBANCES",
-  // v1.10.0 — computed scores (WX-C), same shape. Strip the bare enum name
-  // if the model drops it into prose (mirrors the MOOD_SCORE precedent).
-  "RECOVERY_SCORE",
-  "STRESS_SCORE",
-  "STRAIN_SCORE",
-  // v1.11.0 — WHOOP-native score classes, same shape: strip the bare enum
-  // name if the model drops it into prose.
-  "HRV_RMSSD",
-  "DAY_STRAIN",
-  "WORKOUT_STRAIN",
-  "SLEEP_PERFORMANCE",
-  "SLEEP_EFFICIENCY",
-  "SLEEP_CONSISTENCY",
-  "SLEEP_NEED",
-  "ENERGY_EXPENDITURE_KJ",
-  // v1.12.8 — WHOOP cycle + sleep coverage completion, same shape: strip the
-  // bare enum name if the model drops it into prose.
-  "AVERAGE_HEART_RATE",
-  "MAX_HEART_RATE",
-  "SLEEP_DISTURBANCE_COUNT",
-  // v1.17.1 — Oura coverage completion, same shape: strip the bare enum name
-  // if the model drops it into prose.
-  "SLEEP_SCORE",
-  "BODY_TEMPERATURE_DEVIATION",
 ] as const;
+
+/**
+ * Single words shared with the user-facing metric label. "Your WEIGHT trend is
+ * stable" is legitimate prose, so these stay out of the stripper. Every entry
+ * is a single word by construction — an upper-snake name is never prose.
+ */
+const PROSE_SAFE_SINGLE_WORDS = new Set<string>([
+  "WEIGHT",
+  "PULSE",
+  "MOOD",
+  "RESILIENCE",
+]);
+
+/**
+ * Bare enum names cleaved out of prose, DERIVED from `ALLOWED_CHART_TOKENS`
+ * rather than hand-maintained.
+ *
+ * The list used to be a literal array and drifted every time the allowlist
+ * grew: by v1.30 eighteen allowlisted metrics had no strip entry, so a model
+ * writing "Your PHQ9_SCORE is elevated" leaked the raw enum straight into
+ * rendered text — the exact class this list exists to catch. Deriving it makes
+ * that drift impossible.
+ */
+const ORPHAN_ENUMS: readonly string[] = [
+  ...ALLOWED_CHART_TOKENS.map((token) => token.replace(/^metric:/, "")).filter(
+    (name) => !PROSE_SAFE_SINGLE_WORDS.has(name),
+  ),
+  ...EXTRA_ORPHAN_ENUMS,
+]
+  // Longest first so the alternation never matches a shorter enum that is a
+  // prefix of a longer one.
+  .sort((a, b) => b.length - a.length);
 
 // `\b` boundaries keep ordinary English prose untouched — "weight"
 // (lowercase) or "BMI" (no underscore) never match. The fixed list

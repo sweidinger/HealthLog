@@ -69,7 +69,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
       .catch(() => {
         /* swallow — 422 response is the contract */
       });
-    return returnAllZodIssues(parsed.error, 422);
+    return returnAllZodIssues(parsed.error, 422, {
+      errorCode: "mood.list.invalid",
+    });
   }
 
   const { mood, source, from, to, limit, offset, sortBy, sortDir } =
@@ -180,7 +182,9 @@ async function postMoodEntry(request: NextRequest) {
       .catch(() => {
         /* swallow — 422 response is the contract */
       });
-    return returnAllZodIssues(parsed.error, 422);
+    return returnAllZodIssues(parsed.error, 422, {
+      errorCode: "mood.create.invalid",
+    });
   }
 
   const {
@@ -330,7 +334,7 @@ async function postMoodEntry(request: NextRequest) {
     // Best-effort: a failure here must not surface as a 5xx to the
     // user, the rollup is a cache tier, not a write-path invariant.
     try {
-      await recomputeMoodBucketsForEntry(user.id, moodLoggedAt);
+      await recomputeMoodBucketsForEntry(user.id, date);
     } catch (rollupErr) {
       annotate({
         meta: {
@@ -396,7 +400,9 @@ async function postMoodEntry(request: NextRequest) {
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
     ) {
-      return apiError("A mood entry with this data already exists", 409);
+      return apiError("A mood entry with this data already exists", 409, {
+        errorCode: "mood.duplicate_timestamp",
+      });
     }
     throw err;
   }

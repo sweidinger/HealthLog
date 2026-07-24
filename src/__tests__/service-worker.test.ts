@@ -3,14 +3,16 @@
  *
  * `public/sw.js` is plain script (no module system), so the test boots it
  * inside a vm context with a fake CacheStorage and dispatches the captured
- * event listeners. Three behaviours are pinned:
+ * event listeners. Four behaviours are pinned:
  *
- *   1. the offline HTML fallback only serves a shell cached under the
+ *   1. cache write and trim failures never replace a successful network
+ *      response for API, navigation, or static-asset requests;
+ *   2. the offline HTML fallback only serves a shell cached under the
  *      CURRENT `CACHE_VERSION` cache names (a stale pre-update shell would
  *      reference a chunk graph that no longer exists);
- *   2. `activate` enables navigation preload and `networkFirst` consumes
+ *   3. `activate` enables navigation preload and `networkFirst` consumes
  *      `event.preloadResponse` when the browser supplies it;
- *   3. `trimCache` reads the key list once and deletes the excess prefix
+ *   4. `trimCache` reads the key list once and deletes the excess prefix
  *      in a single pass (the previous loop re-fetched all keys per delete).
  */
 import { describe, it, expect } from "vitest";
@@ -34,10 +36,15 @@ const FALLBACK_VERSION = /\/\* @sw-version-fallback \*\/\s*"(v[^"]*)"/.exec(
 )![1];
 const CURRENT_PAGE_CACHE = `healthlog-pages-${FALLBACK_VERSION}`;
 const CURRENT_STATIC_CACHE = `healthlog-static-${FALLBACK_VERSION}`;
+const CURRENT_DATA_CACHE = `healthlog-data-${FALLBACK_VERSION}`;
 
 class FakeCache {
   map = new Map<string, Response>();
   keysCalls = 0;
+  putError: Error | undefined;
+  putDelay: Promise<void> | undefined;
+  onPut: (() => void) | undefined;
+  keysError: Error | undefined;
 
   private keyOf(request: RequestInfo | URL): string {
     if (typeof request === "string") return new URL(request, ORIGIN).href;
@@ -50,6 +57,9 @@ class FakeCache {
   }
 
   async put(request: RequestInfo | URL, response: Response): Promise<void> {
+    this.onPut?.();
+    if (this.putDelay) await this.putDelay;
+    if (this.putError) throw this.putError;
     this.map.set(this.keyOf(request), response);
   }
 
@@ -61,6 +71,7 @@ class FakeCache {
 
   async keys(): Promise<Request[]> {
     this.keysCalls += 1;
+    if (this.keysError) throw this.keysError;
     return [...this.map.keys()].map((url) => new Request(url));
   }
 
@@ -102,12 +113,14 @@ interface SwHarness {
   listeners: Map<string, (event: unknown) => void>;
   cacheStorage: FakeCacheStorage;
   navPreload: { enabled: boolean; enable: () => Promise<void> };
+  lifetimePromises: Promise<unknown>[];
   context: Record<string, unknown>;
 }
 
 function bootServiceWorker(): SwHarness {
   const listeners = new Map<string, (event: unknown) => void>();
   const cacheStorage = new FakeCacheStorage();
+  const lifetimePromises: Promise<unknown>[] = [];
   const navPreload = {
     enabled: false,
     enable: async () => {
@@ -173,7 +186,7 @@ function bootServiceWorker(): SwHarness {
   };
   vm.createContext(context);
   vm.runInContext(SW_SOURCE, context);
-  return { listeners, cacheStorage, navPreload, context };
+  return { listeners, cacheStorage, navPreload, lifetimePromises, context };
 }
 
 async function dispatchActivate(harness: SwHarness): Promise<void> {
@@ -200,10 +213,249 @@ function dispatchNavigationFetch(
       captured = p;
     },
     preloadResponse,
+    waitUntil: (p: Promise<unknown>) => {
+      harness.lifetimePromises.push(p);
+    },
   });
   if (!captured) throw new Error("fetch handler did not respond");
   return captured;
 }
+
+function dispatchApiFetch(harness: SwHarness, path: string): Promise<Response> {
+  let captured: Promise<Response> | null = null;
+  harness.listeners.get("fetch")!({
+    request: new Request(`${ORIGIN}${path}`),
+    respondWith: (p: Promise<Response>) => {
+      captured = p;
+    },
+  });
+  if (!captured) throw new Error("fetch handler did not respond");
+  return captured;
+}
+
+function dispatchAssetFetch(
+  harness: SwHarness,
+  path: string,
+): Promise<Response> {
+  let captured: Promise<Response> | null = null;
+  harness.listeners.get("fetch")!({
+    request: new Request(`${ORIGIN}${path}`),
+    respondWith: (p: Promise<Response>) => {
+      captured = p;
+    },
+  });
+  if (!captured) throw new Error("fetch handler did not respond");
+  return captured;
+}
+
+/**
+ * Dispatch a top-level navigation the way the browser does when navigation
+ * preload is enabled — with a `preloadResponse` promise already in flight.
+ * Unlike the other dispatchers this one does NOT throw when the handler
+ * declines to respond: whether `respondWith` was called is exactly what the
+ * one-shot-auth-navigation test asserts (no `respondWith` ⇒ the browser also
+ * runs its own default fetch ⇒ the request is sent twice).
+ */
+function dispatchAuthNavigation(
+  harness: SwHarness,
+  path: string,
+  preloadResponse?: Promise<Response | undefined>,
+): { responded: boolean; response: Promise<Response> | null } {
+  let captured: Promise<Response> | null = null;
+  let responded = false;
+  harness.listeners.get("fetch")!({
+    request: new Request(`${ORIGIN}${path}`, {
+      headers: { accept: "text/html" },
+    }),
+    respondWith: (p: Promise<Response>) => {
+      responded = true;
+      captured = p;
+    },
+    preloadResponse,
+    waitUntil: (p: Promise<unknown>) => {
+      harness.lifetimePromises.push(p);
+    },
+  });
+  return { responded, response: captured };
+}
+
+describe("sw.js — one-shot auth navigations", () => {
+  it("settles an OIDC callback navigation itself, consuming the preload (single request)", async () => {
+    const harness = bootServiceWorker();
+    let fetchCalls = 0;
+    harness.context.fetch = async () => {
+      fetchCalls += 1;
+      return new Response("network callback");
+    };
+
+    const { responded, response } = dispatchAuthNavigation(
+      harness,
+      "/api/auth/oidc/callback?code=abc&state=xyz",
+      Promise.resolve(new Response("preloaded callback")),
+    );
+
+    // The SW settles the event, so the browser does NOT also run its own
+    // default navigation fetch — the single-use OIDC code reaches the server
+    // exactly once. (Without this the handler returned early with no
+    // `respondWith`, and the preload + default fetch redeemed the code twice.)
+    expect(responded).toBe(true);
+    // The already-in-flight preload response is the one used; no extra fetch.
+    expect(await (await response!).text()).toBe("preloaded callback");
+    expect(fetchCalls).toBe(0);
+  });
+
+  it("fetches an auth navigation exactly once when no preload is supplied", async () => {
+    const harness = bootServiceWorker();
+    let fetchCalls = 0;
+    harness.context.fetch = async () => {
+      fetchCalls += 1;
+      return new Response("network callback");
+    };
+
+    const { responded, response } = dispatchAuthNavigation(
+      harness,
+      "/api/auth/oidc/login?next=%2F",
+    );
+
+    expect(responded).toBe(true);
+    expect(await (await response!).text()).toBe("network callback");
+    expect(fetchCalls).toBe(1);
+  });
+
+  it("never caches an auth navigation response", async () => {
+    const harness = bootServiceWorker();
+    harness.context.fetch = async () => new Response("network callback");
+
+    const url = "/api/auth/oidc/callback?code=abc&state=xyz";
+    await dispatchAuthNavigation(harness, url).response;
+    await Promise.all(harness.lifetimePromises);
+
+    const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    expect(await pages.match(`${ORIGIN}${url}`)).toBeUndefined();
+    const data = await harness.cacheStorage.open(CURRENT_DATA_CACHE);
+    expect(await data.match(`${ORIGIN}${url}`)).toBeUndefined();
+  });
+});
+
+describe("sw.js — best-effort cache writes", () => {
+  it("returns the original successful API response when cache.put rejects", async () => {
+    const harness = bootServiceWorker();
+    const dataCache = await harness.cacheStorage.open(CURRENT_DATA_CACHE);
+    dataCache.putError = new Error("CacheStorage quota exceeded");
+    const networkResponse = new Response(
+      JSON.stringify({ data: { weightKg: 80 }, error: null }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Network-Response": "original",
+        },
+      },
+    );
+    harness.context.fetch = async () => networkResponse;
+
+    const response = await dispatchApiFetch(
+      harness,
+      "/api/measurements?type=WEIGHT",
+    );
+
+    expect(response).toBe(networkResponse);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("X-Network-Response")).toBe("original");
+    expect(await response.text()).toBe(
+      JSON.stringify({ data: { weightKg: 80 }, error: null }),
+    );
+  });
+
+  it("returns the original successful navigation response when cache.put rejects", async () => {
+    const harness = bootServiceWorker();
+    const pageCache = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    pageCache.putError = new Error("CacheStorage quota exceeded");
+    const networkResponse = new Response("network shell", {
+      headers: { "X-Network-Response": "original" },
+    });
+    harness.context.fetch = async () => networkResponse;
+
+    const response = await dispatchNavigationFetch(harness, "/measurements");
+
+    expect(response).toBe(networkResponse);
+    expect(response.headers.get("X-Network-Response")).toBe("original");
+    expect(await response.text()).toBe("network shell");
+  });
+
+  it("does not delay a successful navigation response while cache.put is pending", async () => {
+    const harness = bootServiceWorker();
+    const pageCache = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    let releasePut!: () => void;
+    pageCache.putDelay = new Promise<void>((resolve) => {
+      releasePut = resolve;
+    });
+    let notifyPutStarted!: () => void;
+    const putStarted = new Promise<void>((resolve) => {
+      notifyPutStarted = resolve;
+    });
+    pageCache.onPut = notifyPutStarted;
+    const networkResponse = new Response("network shell");
+    harness.context.fetch = async () => networkResponse;
+
+    const responsePromise = dispatchNavigationFetch(harness, "/measurements");
+    await putStarted;
+
+    let settledResponse: Response | undefined;
+    void responsePromise.then((response) => {
+      settledResponse = response;
+    });
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(settledResponse).toBe(networkResponse);
+      expect(harness.lifetimePromises).toHaveLength(1);
+    } finally {
+      releasePut();
+      await Promise.all(harness.lifetimePromises);
+    }
+
+    expect(await pageCache.match(`${ORIGIN}/measurements`)).toBeDefined();
+  });
+
+  it("returns the original successful static response when cache.put rejects", async () => {
+    const harness = bootServiceWorker();
+    const staticCache = await harness.cacheStorage.open(CURRENT_STATIC_CACHE);
+    staticCache.putError = new Error("CacheStorage quota exceeded");
+    const networkResponse = new Response("immutable chunk", {
+      headers: { "X-Network-Response": "original" },
+    });
+    harness.context.fetch = async () => networkResponse;
+
+    const response = await dispatchAssetFetch(
+      harness,
+      "/_next/static/chunks/app.js",
+    );
+
+    expect(response).toBe(networkResponse);
+    expect(response.headers.get("X-Network-Response")).toBe("original");
+    expect(await response.text()).toBe("immutable chunk");
+  });
+
+  it("returns the original successful API response when cache trimming rejects", async () => {
+    const harness = bootServiceWorker();
+    const dataCache = await harness.cacheStorage.open(CURRENT_DATA_CACHE);
+    dataCache.keysError = new Error("CacheStorage keys unavailable");
+    const networkResponse = new Response(
+      JSON.stringify({ data: { weightKg: 80 }, error: null }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+    harness.context.fetch = async () => networkResponse;
+
+    const response = await dispatchApiFetch(harness, "/api/measurements");
+
+    expect(response).toBe(networkResponse);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(
+      JSON.stringify({ data: { weightKg: 80 }, error: null }),
+    );
+    expect(dataCache.keysCalls).toBe(1);
+  });
+});
 
 describe("sw.js — activate", () => {
   it("drops stale-version caches and enables navigation preload", async () => {

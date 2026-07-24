@@ -217,6 +217,18 @@ describe("token exchange + refresh", () => {
       classification: "reauth_required",
     });
   });
+
+  // A 2xx carrying an empty / non-JSON body used to be cast straight to the
+  // token type, so callers dereferenced null and got an unclassified
+  // TypeError. It must surface as a classified transient integration error.
+  it("classifies a 2xx with an empty body instead of casting null", async () => {
+    installFetchMock([{ status: 200, body: null }]);
+    await expect(exchangeCode("code", "v", CREDS)).rejects.toMatchObject({
+      name: "FitbitApiError",
+      classification: "transient",
+      reason: "empty_token_body",
+    });
+  });
 });
 
 describe("fetchProfile + resolveFitbitUserId", () => {

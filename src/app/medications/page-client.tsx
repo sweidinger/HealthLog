@@ -198,12 +198,27 @@ export default function MedicationsPageClient() {
   const { layout, isLayoutLoading } = useMedicationListLayout(isAuthenticated);
 
   useEffect(() => {
-    if (shouldOpenFromUrl) {
-      // Drop the query param so a refresh after closing the dialog
-      // doesn't keep reopening it.
-      router.replace("/medications");
-    }
-  }, [shouldOpenFromUrl, router]);
+    if (!shouldOpenFromUrl) return;
+
+    // Child effects may run before the App Router installs its native-history
+    // integration, while the responsive sheet also settles its first client
+    // layout. Wait until the following painted frame so replaceState preserves
+    // Next's internals and synchronizes useSearchParams without starting a
+    // router navigation that can remount the open wizard and discard fields.
+    let cleanupFrame: number | undefined;
+    const layoutFrame = window.requestAnimationFrame(() => {
+      cleanupFrame = window.requestAnimationFrame(() => {
+        window.history.replaceState(null, "", "/medications");
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(layoutFrame);
+      if (cleanupFrame !== undefined) {
+        window.cancelAnimationFrame(cleanupFrame);
+      }
+    };
+  }, [shouldOpenFromUrl]);
 
   const {
     data: medications,
@@ -622,11 +637,19 @@ export default function MedicationsPageClient() {
             id: m.id,
             name: m.name,
             dose: m.dose,
+            active: m.active,
+            lastTakenAt: m.lastTakenAt,
+            todayEventCount: m.todayEventCount ?? 0,
+            nextDueAt: m.nextDueAt,
+            nextDueOverdue: m.nextDueOverdue,
             schedules: m.schedules.map((s) => ({
               windowStart: s.windowStart,
+              windowEnd: s.windowEnd,
+              daysOfWeek: s.daysOfWeek,
               label: s.label,
               dose: s.dose,
               timesOfDay: s.timesOfDay,
+              doseWindows: s.doseWindows,
             })),
           }))}
         />

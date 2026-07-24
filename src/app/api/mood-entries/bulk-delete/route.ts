@@ -75,7 +75,7 @@ async function postBulkDelete(request: NextRequest): Promise<Response> {
   // it is from the mutation below — no existence leak.
   const affected = await prisma.moodEntry.findMany({
     where: { id: { in: ids }, userId: user.id, deletedAt: null },
-    select: { moodLoggedAt: true },
+    select: { date: true },
   });
 
   // Soft-delete (tombstone) in one statement. The `where` pins `userId`
@@ -101,21 +101,19 @@ async function postBulkDelete(request: NextRequest): Promise<Response> {
     // v1.4.34 IW-G — bust per-user mood + achievements + analytics caches.
     invalidateUserMood(user.id);
 
-    // v1.4.39 W-MOOD — collapse the deleted rows to the unique
-    // `(user, dayStart)` set BEFORE recomputing so a bulk delete spanning
-    // one day fires one recompute, not one per row. Best-effort — a
-    // populator hiccup never fails the user's delete.
-    const touchedDayStarts = new Set<number>();
+    // v1.32.12 — collapse the deleted rows to the unique set of `date`
+    // labels BEFORE recomputing so a bulk delete spanning one local day
+    // fires one recompute, not one per row, and keys byte-identically to
+    // the stored `MoodEntry.date`. Best-effort — a populator hiccup
+    // never fails the user's delete.
+    const touchedLabels = new Set<string>();
     for (const row of affected) {
-      const d = row.moodLoggedAt;
-      touchedDayStarts.add(
-        Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-      );
+      touchedLabels.add(row.date);
     }
     try {
       await Promise.all(
-        Array.from(touchedDayStarts).map((t) =>
-          recomputeMoodBucketsForEntry(user.id, new Date(t)),
+        Array.from(touchedLabels).map((label) =>
+          recomputeMoodBucketsForEntry(user.id, label),
         ),
       );
     } catch (rollupErr) {

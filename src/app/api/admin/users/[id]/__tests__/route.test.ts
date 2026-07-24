@@ -40,6 +40,7 @@ import { requireAdmin, HttpError } from "@/lib/api-handler";
 import { auditLog } from "@/lib/auth/audit";
 
 const ADMIN_CTX = {
+  authMethod: "cookie" as const,
   session: { id: "s1", expiresAt: new Date(Date.now() + 3_600_000) },
   user: {
     id: "admin-1",

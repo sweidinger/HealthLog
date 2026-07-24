@@ -13,6 +13,7 @@ import {
   getScoreForMood,
 } from "@/lib/validations/moodlog";
 import { NextRequest } from "next/server";
+import { Prisma } from "@/generated/prisma/client";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
@@ -75,7 +76,9 @@ export const PUT = apiHandler(
     });
 
     if (!existing || existing.userId !== user.id) {
-      return apiError("Mood entry not found", 404);
+      return apiError("Mood entry not found", 404, {
+        errorCode: "mood.not_found",
+      });
     }
 
     const { data: body, error: jsonError } = await safeJson(request, {
@@ -108,7 +111,9 @@ export const PUT = apiHandler(
         .catch(() => {
           /* swallow — 422 response is the contract */
         });
-      return returnAllZodIssues(parsed.error, 422);
+      return returnAllZodIssues(parsed.error, 422, {
+        errorCode: "mood.update.invalid",
+      });
     }
 
     const data = parsed.data;
@@ -209,6 +214,14 @@ export const PUT = apiHandler(
           errorCode: "mood.ratedFactor.out_of_range",
         });
       }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return apiError("A mood entry with this data already exists", 409, {
+          errorCode: "mood.duplicate_timestamp",
+        });
+      }
       throw error;
     }
     const { entry, persistedTagKeys, persistedRatedFactors } =
@@ -234,13 +247,16 @@ export const PUT = apiHandler(
     // (user, day) tuples) so we fan them out in parallel. Best-
     // effort: rollup failures must not surface as 5xx.
     try {
-      const targets = new Set<number>([entry.moodLoggedAt.getTime()]);
-      if (existing.moodLoggedAt.getTime() !== entry.moodLoggedAt.getTime()) {
-        targets.add(existing.moodLoggedAt.getTime());
+      // v1.32.12 — key on the `date` label. When the update moved the
+      // entry across a local-day boundary its `date` changed, so both
+      // the old and new labels need a recompute (independent buckets).
+      const targets = new Set<string>([entry.date]);
+      if (existing.date !== entry.date) {
+        targets.add(existing.date);
       }
       await Promise.all(
-        Array.from(targets).map((t) =>
-          recomputeMoodBucketsForEntry(user.id, new Date(t)),
+        Array.from(targets).map((label) =>
+          recomputeMoodBucketsForEntry(user.id, label),
         ),
       );
     } catch (rollupErr) {
@@ -311,7 +327,7 @@ export const DELETE = apiHandler(
     // deleted entry's bucket; the recompute helper handles the
     // "now-empty day → drop the rollup row" branch internally.
     try {
-      await recomputeMoodBucketsForEntry(user.id, existing.moodLoggedAt);
+      await recomputeMoodBucketsForEntry(user.id, existing.date);
     } catch (rollupErr) {
       annotate({
         meta: {

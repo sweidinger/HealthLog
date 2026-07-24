@@ -13,6 +13,7 @@ import {
   PRESERVED_LAYOUT_FIELDS,
   layoutNeedsPreserveRead,
   mergePreservedLayoutFields,
+  buildRingMutationPayload,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 
@@ -1006,20 +1007,24 @@ describe("layout field merge disposition", () => {
     }
   });
 
-  it("preserves comparisonBaseline alongside the other client-owned fields", () => {
+  it("preserves comparisonBaseline and widgets alongside the other client-owned fields", () => {
     // The regression itself: `comparisonBaseline` must be in the preserve
-    // set, not merely present in the disposition map.
+    // set, not merely present in the disposition map. `widgets` joined it in
+    // v1.32.1 (issue #581) — see the dedicated describe block below.
     expect([...PRESERVED_LAYOUT_FIELDS].sort()).toEqual([
       "chartOverlayPrefs",
       "comparisonBaseline",
       "heroRingOrder",
       "selectedScoreRings",
+      "widgets",
     ]);
   });
 
-  it("replaces the fields the request itself owns", () => {
+  it("replaces only the field every request must state", () => {
+    // `version` is the sole `"replace"` field left once `widgets` joined
+    // the preserve set — a PUT that omits it is rejected by Zod, so there
+    // is never a stored value to fall back to.
     expect(LAYOUT_FIELD_MERGE_DISPOSITION.version).toBe("replace");
-    expect(LAYOUT_FIELD_MERGE_DISPOSITION.widgets).toBe("replace");
   });
 
   it("skips the stored-layout read when the client sent every preserved field", () => {
@@ -1084,5 +1089,53 @@ describe("layout field merge disposition", () => {
     };
     const merged = mergePreservedLayoutFields(incoming, stored);
     expect(merged.widgets).toEqual(fullyPopulatedLayout.widgets);
+  });
+});
+
+/**
+ * v1.32.1 — regression for issue #581 (dashboard layout race). The
+ * Settings page's instant score-ring PUT used to resend the FULL layout,
+ * built from the `remote` query-cache snapshot
+ * (`{...remote, selectedScoreRings, heroRingOrder}`). That snapshot can be
+ * stale relative to an in-flight or already-committed tile/chart Save;
+ * because `widgets` was a `"replace"`-disposition field on the server, an
+ * explicitly-present stale copy always won on write and silently reverted
+ * the just-saved layout.
+ *
+ * `buildRingMutationPayload` is the exact function
+ * `ringMutation.mutationFn` (in `dashboard-layout-section.tsx`) calls to
+ * build its request body. Pinning its shape here — no `widgets`, no
+ * `comparisonBaseline`, no `chartOverlayPrefs` — is what makes the race
+ * structurally impossible: a payload that never carries those fields
+ * cannot overwrite them no matter which request lands last. See
+ * `src/app/api/dashboard/widgets/__tests__/route.test.ts` for the
+ * server-side half — a PUT shaped like this preserves whatever layout is
+ * CURRENTLY stored, not a client-held snapshot.
+ */
+describe("buildRingMutationPayload — instant score-ring PUT payload (regression #581)", () => {
+  it("carries only version + the two ring fields", () => {
+    const payload = buildRingMutationPayload({
+      selectedScoreRings: ["READINESS"],
+      heroRingOrder: ["HEALTH_SCORE", "READINESS"],
+    });
+    expect(Object.keys(payload).sort()).toEqual([
+      "heroRingOrder",
+      "selectedScoreRings",
+      "version",
+    ]);
+    expect(payload.version).toBe(1);
+    expect(payload.selectedScoreRings).toEqual(["READINESS"]);
+    expect(payload.heroRingOrder).toEqual(["HEALTH_SCORE", "READINESS"]);
+  });
+
+  it("never includes widgets, comparisonBaseline, or chartOverlayPrefs — the fields a concurrent Save owns", () => {
+    const payload = buildRingMutationPayload({
+      selectedScoreRings: ["READINESS"],
+      heroRingOrder: ["HEALTH_SCORE", "READINESS"],
+    });
+    expect(payload.widgets).toBeUndefined();
+    expect(payload.comparisonBaseline).toBeUndefined();
+    expect(payload.chartOverlayPrefs).toBeUndefined();
+    expect("widgets" in payload).toBe(false);
   });
 });

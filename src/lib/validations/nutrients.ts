@@ -51,7 +51,7 @@ export const nutrientBatchSchema = z
   .meta({
     id: "NutrientBatchRequest",
     description:
-      "Bulk day-total upsert, max 500 entries. Upsert key is (day, nutrient); a re-post replaces the stored total (last-writer-wins day-total contract).",
+      "Bulk day-total upsert, max 500 entries. Upsert key is the composite primary key (userId, day, nutrient, source); this route always writes the APPLE_HEALTH source row, so a manual water entry is never clobbered. A re-post replaces the stored total (last-writer-wins day-total contract).",
   });
 
 /** Per-entry outcome — a re-post is by definition an update, never a duplicate. */

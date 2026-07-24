@@ -46,6 +46,7 @@ import {
   occurrencesBetween,
 } from "@/lib/medications/scheduling/recurrence";
 import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
+import { hhmmToMinutesOrNull } from "@/lib/medications/scheduling/hhmm";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { startOfLocalDayInTz } from "@/lib/tz/local-day";
 
@@ -325,13 +326,6 @@ function applyTime(day: Date, hhmm: string, tz: string | undefined): Date {
 }
 
 /** Parse "HH:mm" to minutes-since-midnight, or null when malformed. */
-function hhmmToMinutes(hhmm: string): number | null {
-  const [hStr, mStr] = hhmm.split(":");
-  const h = Number(hStr);
-  const m = Number(mStr);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-  return h * 60 + m;
-}
 
 /** Snap a Date down to the user-local midnight. */
 export function startOfLocalDay(d: Date, tz: string | undefined): Date {
@@ -504,8 +498,8 @@ export function expandScheduleSlots(
       // the windowStart..windowEnd span so the pairing radius and the
       // chart cell keep their existing shape; an overnight window pushes
       // the end to the next day.
-      const startMin = hhmmToMinutes(schedule.windowStart);
-      const endMin = hhmmToMinutes(schedule.windowEnd);
+      const startMin = hhmmToMinutesOrNull(schedule.windowStart);
+      const endMin = hhmmToMinutesOrNull(schedule.windowEnd);
       let spanMs = DAY_MS;
       if (startMin !== null && endMin !== null) {
         let span = endMin - startMin;

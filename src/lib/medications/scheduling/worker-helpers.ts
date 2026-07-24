@@ -23,6 +23,7 @@ import {
   type ScheduleType,
   occurrencesBetween,
 } from "@/lib/medications/scheduling/recurrence";
+import { hhmmToMinutes } from "@/lib/medications/scheduling/hhmm";
 
 /**
  * Minimal Prisma-shape projection used by the worker. Mirrors the
@@ -120,11 +121,6 @@ export function normaliseDoseWindows(raw: unknown): DoseWindowEntry[] | null {
     out.push({ timeOfDay, start, end });
   }
   return out.length > 0 ? out : null;
-}
-
-function hhmmToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":");
-  return Number(h) * 60 + Number(m);
 }
 
 /** Build the canonical engine context from worker-loop state. */

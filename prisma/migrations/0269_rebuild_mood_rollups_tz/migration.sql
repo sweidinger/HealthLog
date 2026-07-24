@@ -1,0 +1,18 @@
+-- v1.32.12 — mood rollup timezone re-key.
+--
+-- The mood rollup writer used to bucket on the UTC truncation of
+-- `mood_logged_at`, so a mood logged late in the evening (or after
+-- midnight) in a non-UTC timezone landed on the wrong calendar day.
+-- The writer now keys every bucket on the canonical per-row
+-- `mood_entries."date"` label instead, byte-identical to the live
+-- fallback and to the day the user logged the mood in their own zone.
+--
+-- Data-only migration: no schema change. `MoodEntryRollup` is a derived
+-- cache, fully reconstructible from `mood_entries` at any time. Emptying
+-- the table drops every stale UTC-keyed row; the app then serves correct
+-- data through the live `date`-keyed fallback until the rollups are
+-- rebuilt, and the boot-time full-backfill worker
+-- (`enqueueBootTimeMoodRollupBackfill` → delete-then-refold) re-mints
+-- every mood-owning user's buckets under the new keying. No mood data is
+-- touched.
+DELETE FROM "mood_entry_rollups";

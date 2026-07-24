@@ -6,7 +6,11 @@ import { checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
 import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
-import { createSession } from "@/lib/auth/session";
+import {
+  createSession,
+  validateSessionFromCookieValue,
+  SESSION_COOKIE_NAME,
+} from "@/lib/auth/session";
 import { recordSignInDevice } from "@/lib/auth/login-alert";
 import {
   deriveUniqueUsername,
@@ -195,7 +199,39 @@ export const GET = apiHandler(async (req: NextRequest) => {
   // and there is nothing safe to hand the app (spec §1 web-fallback).
   if (!code || !state) return errorRedirect("oidc_state");
 
-  if (!stored) return errorRedirect("oidc_state");
+  if (!stored) {
+    // Defence-in-depth idempotency for a duplicated callback. The single-use
+    // state cookie is set with `path: "/api/auth/oidc"` and DELETED by the
+    // first callback the moment it succeeds. A second callback for the same
+    // sign-in (a client/proxy retry, a double navigation, or the
+    // service-worker double-request this release also fixes) therefore arrives
+    // with the state cookie already gone — `stored` is null — and, because the
+    // first callback set the session, it carries a live session cookie.
+    // Redeeming the now-consumed authorization code again fails at the IdP and
+    // surfaces `?error=oidc_failed` on a sign-in that actually succeeded. So
+    // when a VALIDATED session is present, treat this as a duplicate of a
+    // completed login and send the user into the app instead of erroring.
+    //
+    // Fail-closed is preserved for the real attack case: the code is NEVER
+    // exchanged on this branch, and the session is resolved against the
+    // database + its expiry (not merely "a cookie is present"). A forged,
+    // replayed, or expired state from a caller with no valid session gets the
+    // unchanged `oidc_state` error; a caller who already holds their own valid
+    // session gains nothing here but a redirect to a page they could already
+    // reach — no code redemption, no session mint, no identity change.
+    const existingSession = await validateSessionFromCookieValue(
+      req.cookies.get(SESSION_COOKIE_NAME)?.value,
+    );
+    if (existingSession) {
+      annotate({ meta: { reason: "duplicate_callback_authenticated" } });
+      const response = NextResponse.redirect(oidcAppUrl("/"));
+      // The state cookie is already consumed; delete defensively so a stray
+      // blob can never outlive this response.
+      deleteStateCookie(response);
+      return response;
+    }
+    return errorRedirect("oidc_state");
+  }
 
   // CSRF check — timing-safe, byte-for-byte, mirroring the Withings callback.
   if (
